@@ -117,6 +117,28 @@ serve(async (req) => {
     const { jobId, startIndex } = body;
     const requestedStartIndex = Number.isInteger(startIndex) && startIndex >= 0 ? startIndex : undefined;
 
+    // Workspace membership check for new jobs
+    if (!jobId && body.workspaceId) {
+      const adminClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {});
+      const { data: memberCheck } = await adminClient
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", body.workspaceId)
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .maybeSingle();
+      // Hybrid: allow if member with editor+ OR legacy owner
+      if (memberCheck) {
+        const rank = { owner: 4, admin: 3, editor: 2, viewer: 1 }[memberCheck.role] || 0;
+        if (rank < 2) {
+          return new Response(JSON.stringify({ error: "Sem permissão para otimizar neste workspace (mínimo: editor)" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+      // If no memberCheck, fallback to legacy RLS (backward compat)
+    }
+
     let job: any;
 
     if (jobId) {
