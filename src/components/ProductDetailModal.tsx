@@ -15,6 +15,8 @@ import { VariationsPanel } from "@/components/VariationsPanel";
 import { QualityGatePanel } from "@/components/QualityGatePanel";
 import { PublishBlockerAlert } from "@/components/PublishBlockerAlert";
 import { WorkflowStateBadge } from "@/components/WorkflowStateBadge";
+import { ValidationPanel } from "@/components/ValidationPanel";
+import { TrustScoreCard } from "@/components/TrustScoreCard";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/hooks/useProducts";
 import { useAllProductIds } from "@/hooks/useProducts";
