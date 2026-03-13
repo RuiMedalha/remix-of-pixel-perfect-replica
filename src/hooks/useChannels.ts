@@ -24,7 +24,7 @@ export function useChannels() {
 export function useCreateChannel() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { workspace_id: string; channel_name: string; channel_type: string; config?: any }) => {
+    mutationFn: async (params: { workspace_id: string; channel_name: string; channel_type: "woocommerce" | "shopify" | "amazon" | "google_merchant" | "csv_export" | "api_endpoint" | "marketplace"; config?: any }) => {
       const { error } = await supabase.from("channels").insert(params);
       if (error) throw error;
     },
