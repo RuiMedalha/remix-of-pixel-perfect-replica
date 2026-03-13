@@ -22,6 +22,7 @@ const navItems = [
   { to: "/categorias", icon: FolderTree, label: "Categorias" },
   { to: "/importar-woo", icon: ShoppingCart, label: "Importar WooCommerce" },
   { to: "/imagens", icon: ImageIcon, label: "Imagens" },
+  { to: "/ingestao", icon: Database, label: "Ingestion Hub" },
 ];
 
 const managementItems = [
