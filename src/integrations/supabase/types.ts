@@ -1491,6 +1491,103 @@ export type Database = {
           },
         ]
       }
+      workspace_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          status: Database["public"]["Enums"]["workspace_invitation_status"]
+          token: string
+          workspace_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          status?: Database["public"]["Enums"]["workspace_invitation_status"]
+          token: string
+          workspace_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          status?: Database["public"]["Enums"]["workspace_invitation_status"]
+          token?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_invitations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_members: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          role: Database["public"]["Enums"]["workspace_role"]
+          status: Database["public"]["Enums"]["workspace_member_status"]
+          updated_at: string
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["workspace_role"]
+          status?: Database["public"]["Enums"]["workspace_member_status"]
+          updated_at?: string
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["workspace_role"]
+          status?: Database["public"]["Enums"]["workspace_member_status"]
+          updated_at?: string
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_notification_settings: {
         Row: {
           created_at: string
@@ -1697,28 +1794,34 @@ export type Database = {
       workspaces: {
         Row: {
           created_at: string
+          default_language: string | null
           description: string | null
           has_variable_products: boolean
           id: string
           name: string
+          plan_tier: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          default_language?: string | null
           description?: string | null
           has_variable_products?: boolean
           id?: string
           name: string
+          plan_tier?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          default_language?: string | null
           description?: string | null
           has_variable_products?: boolean
           id?: string
           name?: string
+          plan_tier?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1729,6 +1832,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_edit_workspace_content: {
+        Args: { _workspace_id: string }
+        Returns: boolean
+      }
+      can_manage_workspace: {
+        Args: { _workspace_id: string }
+        Returns: boolean
+      }
+      can_publish_in_workspace: {
+        Args: { _workspace_id: string }
+        Returns: boolean
+      }
       get_product_filter_options: {
         Args: { _workspace_id: string }
         Returns: {
@@ -1797,10 +1912,28 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      get_workspace_role: {
+        Args: { _workspace_id: string }
+        Returns: Database["public"]["Enums"]["workspace_role"]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+        }
+        Returns: boolean
+      }
+      has_workspace_access: {
+        Args: {
+          _min_role: Database["public"]["Enums"]["workspace_role"]
+          _workspace_id: string
+        }
+        Returns: boolean
+      }
+      has_workspace_access_hybrid: {
+        Args: {
+          _min_role: Database["public"]["Enums"]["workspace_role"]
+          _workspace_id: string
         }
         Returns: boolean
       }
@@ -1813,6 +1946,7 @@ export type Database = {
         Returns: undefined
       }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_workspace_owner: { Args: { _workspace_id: string }; Returns: boolean }
       search_knowledge:
         | {
             Args: { _limit?: number; _query: string }
@@ -1849,6 +1983,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      workspace_role_rank: {
+        Args: { _role: Database["public"]["Enums"]["workspace_role"] }
+        Returns: number
+      }
     }
     Enums: {
       activity_action:
@@ -1910,6 +2048,13 @@ export type Database = {
         | "manual"
         | "validation"
         | "missing_data"
+      workspace_invitation_status:
+        | "pending"
+        | "accepted"
+        | "expired"
+        | "revoked"
+      workspace_member_status: "pending" | "active" | "revoked"
+      workspace_role: "owner" | "admin" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2103,6 +2248,14 @@ export const Constants = {
         "validation",
         "missing_data",
       ],
+      workspace_invitation_status: [
+        "pending",
+        "accepted",
+        "expired",
+        "revoked",
+      ],
+      workspace_member_status: ["pending", "active", "revoked"],
+      workspace_role: ["owner", "admin", "editor", "viewer"],
     },
   },
 } as const
