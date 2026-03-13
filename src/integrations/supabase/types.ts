@@ -600,6 +600,44 @@ export type Database = {
           },
         ]
       }
+      brain_decision_policies: {
+        Row: {
+          allowed_actions: Json | null
+          conditions: Json | null
+          created_at: string | null
+          id: string
+          policy_name: string
+          requires_human_review: boolean | null
+          workspace_id: string
+        }
+        Insert: {
+          allowed_actions?: Json | null
+          conditions?: Json | null
+          created_at?: string | null
+          id?: string
+          policy_name: string
+          requires_human_review?: boolean | null
+          workspace_id: string
+        }
+        Update: {
+          allowed_actions?: Json | null
+          conditions?: Json | null
+          created_at?: string | null
+          id?: string
+          policy_name?: string
+          requires_human_review?: boolean | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brain_decision_policies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bundle_suggestions: {
         Row: {
           accepted: boolean | null
@@ -1184,6 +1222,150 @@ export type Database = {
           },
         ]
       }
+      catalog_decision_signals: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"] | null
+          id: string
+          payload: Json | null
+          severity: number | null
+          signal_type: Database["public"]["Enums"]["decision_signal_type"]
+          source: string | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          id?: string
+          payload?: Json | null
+          severity?: number | null
+          signal_type: Database["public"]["Enums"]["decision_signal_type"]
+          source?: string | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          id?: string
+          payload?: Json | null
+          severity?: number | null
+          signal_type?: Database["public"]["Enums"]["decision_signal_type"]
+          source?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_decision_signals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_decisions: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          decision_context: Json | null
+          decision_type: string | null
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"] | null
+          id: string
+          impact_score: number | null
+          priority_level:
+            | Database["public"]["Enums"]["decision_priority_level"]
+            | null
+          priority_score: number | null
+          status: Database["public"]["Enums"]["decision_status"] | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          decision_context?: Json | null
+          decision_type?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          id?: string
+          impact_score?: number | null
+          priority_level?:
+            | Database["public"]["Enums"]["decision_priority_level"]
+            | null
+          priority_score?: number | null
+          status?: Database["public"]["Enums"]["decision_status"] | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          decision_context?: Json | null
+          decision_type?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          id?: string
+          impact_score?: number | null
+          priority_level?:
+            | Database["public"]["Enums"]["decision_priority_level"]
+            | null
+          priority_score?: number | null
+          status?: Database["public"]["Enums"]["decision_status"] | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_decisions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_economic_models: {
+        Row: {
+          created_at: string | null
+          formula: string | null
+          id: string
+          model_name: string
+          variables: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          formula?: string | null
+          id?: string
+          model_name: string
+          variables?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          formula?: string | null
+          id?: string
+          model_name?: string
+          variables?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_economic_models_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_gap_analysis: {
         Row: {
           category_id: string | null
@@ -1221,6 +1403,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "catalog_gap_analysis_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_impact_evaluations: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"] | null
+          id: string
+          impact_dimension: Database["public"]["Enums"]["impact_dimension"]
+          impact_score: number | null
+          metadata: Json | null
+          signal_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          id?: string
+          impact_dimension: Database["public"]["Enums"]["impact_dimension"]
+          impact_score?: number | null
+          metadata?: Json | null
+          signal_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          id?: string
+          impact_dimension?: Database["public"]["Enums"]["impact_dimension"]
+          impact_score?: number | null
+          metadata?: Json | null
+          signal_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_impact_evaluations_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_decision_signals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_impact_evaluations_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -2083,6 +2319,38 @@ export type Database = {
           },
         ]
       }
+      decision_explanations: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          decision_id: string
+          explanation: Json | null
+          id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          decision_id: string
+          explanation?: Json | null
+          id?: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          decision_id?: string
+          explanation?: Json | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_explanations_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           context: Json | null
@@ -2577,6 +2845,41 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      impact_models: {
+        Row: {
+          created_at: string | null
+          dimension: Database["public"]["Enums"]["impact_dimension"]
+          id: string
+          model_name: string
+          weight: number | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          dimension: Database["public"]["Enums"]["impact_dimension"]
+          id?: string
+          model_name: string
+          weight?: number | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          dimension?: Database["public"]["Enums"]["impact_dimension"]
+          id?: string
+          model_name?: string
+          weight?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "impact_models_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -6328,6 +6631,27 @@ export type Database = {
         | "unit_fix"
         | "grouping_fix"
         | "image_fix"
+      decision_priority_level: "low" | "medium" | "high" | "critical"
+      decision_signal_type:
+        | "quality_issue"
+        | "seo_opportunity"
+        | "channel_rejection"
+        | "missing_translation"
+        | "image_quality_problem"
+        | "bundle_opportunity"
+        | "upsell_opportunity"
+        | "supplier_pattern"
+        | "pricing_opportunity"
+        | "data_inconsistency"
+        | "feed_error"
+        | "schema_mismatch"
+        | "duplicate_product"
+      decision_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "executed"
+        | "expired"
       extraction_decision_type:
         | "category_assignment"
         | "schema_assignment"
@@ -6388,6 +6712,13 @@ export type Database = {
         | "uploading"
         | "done"
         | "error"
+      impact_dimension:
+        | "revenue"
+        | "conversion"
+        | "seo_visibility"
+        | "channel_compliance"
+        | "catalog_quality"
+        | "automation_efficiency"
       ingestion_action_type:
         | "insert"
         | "update"
@@ -6935,6 +7266,29 @@ export const Constants = {
         "grouping_fix",
         "image_fix",
       ],
+      decision_priority_level: ["low", "medium", "high", "critical"],
+      decision_signal_type: [
+        "quality_issue",
+        "seo_opportunity",
+        "channel_rejection",
+        "missing_translation",
+        "image_quality_problem",
+        "bundle_opportunity",
+        "upsell_opportunity",
+        "supplier_pattern",
+        "pricing_opportunity",
+        "data_inconsistency",
+        "feed_error",
+        "schema_mismatch",
+        "duplicate_product",
+      ],
+      decision_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "executed",
+        "expired",
+      ],
       extraction_decision_type: [
         "category_assignment",
         "schema_assignment",
@@ -7002,6 +7356,14 @@ export const Constants = {
         "uploading",
         "done",
         "error",
+      ],
+      impact_dimension: [
+        "revenue",
+        "conversion",
+        "seo_visibility",
+        "channel_compliance",
+        "catalog_quality",
+        "automation_efficiency",
       ],
       ingestion_action_type: ["insert", "update", "skip", "merge", "duplicate"],
       ingestion_item_status: [

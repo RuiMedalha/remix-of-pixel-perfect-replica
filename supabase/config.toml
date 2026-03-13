@@ -95,3 +95,21 @@ verify_jwt = false
 
 [functions.catalog-brain-learn]
 verify_jwt = false
+
+[functions.catalog-brain-detect-signals]
+verify_jwt = false
+
+[functions.catalog-brain-evaluate-impact]
+verify_jwt = false
+
+[functions.catalog-brain-generate-decisions]
+verify_jwt = false
+
+[functions.catalog-brain-prioritize-decisions]
+verify_jwt = false
+
+[functions.catalog-brain-explain-decision]
+verify_jwt = false
+
+[functions.catalog-brain-create-plan-from-decision]
+verify_jwt = false
