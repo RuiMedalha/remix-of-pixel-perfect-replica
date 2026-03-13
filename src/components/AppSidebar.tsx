@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database, Library, FileText, Brain, Languages, Radio, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database, Library, FileText, Brain, Languages, Radio, TrendingUp, Bot } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +29,7 @@ const navItems = [
   { to: "/traducoes", icon: Languages, label: "Tradução & i18n" },
   { to: "/canais", icon: Radio, label: "Canais" },
   { to: "/inteligencia", icon: TrendingUp, label: "Inteligência AI" },
+  { to: "/agentes", icon: Bot, label: "Agentes AI" },
 ];
 
 const managementItems = [

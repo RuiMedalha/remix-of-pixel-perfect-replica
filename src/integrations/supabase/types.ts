@@ -49,6 +49,257 @@ export type Database = {
           },
         ]
       }
+      agent_actions: {
+        Row: {
+          action_payload: Json | null
+          action_result: Json | null
+          action_type: Database["public"]["Enums"]["agent_action_type_enum"]
+          agent_id: string
+          approved_by_user: boolean
+          confidence: number | null
+          created_at: string
+          id: string
+          product_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          action_payload?: Json | null
+          action_result?: Json | null
+          action_type: Database["public"]["Enums"]["agent_action_type_enum"]
+          agent_id: string
+          approved_by_user?: boolean
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          action_payload?: Json | null
+          action_result?: Json | null
+          action_type?: Database["public"]["Enums"]["agent_action_type_enum"]
+          agent_id?: string
+          approved_by_user?: boolean
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_actions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_actions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_actions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_decision_memory: {
+        Row: {
+          agent_type: Database["public"]["Enums"]["agent_type_enum"]
+          approved: boolean
+          confidence: number | null
+          created_at: string
+          decision_action: Json | null
+          decision_context: Json | null
+          id: string
+          workspace_id: string
+        }
+        Insert: {
+          agent_type: Database["public"]["Enums"]["agent_type_enum"]
+          approved?: boolean
+          confidence?: number | null
+          created_at?: string
+          decision_action?: Json | null
+          decision_context?: Json | null
+          id?: string
+          workspace_id: string
+        }
+        Update: {
+          agent_type?: Database["public"]["Enums"]["agent_type_enum"]
+          approved?: boolean
+          confidence?: number | null
+          created_at?: string
+          decision_action?: Json | null
+          decision_context?: Json | null
+          id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_decision_memory_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_policies: {
+        Row: {
+          actions: Json | null
+          agent_type: Database["public"]["Enums"]["agent_type_enum"]
+          conditions: Json | null
+          created_at: string
+          id: string
+          policy_name: string
+          requires_approval: boolean
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          actions?: Json | null
+          agent_type: Database["public"]["Enums"]["agent_type_enum"]
+          conditions?: Json | null
+          created_at?: string
+          id?: string
+          policy_name: string
+          requires_approval?: boolean
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          actions?: Json | null
+          agent_type?: Database["public"]["Enums"]["agent_type_enum"]
+          conditions?: Json | null
+          created_at?: string
+          id?: string
+          policy_name?: string
+          requires_approval?: boolean
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_policies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_schedules: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          last_run: string | null
+          schedule_config: Json | null
+          schedule_type: Database["public"]["Enums"]["agent_schedule_enum"]
+          workspace_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          last_run?: string | null
+          schedule_config?: Json | null
+          schedule_type?: Database["public"]["Enums"]["agent_schedule_enum"]
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          last_run?: string | null
+          schedule_config?: Json | null
+          schedule_type?: Database["public"]["Enums"]["agent_schedule_enum"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_schedules_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_schedules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_tasks: {
+        Row: {
+          agent_id: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          payload: Json | null
+          priority: number
+          result: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["agent_task_status_enum"]
+          task_type: string | null
+          workspace_id: string
+        }
+        Insert: {
+          agent_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          priority?: number
+          result?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["agent_task_status_enum"]
+          task_type?: string | null
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          priority?: number
+          result?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["agent_task_status_enum"]
+          task_type?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_library: {
         Row: {
           ai_alt_text: string | null
@@ -393,6 +644,47 @@ export type Database = {
           },
           {
             foreignKeyName: "bundle_suggestions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_agents: {
+        Row: {
+          agent_name: string
+          agent_type: Database["public"]["Enums"]["agent_type_enum"]
+          configuration: Json | null
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["agent_status_enum"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          agent_name: string
+          agent_type: Database["public"]["Enums"]["agent_type_enum"]
+          configuration?: Json | null
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["agent_status_enum"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          agent_name?: string
+          agent_type?: Database["public"]["Enums"]["agent_type_enum"]
+          configuration?: Json | null
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["agent_status_enum"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_agents_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -5237,6 +5529,37 @@ export type Database = {
         | "publish"
         | "settings_change"
         | "error"
+      agent_action_type_enum:
+        | "update_title"
+        | "update_description"
+        | "update_attributes"
+        | "create_bundle"
+        | "add_upsell"
+        | "add_cross_sell"
+        | "update_seo_fields"
+        | "publish_to_channel"
+        | "generate_translation"
+        | "optimize_images"
+        | "suggest_price_change"
+      agent_schedule_enum: "manual" | "hourly" | "daily" | "weekly"
+      agent_status_enum: "active" | "paused" | "disabled"
+      agent_task_status_enum:
+        | "queued"
+        | "running"
+        | "completed"
+        | "failed"
+        | "cancelled"
+      agent_type_enum:
+        | "seo_optimizer"
+        | "catalog_gap_detector"
+        | "bundle_generator"
+        | "attribute_completeness_agent"
+        | "feed_optimizer"
+        | "translation_agent"
+        | "image_optimizer"
+        | "supplier_learning_agent"
+        | "pricing_analyzer"
+        | "channel_performance_agent"
       app_role: "admin" | "user"
       asset_review_status_enum: "unreviewed" | "approved" | "rejected"
       asset_source_enum: "upload" | "scrape" | "ai_generated" | "api" | "ocr"
@@ -5690,6 +6013,40 @@ export const Constants = {
         "publish",
         "settings_change",
         "error",
+      ],
+      agent_action_type_enum: [
+        "update_title",
+        "update_description",
+        "update_attributes",
+        "create_bundle",
+        "add_upsell",
+        "add_cross_sell",
+        "update_seo_fields",
+        "publish_to_channel",
+        "generate_translation",
+        "optimize_images",
+        "suggest_price_change",
+      ],
+      agent_schedule_enum: ["manual", "hourly", "daily", "weekly"],
+      agent_status_enum: ["active", "paused", "disabled"],
+      agent_task_status_enum: [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
+      agent_type_enum: [
+        "seo_optimizer",
+        "catalog_gap_detector",
+        "bundle_generator",
+        "attribute_completeness_agent",
+        "feed_optimizer",
+        "translation_agent",
+        "image_optimizer",
+        "supplier_learning_agent",
+        "pricing_analyzer",
+        "channel_performance_agent",
       ],
       app_role: ["admin", "user"],
       asset_review_status_enum: ["unreviewed", "approved", "rejected"],

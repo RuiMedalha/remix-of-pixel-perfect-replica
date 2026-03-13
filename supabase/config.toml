@@ -68,3 +68,12 @@ verify_jwt = false
 
 [functions.generate-product-insights]
 verify_jwt = false
+
+[functions.run-agent-cycle]
+verify_jwt = false
+
+[functions.execute-agent-task]
+verify_jwt = false
+
+[functions.learn-agent-decisions]
+verify_jwt = false
