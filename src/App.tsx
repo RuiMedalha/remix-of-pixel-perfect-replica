@@ -56,6 +56,7 @@ function ProtectedRoutes() {
           <Route path="/traducoes" element={<TranslationMemoryPage />} />
           <Route path="/canais" element={<ChannelManagerPage />} />
           <Route path="/inteligencia" element={<CommerceIntelligencePage />} />
+          <Route path="/agentes" element={<AgentControlCenterPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

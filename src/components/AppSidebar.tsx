@@ -29,6 +29,7 @@ const navItems = [
   { to: "/traducoes", icon: Languages, label: "Tradução & i18n" },
   { to: "/canais", icon: Radio, label: "Canais" },
   { to: "/inteligencia", icon: TrendingUp, label: "Inteligência AI" },
+  { to: "/agentes", icon: Bot, label: "Agentes AI" },
 ];
 
 const managementItems = [
