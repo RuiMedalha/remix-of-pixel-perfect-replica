@@ -33,6 +33,7 @@ const navItems = [
   { to: "/brain", icon: Sparkles, label: "Catalog Brain" },
   { to: "/decisoes", icon: Target, label: "Decision Engine" },
   { to: "/aprendizagem", icon: GraduationCap, label: "Learning Engine" },
+  { to: "/simulacao", icon: FlaskConical, label: "Simulation Engine" },
 ];
 
 const managementItems = [

@@ -131,3 +131,12 @@ verify_jwt = false
 
 [functions.catalog-brain-detect-success-patterns]
 verify_jwt = false
+
+[functions.catalog-brain-run-simulation]
+verify_jwt = false
+
+[functions.catalog-brain-evaluate-simulation]
+verify_jwt = false
+
+[functions.catalog-brain-assess-risk]
+verify_jwt = false
