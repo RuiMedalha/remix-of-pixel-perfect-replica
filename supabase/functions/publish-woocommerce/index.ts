@@ -169,11 +169,27 @@ Deno.serve(async (req) => {
           started_at: job.started_at || new Date().toISOString(),
         }).eq("id", jobId);
 
+        const itemStartedAt = new Date().toISOString();
+        const itemStartMs = Date.now();
+
         try {
           const result = await publishSingleProduct(
             product, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent
           );
           existingResults.push(result);
+
+          // Write publish job item
+          await adminClient.from("publish_job_items").insert({
+            job_id: jobId,
+            product_id: product.id,
+            status: result.status === "error" ? "error" : "done",
+            woocommerce_id: result.woocommerce_id || null,
+            publish_fields: job.publish_fields || [],
+            started_at: itemStartedAt,
+            completed_at: new Date().toISOString(),
+            duration_ms: Date.now() - itemStartMs,
+            error_message: result.error?.substring(0, 500) || null,
+          });
 
           const failed = result.status === "error" ? 1 : 0;
           await adminClient.from("publish_jobs").update({
@@ -187,6 +203,18 @@ Deno.serve(async (req) => {
             status: "error",
             error: (e as Error).message,
           });
+
+          // Write publish job item for error
+          await adminClient.from("publish_job_items").insert({
+            job_id: jobId,
+            product_id: product.id,
+            status: "error",
+            started_at: itemStartedAt,
+            completed_at: new Date().toISOString(),
+            duration_ms: Date.now() - itemStartMs,
+            error_message: (e as Error).message?.substring(0, 500),
+          });
+
           await adminClient.from("publish_jobs").update({
             processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
             failed_products: (job.failed_products || 0) + 1,
