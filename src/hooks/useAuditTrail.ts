@@ -32,7 +32,7 @@ export function useAuditTrail(entityType?: AuditEntityType, entityId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as AuditEntry[];
+      return (data || []) as unknown as AuditEntry[];
     },
   });
 }

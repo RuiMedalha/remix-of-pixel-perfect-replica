@@ -77,7 +77,7 @@ export function usePublishJobItems(jobId: string | null) {
         .eq("job_id", jobId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data || []) as PublishJobItem[];
+      return (data || []) as unknown as PublishJobItem[];
     },
   });
 
