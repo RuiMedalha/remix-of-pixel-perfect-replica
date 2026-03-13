@@ -25,6 +25,7 @@ import PDFExtractionPage from "./pages/PDFExtractionPage";
 import ExtractionMemoryPage from "./pages/ExtractionMemoryPage";
 import TranslationMemoryPage from "./pages/TranslationMemoryPage";
 import ChannelManagerPage from "./pages/ChannelManagerPage";
+import CommerceIntelligencePage from "./pages/CommerceIntelligencePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -53,6 +54,7 @@ function ProtectedRoutes() {
           <Route path="/extraction-memory" element={<ExtractionMemoryPage />} />
           <Route path="/traducoes" element={<TranslationMemoryPage />} />
           <Route path="/canais" element={<ChannelManagerPage />} />
+          <Route path="/inteligencia" element={<CommerceIntelligencePage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

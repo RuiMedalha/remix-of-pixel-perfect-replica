@@ -62,3 +62,9 @@ verify_jwt = false
 
 [functions.suggest-feed-rules]
 verify_jwt = false
+
+[functions.analyze-catalog]
+verify_jwt = false
+
+[functions.generate-product-insights]
+verify_jwt = false
