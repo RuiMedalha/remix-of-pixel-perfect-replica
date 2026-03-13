@@ -114,7 +114,7 @@ export function useMapPdfToProducts() {
   return useMutation({
     mutationFn: async ({ extractionId, sendToIngestion }: { extractionId: string; sendToIngestion?: boolean }) => {
       const { data, error } = await supabase.functions.invoke("map-pdf-to-products", {
-        body: { extractionId, sendToIngestion, workspaceId: currentWorkspace?.id },
+        body: { extractionId, sendToIngestion, workspaceId: activeWorkspace?.id },
       });
       if (error) throw error;
       return data;
