@@ -49,6 +49,211 @@ export type Database = {
           },
         ]
       }
+      asset_library: {
+        Row: {
+          ai_alt_text: string | null
+          ai_tags: string[] | null
+          asset_type: Database["public"]["Enums"]["asset_type_enum"]
+          background_type: Database["public"]["Enums"]["background_enum"] | null
+          created_at: string
+          family_shared: boolean
+          file_hash: string | null
+          file_size: number | null
+          format: string | null
+          generation_prompt: string | null
+          height: number | null
+          id: string
+          mime_type: string | null
+          original_filename: string | null
+          parent_asset_id: string | null
+          processing_job_id: string | null
+          provider: string | null
+          public_url: string | null
+          quality_score: number | null
+          review_status: Database["public"]["Enums"]["asset_review_status_enum"]
+          source_kind: Database["public"]["Enums"]["asset_source_enum"]
+          status: Database["public"]["Enums"]["asset_status_enum"]
+          storage_path: string | null
+          updated_at: string
+          width: number | null
+          workspace_id: string
+        }
+        Insert: {
+          ai_alt_text?: string | null
+          ai_tags?: string[] | null
+          asset_type?: Database["public"]["Enums"]["asset_type_enum"]
+          background_type?:
+            | Database["public"]["Enums"]["background_enum"]
+            | null
+          created_at?: string
+          family_shared?: boolean
+          file_hash?: string | null
+          file_size?: number | null
+          format?: string | null
+          generation_prompt?: string | null
+          height?: number | null
+          id?: string
+          mime_type?: string | null
+          original_filename?: string | null
+          parent_asset_id?: string | null
+          processing_job_id?: string | null
+          provider?: string | null
+          public_url?: string | null
+          quality_score?: number | null
+          review_status?: Database["public"]["Enums"]["asset_review_status_enum"]
+          source_kind?: Database["public"]["Enums"]["asset_source_enum"]
+          status?: Database["public"]["Enums"]["asset_status_enum"]
+          storage_path?: string | null
+          updated_at?: string
+          width?: number | null
+          workspace_id: string
+        }
+        Update: {
+          ai_alt_text?: string | null
+          ai_tags?: string[] | null
+          asset_type?: Database["public"]["Enums"]["asset_type_enum"]
+          background_type?:
+            | Database["public"]["Enums"]["background_enum"]
+            | null
+          created_at?: string
+          family_shared?: boolean
+          file_hash?: string | null
+          file_size?: number | null
+          format?: string | null
+          generation_prompt?: string | null
+          height?: number | null
+          id?: string
+          mime_type?: string | null
+          original_filename?: string | null
+          parent_asset_id?: string | null
+          processing_job_id?: string | null
+          provider?: string | null
+          public_url?: string | null
+          quality_score?: number | null
+          review_status?: Database["public"]["Enums"]["asset_review_status_enum"]
+          source_kind?: Database["public"]["Enums"]["asset_source_enum"]
+          status?: Database["public"]["Enums"]["asset_status_enum"]
+          storage_path?: string | null
+          updated_at?: string
+          width?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_library_parent_asset_id_fkey"
+            columns: ["parent_asset_id"]
+            isOneToOne: false
+            referencedRelation: "asset_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_library_processing_job_id_fkey"
+            columns: ["processing_job_id"]
+            isOneToOne: false
+            referencedRelation: "image_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_library_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_product_links: {
+        Row: {
+          asset_id: string
+          channel_id: string | null
+          created_at: string
+          id: string
+          product_id: string
+          sort_order: number
+          usage_context: Database["public"]["Enums"]["asset_usage_enum"]
+        }
+        Insert: {
+          asset_id: string
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          product_id: string
+          sort_order?: number
+          usage_context?: Database["public"]["Enums"]["asset_usage_enum"]
+        }
+        Update: {
+          asset_id?: string
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          product_id?: string
+          sort_order?: number
+          usage_context?: Database["public"]["Enums"]["asset_usage_enum"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_product_links_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "asset_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_product_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_variants: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          format: string | null
+          height: number | null
+          id: string
+          public_url: string | null
+          source_asset_id: string
+          storage_path: string | null
+          variant_type: Database["public"]["Enums"]["asset_variant_enum"]
+          width: number | null
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          format?: string | null
+          height?: number | null
+          id?: string
+          public_url?: string | null
+          source_asset_id: string
+          storage_path?: string | null
+          variant_type: Database["public"]["Enums"]["asset_variant_enum"]
+          width?: number | null
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          format?: string | null
+          height?: number | null
+          id?: string
+          public_url?: string | null
+          source_asset_id?: string
+          storage_path?: string | null
+          variant_type?: Database["public"]["Enums"]["asset_variant_enum"]
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_variants_source_asset_id_fkey"
+            columns: ["source_asset_id"]
+            isOneToOne: false
+            referencedRelation: "asset_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_trail: {
         Row: {
           action: Database["public"]["Enums"]["audit_action"]
@@ -298,9 +503,129 @@ export type Database = {
           },
         ]
       }
+      image_job_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          error_payload: Json | null
+          id: string
+          image_id: string | null
+          input_url: string | null
+          job_id: string
+          max_retries: number
+          operation: Database["public"]["Enums"]["image_operation_enum"]
+          output_url: string | null
+          retry_count: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["image_job_item_status"]
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          error_payload?: Json | null
+          id?: string
+          image_id?: string | null
+          input_url?: string | null
+          job_id: string
+          max_retries?: number
+          operation: Database["public"]["Enums"]["image_operation_enum"]
+          output_url?: string | null
+          retry_count?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["image_job_item_status"]
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          error_payload?: Json | null
+          id?: string
+          image_id?: string | null
+          input_url?: string | null
+          job_id?: string
+          max_retries?: number
+          operation?: Database["public"]["Enums"]["image_operation_enum"]
+          output_url?: string | null
+          retry_count?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["image_job_item_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_job_items_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "asset_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "image_job_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "image_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      image_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          failed_items: number
+          id: string
+          processed_items: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["image_job_status"]
+          total_items: number
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          failed_items?: number
+          id?: string
+          processed_items?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["image_job_status"]
+          total_items?: number
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          failed_items?: number
+          id?: string
+          processed_items?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["image_job_status"]
+          total_items?: number
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       images: {
         Row: {
           alt_text: string | null
+          asset_id: string | null
           created_at: string
           id: string
           optimized_url: string | null
@@ -309,9 +634,11 @@ export type Database = {
           s3_key: string | null
           sort_order: number | null
           status: Database["public"]["Enums"]["image_status"]
+          usage_context: Database["public"]["Enums"]["asset_usage_enum"] | null
         }
         Insert: {
           alt_text?: string | null
+          asset_id?: string | null
           created_at?: string
           id?: string
           optimized_url?: string | null
@@ -320,9 +647,11 @@ export type Database = {
           s3_key?: string | null
           sort_order?: number | null
           status?: Database["public"]["Enums"]["image_status"]
+          usage_context?: Database["public"]["Enums"]["asset_usage_enum"] | null
         }
         Update: {
           alt_text?: string | null
+          asset_id?: string | null
           created_at?: string
           id?: string
           optimized_url?: string | null
@@ -331,8 +660,16 @@ export type Database = {
           s3_key?: string | null
           sort_order?: number | null
           status?: Database["public"]["Enums"]["image_status"]
+          usage_context?: Database["public"]["Enums"]["asset_usage_enum"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "images_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "asset_library"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "images_product_id_fkey"
             columns: ["product_id"]
@@ -2507,6 +2844,34 @@ export type Database = {
         | "settings_change"
         | "error"
       app_role: "admin" | "user"
+      asset_review_status_enum: "unreviewed" | "approved" | "rejected"
+      asset_source_enum: "upload" | "scrape" | "ai_generated" | "api" | "ocr"
+      asset_status_enum:
+        | "active"
+        | "archived"
+        | "processing"
+        | "error"
+        | "pending_review"
+      asset_type_enum:
+        | "original"
+        | "optimized"
+        | "lifestyle"
+        | "technical"
+        | "packshot"
+        | "derived"
+      asset_usage_enum:
+        | "main"
+        | "gallery"
+        | "lifestyle"
+        | "technical"
+        | "seo"
+        | "social"
+      asset_variant_enum:
+        | "thumbnail"
+        | "medium"
+        | "large"
+        | "social"
+        | "marketplace"
       audit_action:
         | "create"
         | "update"
@@ -2527,9 +2892,27 @@ export type Database = {
         | "workspace"
         | "asset"
         | "job"
+      background_enum:
+        | "white"
+        | "transparent"
+        | "lifestyle"
+        | "custom"
+        | "unknown"
       confidence_source: "ai" | "human" | "import" | "scrape" | "ocr" | "api"
       field_validation_status: "valid" | "invalid" | "unvalidated"
       gate_severity: "error" | "warning" | "info"
+      image_job_item_status:
+        | "queued"
+        | "processing"
+        | "done"
+        | "error"
+        | "skipped"
+      image_job_status: "queued" | "processing" | "done" | "error"
+      image_operation_enum:
+        | "download"
+        | "optimize"
+        | "background_remove"
+        | "resize"
       image_status:
         | "pending"
         | "downloading"
@@ -2759,6 +3142,38 @@ export const Constants = {
         "error",
       ],
       app_role: ["admin", "user"],
+      asset_review_status_enum: ["unreviewed", "approved", "rejected"],
+      asset_source_enum: ["upload", "scrape", "ai_generated", "api", "ocr"],
+      asset_status_enum: [
+        "active",
+        "archived",
+        "processing",
+        "error",
+        "pending_review",
+      ],
+      asset_type_enum: [
+        "original",
+        "optimized",
+        "lifestyle",
+        "technical",
+        "packshot",
+        "derived",
+      ],
+      asset_usage_enum: [
+        "main",
+        "gallery",
+        "lifestyle",
+        "technical",
+        "seo",
+        "social",
+      ],
+      asset_variant_enum: [
+        "thumbnail",
+        "medium",
+        "large",
+        "social",
+        "marketplace",
+      ],
       audit_action: [
         "create",
         "update",
@@ -2781,9 +3196,30 @@ export const Constants = {
         "asset",
         "job",
       ],
+      background_enum: [
+        "white",
+        "transparent",
+        "lifestyle",
+        "custom",
+        "unknown",
+      ],
       confidence_source: ["ai", "human", "import", "scrape", "ocr", "api"],
       field_validation_status: ["valid", "invalid", "unvalidated"],
       gate_severity: ["error", "warning", "info"],
+      image_job_item_status: [
+        "queued",
+        "processing",
+        "done",
+        "error",
+        "skipped",
+      ],
+      image_job_status: ["queued", "processing", "done", "error"],
+      image_operation_enum: [
+        "download",
+        "optimize",
+        "background_remove",
+        "resize",
+      ],
       image_status: [
         "pending",
         "downloading",
