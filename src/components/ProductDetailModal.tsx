@@ -7,11 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera } from "lucide-react";
+import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck } from "lucide-react";
 import { useProcessImages } from "@/hooks/useProcessImages";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { VariationsPanel } from "@/components/VariationsPanel";
+import { QualityGatePanel } from "@/components/QualityGatePanel";
+import { PublishBlockerAlert } from "@/components/PublishBlockerAlert";
+import { WorkflowStateBadge } from "@/components/WorkflowStateBadge";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/hooks/useProducts";
 import { useAllProductIds } from "@/hooks/useProducts";
@@ -22,6 +25,7 @@ import { useUpdateProductStatus } from "@/hooks/useProducts";
 import { useProductVersions, useRestoreVersion, type ProductVersion } from "@/hooks/useProductVersions";
 import { usePublishWooCommerce } from "@/hooks/usePublishWooCommerce";
 import { useProductOptimizationLogs } from "@/hooks/useOptimizationLogs";
+import { useQualityGateResults, usePublishLocks, useEvaluateQualityGate } from "@/hooks/useQualityGates";
 import { calculateSeoScore, getSeoScoreColor, getSeoScoreBg, getSeoFixSuggestions } from "@/lib/seoScore";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -41,6 +45,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
   const restoreVersion = useRestoreVersion();
   const { processImages, isProcessing, progress: imgProgress } = useProcessImages();
   const { activeWorkspace } = useWorkspaceContext();
+  const { data: gateResults } = useQualityGateResults(product?.id ?? null);
+  const { data: publishLocks } = usePublishLocks(product?.id ?? null);
+  const evaluateGate = useEvaluateQualityGate();
 
   // Fetch optimized images from images table
   const { data: optimizedImages } = useQuery({
@@ -143,7 +150,10 @@ export function ProductDetailModal({ product, onClose }: Props) {
             )}
             <div className="min-w-0">
               <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{product.sku ?? "—"}</span>
-              <p className="truncate mt-1 text-base">{product.original_title ?? "Sem título"}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="truncate text-base">{product.original_title ?? "Sem título"}</p>
+                <WorkflowStateBadge state={(product as any).workflow_state} size="sm" />
+              </div>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -177,8 +187,16 @@ export function ProductDetailModal({ product, onClose }: Props) {
             <TabsTrigger value="ai-log">
               <Brain className="w-3.5 h-3.5 mr-1" /> Log IA
             </TabsTrigger>
+            <TabsTrigger value="qualidade">
+              <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Qualidade
+            </TabsTrigger>
             <TabsTrigger value="brutos">Dados Brutos</TabsTrigger>
           </TabsList>
+
+          {/* PUBLISH BLOCKER ALERT */}
+          {publishLocks && publishLocks.length > 0 && (
+            <PublishBlockerAlert locks={publishLocks} className="mt-2" />
+          )}
 
           {/* TEXTOS TAB */}
           <TabsContent value="textos" className="space-y-6 mt-4">
@@ -760,6 +778,45 @@ export function ProductDetailModal({ product, onClose }: Props) {
           {/* SUPPLIER DATA TAB */}
           <TabsContent value="fornecedor" className="mt-4 space-y-4">
             <SupplierDataSection product={product} />
+          </TabsContent>
+
+          {/* QUALITY TAB */}
+          <TabsContent value="qualidade" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Avaliação de Qualidade</h3>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (activeWorkspace?.id && product?.id) {
+                    evaluateGate.mutate({ workspaceId: activeWorkspace.id, productIds: [product.id] });
+                  }
+                }}
+                disabled={evaluateGate.isPending}
+              >
+                {evaluateGate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                Avaliar Qualidade
+              </Button>
+            </div>
+
+            <QualityGatePanel results={gateResults || []} gateName="Quality Gate" />
+
+            {(product as any).quality_score != null && (
+              <Card>
+                <CardContent className="py-3 px-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Quality Score</span>
+                    <Badge variant="outline" className={cn(
+                      (product as any).quality_score >= 70 ? "bg-success/10 text-success border-success/20" :
+                      (product as any).quality_score >= 40 ? "bg-warning/10 text-warning border-warning/20" :
+                      "bg-destructive/10 text-destructive border-destructive/20"
+                    )}>
+                      {(product as any).quality_score}%
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* RAW DATA TAB */}

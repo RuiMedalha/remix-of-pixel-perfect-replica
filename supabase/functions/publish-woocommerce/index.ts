@@ -172,6 +172,41 @@ Deno.serve(async (req) => {
         const itemStartedAt = new Date().toISOString();
         const itemStartMs = Date.now();
 
+        // Check publish locks before attempting to publish
+        const { data: activeLocks } = await adminClient
+          .from("publish_locks")
+          .select("id, reason, lock_type")
+          .eq("product_id", product.id)
+          .eq("is_active", true)
+          .limit(1);
+
+        if (activeLocks && activeLocks.length > 0) {
+          const lockReason = activeLocks[0].reason || "Produto bloqueado para publicação";
+          console.warn(`⛔ Product ${product.id} skipped: publish lock active (${activeLocks[0].lock_type})`);
+          existingResults.push({
+            id: product.id,
+            status: "error",
+            error: `Publicação bloqueada: ${lockReason}`,
+          });
+
+          await adminClient.from("publish_job_items").insert({
+            job_id: jobId,
+            product_id: product.id,
+            status: "skipped",
+            started_at: itemStartedAt,
+            completed_at: new Date().toISOString(),
+            duration_ms: Date.now() - itemStartMs,
+            error_message: `Publish lock: ${lockReason}`,
+          });
+
+          await adminClient.from("publish_jobs").update({
+            processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
+            failed_products: (job.failed_products || 0) + 1,
+            results: existingResults,
+          }).eq("id", jobId);
+          continue;
+        }
+
         try {
           const result = await publishSingleProduct(
             product, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent
