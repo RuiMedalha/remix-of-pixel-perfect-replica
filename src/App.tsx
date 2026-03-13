@@ -72,6 +72,7 @@ function ProtectedRoutes() {
           <Route path="/digital-twin" element={<DigitalTwinPage />} />
           <Route path="/market-intelligence" element={<MarketIntelligencePage />} />
           <Route path="/revenue-demand" element={<RevenueAndDemandPage />} />
+          <Route path="/strategic-planner" element={<StrategicPlannerPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

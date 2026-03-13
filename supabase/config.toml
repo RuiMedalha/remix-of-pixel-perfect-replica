@@ -200,3 +200,18 @@ verify_jwt = false
 
 [functions.generate-demand-trends]
 verify_jwt = false
+
+[functions.generate-strategy-plan]
+verify_jwt = false
+
+[functions.simulate-strategy-plan]
+verify_jwt = false
+
+[functions.rank-strategy-actions]
+verify_jwt = false
+
+[functions.detect-catalog-expansion]
+verify_jwt = false
+
+[functions.generate-launch-opportunities]
+verify_jwt = false
