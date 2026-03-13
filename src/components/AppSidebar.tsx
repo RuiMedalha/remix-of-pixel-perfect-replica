@@ -36,6 +36,7 @@ const navItems = [
   { to: "/simulacao", icon: FlaskConical, label: "Simulation Engine" },
   { to: "/digital-twin", icon: Copy, label: "Digital Twin" },
   { to: "/market-intelligence", icon: Globe, label: "Market Intelligence" },
+  { to: "/revenue-demand", icon: DollarSign, label: "Revenue & Demand" },
 ];
 
 const managementItems = [
