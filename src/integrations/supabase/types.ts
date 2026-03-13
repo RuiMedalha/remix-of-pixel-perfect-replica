@@ -471,6 +471,249 @@ export type Database = {
           },
         ]
       }
+      extraction_case_signatures: {
+        Row: {
+          confidence: number
+          created_at: string
+          id: string
+          layout_signature: Json | null
+          resolved_output: Json | null
+          sample_payload: Json | null
+          signature_embedding: Json | null
+          signature_hash: string
+          supplier_name: string | null
+          table_signature: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          layout_signature?: Json | null
+          resolved_output?: Json | null
+          sample_payload?: Json | null
+          signature_embedding?: Json | null
+          signature_hash: string
+          supplier_name?: string | null
+          table_signature?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          layout_signature?: Json | null
+          resolved_output?: Json | null
+          sample_payload?: Json | null
+          signature_embedding?: Json | null
+          signature_hash?: string
+          supplier_name?: string | null
+          table_signature?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extraction_case_signatures_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extraction_corrections: {
+        Row: {
+          applied_pattern_id: string | null
+          corrected_value: string | null
+          correction_type: Database["public"]["Enums"]["correction_type"]
+          created_at: string
+          field_key: string
+          id: string
+          pdf_row_id: string | null
+          pdf_table_id: string | null
+          product_id: string | null
+          raw_value: string | null
+          review_context: Json | null
+          reviewed_by: string
+          workspace_id: string
+        }
+        Insert: {
+          applied_pattern_id?: string | null
+          corrected_value?: string | null
+          correction_type: Database["public"]["Enums"]["correction_type"]
+          created_at?: string
+          field_key: string
+          id?: string
+          pdf_row_id?: string | null
+          pdf_table_id?: string | null
+          product_id?: string | null
+          raw_value?: string | null
+          review_context?: Json | null
+          reviewed_by: string
+          workspace_id: string
+        }
+        Update: {
+          applied_pattern_id?: string | null
+          corrected_value?: string | null
+          correction_type?: Database["public"]["Enums"]["correction_type"]
+          created_at?: string
+          field_key?: string
+          id?: string
+          pdf_row_id?: string | null
+          pdf_table_id?: string | null
+          product_id?: string | null
+          raw_value?: string | null
+          review_context?: Json | null
+          reviewed_by?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extraction_corrections_applied_pattern_id_fkey"
+            columns: ["applied_pattern_id"]
+            isOneToOne: false
+            referencedRelation: "extraction_memory_patterns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extraction_corrections_pdf_row_id_fkey"
+            columns: ["pdf_row_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_table_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extraction_corrections_pdf_table_id_fkey"
+            columns: ["pdf_table_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extraction_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extraction_corrections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extraction_decision_history: {
+        Row: {
+          approved: boolean
+          approved_by: string | null
+          confidence: number
+          created_at: string
+          decision_output: Json
+          decision_type: Database["public"]["Enums"]["extraction_decision_type"]
+          id: string
+          input_signature: Json
+          workspace_id: string
+        }
+        Insert: {
+          approved?: boolean
+          approved_by?: string | null
+          confidence?: number
+          created_at?: string
+          decision_output?: Json
+          decision_type: Database["public"]["Enums"]["extraction_decision_type"]
+          id?: string
+          input_signature?: Json
+          workspace_id: string
+        }
+        Update: {
+          approved?: boolean
+          approved_by?: string | null
+          confidence?: number
+          created_at?: string
+          decision_output?: Json
+          decision_type?: Database["public"]["Enums"]["extraction_decision_type"]
+          id?: string
+          input_signature?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extraction_decision_history_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extraction_memory_patterns: {
+        Row: {
+          confidence: number
+          created_at: string
+          created_by: string | null
+          failure_count: number
+          id: string
+          last_confirmed_at: string | null
+          last_used_at: string | null
+          pattern_key: string
+          pattern_type: Database["public"]["Enums"]["extraction_pattern_type"]
+          pattern_value: Json
+          source_type: Database["public"]["Enums"]["extraction_pattern_source"]
+          success_count: number
+          supplier_name: string | null
+          updated_at: string
+          usage_count: number
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          failure_count?: number
+          id?: string
+          last_confirmed_at?: string | null
+          last_used_at?: string | null
+          pattern_key: string
+          pattern_type: Database["public"]["Enums"]["extraction_pattern_type"]
+          pattern_value?: Json
+          source_type: Database["public"]["Enums"]["extraction_pattern_source"]
+          success_count?: number
+          supplier_name?: string | null
+          updated_at?: string
+          usage_count?: number
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          failure_count?: number
+          id?: string
+          last_confirmed_at?: string | null
+          last_used_at?: string | null
+          pattern_key?: string
+          pattern_type?: Database["public"]["Enums"]["extraction_pattern_type"]
+          pattern_value?: Json
+          source_type?: Database["public"]["Enums"]["extraction_pattern_source"]
+          success_count?: number
+          supplier_name?: string | null
+          updated_at?: string
+          usage_count?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extraction_memory_patterns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       image_credits: {
         Row: {
           id: string
@@ -960,6 +1203,53 @@ export type Database = {
           },
           {
             foreignKeyName: "knowledge_chunks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      normalization_dictionary: {
+        Row: {
+          confidence: number
+          created_at: string
+          dictionary_type: Database["public"]["Enums"]["normalization_type"]
+          id: string
+          language: string | null
+          normalized_term: string
+          source_term: string
+          supplier_name: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          dictionary_type: Database["public"]["Enums"]["normalization_type"]
+          id?: string
+          language?: string | null
+          normalized_term: string
+          source_term: string
+          supplier_name?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          dictionary_type?: Database["public"]["Enums"]["normalization_type"]
+          id?: string
+          language?: string | null
+          normalized_term?: string
+          source_term?: string
+          supplier_name?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "normalization_dictionary_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -3547,6 +3837,42 @@ export type Database = {
         | "custom"
         | "unknown"
       confidence_source: "ai" | "human" | "import" | "scrape" | "ocr" | "api"
+      correction_type:
+        | "value_fix"
+        | "column_reassignment"
+        | "category_fix"
+        | "attribute_fix"
+        | "variation_fix"
+        | "unit_fix"
+        | "grouping_fix"
+        | "image_fix"
+      extraction_decision_type:
+        | "category_assignment"
+        | "schema_assignment"
+        | "variation_grouping"
+        | "parent_child_resolution"
+        | "attribute_selection"
+        | "table_classification"
+        | "image_to_product_matching"
+      extraction_pattern_source:
+        | "ai_inferred"
+        | "human_confirmed"
+        | "import_observed"
+        | "publish_validated"
+        | "system_generated"
+      extraction_pattern_type:
+        | "column_mapping"
+        | "header_alias"
+        | "table_layout"
+        | "unit_normalization"
+        | "attribute_mapping"
+        | "category_mapping"
+        | "grouping_rule"
+        | "variation_rule"
+        | "image_association_rule"
+        | "language_pattern"
+        | "supplier_rule"
+        | "pdf_section_rule"
       field_validation_status: "valid" | "invalid" | "unvalidated"
       gate_severity: "error" | "warning" | "info"
       image_job_item_status:
@@ -3605,6 +3931,15 @@ export type Database = {
         | "webhook"
         | "supplier_feed"
       job_item_status: "queued" | "processing" | "done" | "error" | "skipped"
+      normalization_type:
+        | "unit"
+        | "material"
+        | "color"
+        | "category"
+        | "attribute_name"
+        | "attribute_value"
+        | "product_family"
+        | "brand_alias"
       pdf_block_role:
         | "product_family"
         | "product_group"
@@ -3893,6 +4228,46 @@ export const Constants = {
         "unknown",
       ],
       confidence_source: ["ai", "human", "import", "scrape", "ocr", "api"],
+      correction_type: [
+        "value_fix",
+        "column_reassignment",
+        "category_fix",
+        "attribute_fix",
+        "variation_fix",
+        "unit_fix",
+        "grouping_fix",
+        "image_fix",
+      ],
+      extraction_decision_type: [
+        "category_assignment",
+        "schema_assignment",
+        "variation_grouping",
+        "parent_child_resolution",
+        "attribute_selection",
+        "table_classification",
+        "image_to_product_matching",
+      ],
+      extraction_pattern_source: [
+        "ai_inferred",
+        "human_confirmed",
+        "import_observed",
+        "publish_validated",
+        "system_generated",
+      ],
+      extraction_pattern_type: [
+        "column_mapping",
+        "header_alias",
+        "table_layout",
+        "unit_normalization",
+        "attribute_mapping",
+        "category_mapping",
+        "grouping_rule",
+        "variation_rule",
+        "image_association_rule",
+        "language_pattern",
+        "supplier_rule",
+        "pdf_section_rule",
+      ],
       field_validation_status: ["valid", "invalid", "unvalidated"],
       gate_severity: ["error", "warning", "info"],
       image_job_item_status: [
@@ -3953,6 +4328,16 @@ export const Constants = {
         "supplier_feed",
       ],
       job_item_status: ["queued", "processing", "done", "error", "skipped"],
+      normalization_type: [
+        "unit",
+        "material",
+        "color",
+        "category",
+        "attribute_name",
+        "attribute_value",
+        "product_family",
+        "brand_alias",
+      ],
       pdf_block_role: [
         "product_family",
         "product_group",
