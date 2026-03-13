@@ -187,8 +187,16 @@ export function ProductDetailModal({ product, onClose }: Props) {
             <TabsTrigger value="ai-log">
               <Brain className="w-3.5 h-3.5 mr-1" /> Log IA
             </TabsTrigger>
+            <TabsTrigger value="qualidade">
+              <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Qualidade
+            </TabsTrigger>
             <TabsTrigger value="brutos">Dados Brutos</TabsTrigger>
           </TabsList>
+
+          {/* PUBLISH BLOCKER ALERT */}
+          {publishLocks && publishLocks.length > 0 && (
+            <PublishBlockerAlert locks={publishLocks} className="mt-2" />
+          )}
 
           {/* TEXTOS TAB */}
           <TabsContent value="textos" className="space-y-6 mt-4">
