@@ -1,0 +1,123 @@
+import {
+  LayoutDashboard,
+  ClipboardList,
+  UserCog,
+  Package,
+  GitBranch,
+  FolderTree,
+  Radio,
+  ShoppingCart,
+  Upload,
+  Database,
+  FileText,
+  Brain,
+  ImageIcon,
+  Library,
+  Languages,
+  TrendingUp,
+  Globe,
+  Bot,
+  Sparkles,
+  Target,
+  GraduationCap,
+  FlaskConical,
+  Copy,
+  Settings,
+  DollarSign,
+  type LucideIcon,
+} from "lucide-react";
+
+export interface NavItem {
+  title: string;
+  icon: LucideIcon;
+  route: string;
+  badge?: string;
+  featureFlag?: string;
+}
+
+export interface NavGroup {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  defaultOpen?: boolean;
+  items: NavItem[];
+}
+
+export const navGroups: NavGroup[] = [
+  {
+    key: "gestao",
+    label: "Gestão",
+    icon: LayoutDashboard,
+    defaultOpen: true,
+    items: [
+      { title: "Dashboard", icon: LayoutDashboard, route: "/" },
+      { title: "Revisão", icon: ClipboardList, route: "/revisao" },
+      { title: "Membros", icon: UserCog, route: "/membros" },
+    ],
+  },
+  {
+    key: "catalogo",
+    label: "Catálogo",
+    icon: Package,
+    defaultOpen: true,
+    items: [
+      { title: "Produtos", icon: Package, route: "/produtos" },
+      { title: "Variações", icon: GitBranch, route: "/variacoes" },
+      { title: "Categorias", icon: FolderTree, route: "/categorias" },
+      { title: "Canais", icon: Radio, route: "/canais" },
+      { title: "Importar WooCommerce", icon: ShoppingCart, route: "/importar-woo" },
+    ],
+  },
+  {
+    key: "ingestao",
+    label: "Ingestão",
+    icon: Database,
+    items: [
+      { title: "Upload", icon: Upload, route: "/upload" },
+      { title: "Ingestion Hub", icon: Database, route: "/ingestao" },
+      { title: "Extração PDF", icon: FileText, route: "/pdf-extraction" },
+      { title: "Memória de Extração", icon: Brain, route: "/extraction-memory" },
+    ],
+  },
+  {
+    key: "conteudo",
+    label: "Conteúdo & Media",
+    icon: ImageIcon,
+    items: [
+      { title: "Imagens", icon: ImageIcon, route: "/imagens" },
+      { title: "Asset Library", icon: Library, route: "/assets" },
+      { title: "Tradução & i18n", icon: Languages, route: "/traducoes" },
+    ],
+  },
+  {
+    key: "inteligencia",
+    label: "Inteligência",
+    icon: TrendingUp,
+    items: [
+      { title: "Inteligência AI", icon: TrendingUp, route: "/inteligencia" },
+      { title: "Market Intelligence", icon: Globe, route: "/market-intelligence" },
+      { title: "Revenue & Demand", icon: DollarSign, route: "/revenue-demand" },
+    ],
+  },
+  {
+    key: "automacao",
+    label: "Automação AI",
+    icon: Bot,
+    items: [
+      { title: "Agentes AI", icon: Bot, route: "/agentes" },
+      { title: "Catalog Brain", icon: Sparkles, route: "/brain" },
+      { title: "Decision Engine", icon: Target, route: "/decisoes" },
+      { title: "Learning Engine", icon: GraduationCap, route: "/aprendizagem" },
+      { title: "Simulation Engine", icon: FlaskConical, route: "/simulacao" },
+      { title: "Digital Twin", icon: Copy, route: "/digital-twin" },
+    ],
+  },
+  {
+    key: "sistema",
+    label: "Sistema",
+    icon: Settings,
+    items: [
+      { title: "Configurações", icon: Settings, route: "/configuracoes" },
+    ],
+  },
+];
