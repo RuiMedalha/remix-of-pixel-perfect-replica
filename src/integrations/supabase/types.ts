@@ -427,6 +427,421 @@ export type Database = {
           },
         ]
       }
+      channel_attribute_mappings: {
+        Row: {
+          attribute_name: string
+          channel_attribute_name: string
+          channel_id: string
+          created_at: string | null
+          id: string
+          required: boolean | null
+          transformation_rules: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          attribute_name: string
+          channel_attribute_name: string
+          channel_id: string
+          created_at?: string | null
+          id?: string
+          required?: boolean | null
+          transformation_rules?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          attribute_name?: string
+          channel_attribute_name?: string
+          channel_id?: string
+          created_at?: string | null
+          id?: string
+          required?: boolean | null
+          transformation_rules?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_attribute_mappings_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_attribute_mappings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_category_mappings: {
+        Row: {
+          channel_category: string | null
+          channel_id: string
+          confidence: number | null
+          created_at: string | null
+          id: string
+          internal_category: string | null
+          workspace_id: string
+        }
+        Insert: {
+          channel_category?: string | null
+          channel_id: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          internal_category?: string | null
+          workspace_id: string
+        }
+        Update: {
+          channel_category?: string | null
+          channel_id?: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          internal_category?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_category_mappings_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_category_mappings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_connections: {
+        Row: {
+          channel_id: string
+          connection_name: string | null
+          created_at: string | null
+          credentials: Json | null
+          id: string
+          last_sync_at: string | null
+          settings: Json | null
+          status: string | null
+          workspace_id: string
+        }
+        Insert: {
+          channel_id: string
+          connection_name?: string | null
+          created_at?: string | null
+          credentials?: Json | null
+          id?: string
+          last_sync_at?: string | null
+          settings?: Json | null
+          status?: string | null
+          workspace_id: string
+        }
+        Update: {
+          channel_id?: string
+          connection_name?: string | null
+          created_at?: string | null
+          credentials?: Json | null
+          id?: string
+          last_sync_at?: string | null
+          settings?: Json | null
+          status?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_connections_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_field_mappings: {
+        Row: {
+          canonical_field: string
+          channel_field: string
+          channel_id: string
+          created_at: string | null
+          id: string
+          required: boolean | null
+          transformation_rules: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          canonical_field: string
+          channel_field: string
+          channel_id: string
+          created_at?: string | null
+          id?: string
+          required?: boolean | null
+          transformation_rules?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          canonical_field?: string
+          channel_field?: string
+          channel_id?: string
+          created_at?: string | null
+          id?: string
+          required?: boolean | null
+          transformation_rules?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_field_mappings_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_field_mappings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_product_data: {
+        Row: {
+          channel_id: string
+          created_at: string | null
+          external_id: string | null
+          id: string
+          last_published_at: string | null
+          payload: Json | null
+          product_id: string
+          status: string | null
+          workspace_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string | null
+          external_id?: string | null
+          id?: string
+          last_published_at?: string | null
+          payload?: Json | null
+          product_id: string
+          status?: string | null
+          workspace_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string | null
+          external_id?: string | null
+          id?: string
+          last_published_at?: string | null
+          payload?: Json | null
+          product_id?: string
+          status?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_product_data_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_product_data_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_product_data_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_publish_job_items: {
+        Row: {
+          channel_id: string
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          external_id: string | null
+          id: string
+          job_id: string
+          payload: Json | null
+          product_id: string
+          response: Json | null
+          status: string | null
+        }
+        Insert: {
+          channel_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          job_id: string
+          payload?: Json | null
+          product_id: string
+          response?: Json | null
+          status?: string | null
+        }
+        Update: {
+          channel_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          job_id?: string
+          payload?: Json | null
+          product_id?: string
+          response?: Json | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_publish_job_items_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_publish_job_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "channel_publish_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_publish_job_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_publish_jobs: {
+        Row: {
+          channel_id: string
+          completed_at: string | null
+          created_at: string | null
+          failed_products: number | null
+          id: string
+          job_status:
+            | Database["public"]["Enums"]["channel_job_status_enum"]
+            | null
+          processed_products: number | null
+          total_products: number | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          channel_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          failed_products?: number | null
+          id?: string
+          job_status?:
+            | Database["public"]["Enums"]["channel_job_status_enum"]
+            | null
+          processed_products?: number | null
+          total_products?: number | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          channel_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          failed_products?: number | null
+          id?: string
+          job_status?:
+            | Database["public"]["Enums"]["channel_job_status_enum"]
+            | null
+          processed_products?: number | null
+          total_products?: number | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_publish_jobs_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_publish_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          channel_name: string
+          channel_type: Database["public"]["Enums"]["channel_type_enum"]
+          config: Json | null
+          created_at: string | null
+          id: string
+          status: string | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          channel_name: string
+          channel_type: Database["public"]["Enums"]["channel_type_enum"]
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          channel_name?: string
+          channel_type?: Database["public"]["Enums"]["channel_type_enum"]
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channels_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           context: Json | null
@@ -4191,6 +4606,15 @@ export type Database = {
         | "lifestyle"
         | "custom"
         | "unknown"
+      channel_job_status_enum: "queued" | "running" | "completed" | "failed"
+      channel_type_enum:
+        | "woocommerce"
+        | "shopify"
+        | "amazon"
+        | "google_merchant"
+        | "csv_export"
+        | "api_endpoint"
+        | "marketplace"
       confidence_source: "ai" | "human" | "import" | "scrape" | "ocr" | "api"
       correction_type:
         | "value_fix"
@@ -4581,6 +5005,16 @@ export const Constants = {
         "lifestyle",
         "custom",
         "unknown",
+      ],
+      channel_job_status_enum: ["queued", "running", "completed", "failed"],
+      channel_type_enum: [
+        "woocommerce",
+        "shopify",
+        "amazon",
+        "google_merchant",
+        "csv_export",
+        "api_endpoint",
+        "marketplace",
       ],
       confidence_source: ["ai", "human", "import", "scrape", "ocr", "api"],
       correction_type: [
