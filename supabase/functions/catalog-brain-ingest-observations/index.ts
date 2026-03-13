@@ -21,8 +21,9 @@ serve(async (req) => {
       if (r.passed === false) {
         observations.push({
           workspace_id: workspaceId, observation_type: "quality_gate_fail",
-          product_id: r.product_id, signal_source: "quality_gates",
-          signal_payload: { gate_id: r.id, failures: r.failures }, severity: 80,
+          entity_type: "product", entity_id: r.product_id,
+          product_id: r.product_id, signal_source: "quality_gates", source: "quality_gates",
+          signal_payload: { gate_id: r.id, failures: r.failures }, severity: 80, signal_strength: 80,
         });
       }
     }
@@ -33,8 +34,10 @@ serve(async (req) => {
     for (const r of (rejections || [])) {
       observations.push({
         workspace_id: workspaceId, observation_type: "channel_rejection",
-        product_id: r.product_id, signal_source: "channel_rejections",
-        signal_payload: { rejection_id: r.id, code: r.external_code, message: r.external_message }, severity: 70,
+        entity_type: "product", entity_id: r.product_id,
+        product_id: r.product_id, signal_source: "channel_rejections", source: "channel_rejections",
+        signal_payload: { rejection_id: r.id, code: r.external_code, message: r.external_message },
+        severity: 70, signal_strength: 70,
       });
     }
 
@@ -48,8 +51,10 @@ serve(async (req) => {
       };
       observations.push({
         workspace_id: workspaceId, observation_type: typeMap[i.insight_type] || "seo_weakness",
-        product_id: i.product_id, signal_source: "product_insights",
-        signal_payload: { insight_id: i.id, payload: i.insight_payload }, severity: i.priority || 50,
+        entity_type: "product", entity_id: i.product_id,
+        product_id: i.product_id, signal_source: "product_insights", source: "product_insights",
+        signal_payload: { insight_id: i.id, payload: i.insight_payload },
+        severity: i.priority || 50, signal_strength: i.priority || 50,
       });
     }
 
