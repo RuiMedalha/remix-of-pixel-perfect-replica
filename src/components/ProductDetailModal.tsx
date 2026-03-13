@@ -150,7 +150,10 @@ export function ProductDetailModal({ product, onClose }: Props) {
             )}
             <div className="min-w-0">
               <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{product.sku ?? "—"}</span>
-              <p className="truncate mt-1 text-base">{product.original_title ?? "Sem título"}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="truncate text-base">{product.original_title ?? "Sem título"}</p>
+                <WorkflowStateBadge state={(product as any).workflow_state} size="sm" />
+              </div>
             </div>
           </DialogTitle>
         </DialogHeader>
