@@ -31,6 +31,7 @@ const navItems = [
   { to: "/inteligencia", icon: TrendingUp, label: "Inteligência AI" },
   { to: "/agentes", icon: Bot, label: "Agentes AI" },
   { to: "/brain", icon: Sparkles, label: "Catalog Brain" },
+  { to: "/decisoes", icon: Target, label: "Decision Engine" },
 ];
 
 const managementItems = [

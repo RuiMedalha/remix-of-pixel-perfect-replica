@@ -60,6 +60,7 @@ function ProtectedRoutes() {
           <Route path="/inteligencia" element={<CommerceIntelligencePage />} />
           <Route path="/agentes" element={<AgentControlCenterPage />} />
           <Route path="/brain" element={<CatalogBrainPage />} />
+          <Route path="/decisoes" element={<BrainDecisionEnginePage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
