@@ -4,8 +4,8 @@ import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 
 export function usePdfExtractions() {
-  const { currentWorkspace } = useWorkspaceContext();
-  const workspaceId = currentWorkspace?.id;
+  const { activeWorkspace } = useWorkspaceContext();
+  const workspaceId = activeWorkspace?.id;
 
   return useQuery({
     queryKey: ["pdf-extractions", workspaceId],
