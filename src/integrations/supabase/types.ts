@@ -686,6 +686,44 @@ export type Database = {
           },
         ]
       }
+      bundle_recommendations: {
+        Row: {
+          bundle_products: Json | null
+          confidence: number | null
+          created_at: string | null
+          expected_conversion: number | null
+          expected_revenue: number | null
+          id: string
+          workspace_id: string
+        }
+        Insert: {
+          bundle_products?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          expected_conversion?: number | null
+          expected_revenue?: number | null
+          id?: string
+          workspace_id: string
+        }
+        Update: {
+          bundle_products?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          expected_conversion?: number | null
+          expected_revenue?: number | null
+          id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_recommendations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bundle_suggestions: {
         Row: {
           accepted: boolean | null
@@ -3243,6 +3281,130 @@ export type Database = {
           },
         ]
       }
+      demand_signals: {
+        Row: {
+          category_id: string | null
+          detected_at: string | null
+          id: string
+          keyword: string | null
+          payload: Json | null
+          product_id: string | null
+          signal_strength: number | null
+          signal_type: Database["public"]["Enums"]["demand_signal_type"] | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          detected_at?: string | null
+          id?: string
+          keyword?: string | null
+          payload?: Json | null
+          product_id?: string | null
+          signal_strength?: number | null
+          signal_type?: Database["public"]["Enums"]["demand_signal_type"] | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string | null
+          detected_at?: string | null
+          id?: string
+          keyword?: string | null
+          payload?: Json | null
+          product_id?: string | null
+          signal_strength?: number | null
+          signal_type?: Database["public"]["Enums"]["demand_signal_type"] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_signals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demand_signals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demand_sources: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          source_name: string | null
+          source_type: Database["public"]["Enums"]["demand_source_type"] | null
+          workspace_id: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_name?: string | null
+          source_type?: Database["public"]["Enums"]["demand_source_type"] | null
+          workspace_id: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_name?: string | null
+          source_type?: Database["public"]["Enums"]["demand_source_type"] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demand_trends: {
+        Row: {
+          detected_at: string | null
+          id: string
+          keyword: string | null
+          trend_direction: string | null
+          trend_strength: number | null
+          workspace_id: string
+        }
+        Insert: {
+          detected_at?: string | null
+          id?: string
+          keyword?: string | null
+          trend_direction?: string | null
+          trend_strength?: number | null
+          workspace_id: string
+        }
+        Update: {
+          detected_at?: string | null
+          id?: string
+          keyword?: string | null
+          trend_direction?: string | null
+          trend_strength?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_trends_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           context: Json | null
@@ -4003,6 +4165,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ingestion_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      keyword_opportunities: {
+        Row: {
+          category_id: string | null
+          competition_level: number | null
+          created_at: string | null
+          estimated_search_volume: number | null
+          id: string
+          keyword: string | null
+          opportunity_score: number | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          competition_level?: number | null
+          created_at?: string | null
+          estimated_search_volume?: number | null
+          id?: string
+          keyword?: string | null
+          opportunity_score?: number | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string | null
+          competition_level?: number | null
+          created_at?: string | null
+          estimated_search_volume?: number | null
+          id?: string
+          keyword?: string | null
+          opportunity_score?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "keyword_opportunities_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -5350,6 +5553,57 @@ export type Database = {
           },
         ]
       }
+      pricing_recommendations: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          current_price: number | null
+          expected_margin: number | null
+          id: string
+          minimum_price: number | null
+          product_id: string | null
+          recommended_price: number | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          current_price?: number | null
+          expected_margin?: number | null
+          id?: string
+          minimum_price?: number | null
+          product_id?: string | null
+          recommended_price?: number | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          current_price?: number | null
+          expected_margin?: number | null
+          id?: string
+          minimum_price?: number | null
+          product_id?: string | null
+          recommended_price?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_recommendations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_recommendations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_dna_profiles: {
         Row: {
           category_cluster: string | null
@@ -5748,6 +6002,67 @@ export type Database = {
           },
         ]
       }
+      product_relationships: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          id: string
+          product_a_id: string | null
+          product_b_id: string | null
+          relationship_type:
+            | Database["public"]["Enums"]["product_relationship_type"]
+            | null
+          source: string | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          product_a_id?: string | null
+          product_b_id?: string | null
+          relationship_type?:
+            | Database["public"]["Enums"]["product_relationship_type"]
+            | null
+          source?: string | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          product_a_id?: string | null
+          product_b_id?: string | null
+          relationship_type?:
+            | Database["public"]["Enums"]["product_relationship_type"]
+            | null
+          source?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_relationships_product_a_id_fkey"
+            columns: ["product_a_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_relationships_product_b_id_fkey"
+            columns: ["product_b_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_relationships_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_versions: {
         Row: {
           change_reason: string | null
@@ -6012,6 +6327,51 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      promotion_candidates: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          estimated_revenue_gain: number | null
+          id: string
+          product_id: string | null
+          promotion_type: Database["public"]["Enums"]["promotion_type"] | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          estimated_revenue_gain?: number | null
+          id?: string
+          product_id?: string | null
+          promotion_type?: Database["public"]["Enums"]["promotion_type"] | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          estimated_revenue_gain?: number | null
+          id?: string
+          product_id?: string | null
+          promotion_type?: Database["public"]["Enums"]["promotion_type"] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_candidates_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_candidates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       publish_job_items: {
         Row: {
@@ -6286,6 +6646,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "quality_gates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_actions: {
+        Row: {
+          action_payload: Json | null
+          action_type: Database["public"]["Enums"]["revenue_action_type"] | null
+          created_at: string | null
+          executed_at: string | null
+          expected_revenue: number | null
+          id: string
+          status: string | null
+          workspace_id: string
+        }
+        Insert: {
+          action_payload?: Json | null
+          action_type?:
+            | Database["public"]["Enums"]["revenue_action_type"]
+            | null
+          created_at?: string | null
+          executed_at?: string | null
+          expected_revenue?: number | null
+          id?: string
+          status?: string | null
+          workspace_id: string
+        }
+        Update: {
+          action_payload?: Json | null
+          action_type?:
+            | Database["public"]["Enums"]["revenue_action_type"]
+            | null
+          created_at?: string | null
+          executed_at?: string | null
+          expected_revenue?: number | null
+          id?: string
+          status?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_actions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -7919,6 +8324,21 @@ export type Database = {
         | "rejected"
         | "executed"
         | "expired"
+      demand_signal_type:
+        | "search_volume"
+        | "keyword_trend"
+        | "click_through_rate"
+        | "conversion_rate"
+        | "ad_cost"
+        | "keyword_gap"
+        | "demand_spike"
+      demand_source_type:
+        | "search_console"
+        | "google_ads"
+        | "analytics"
+        | "site_search"
+        | "marketplace_search"
+        | "external_keyword_data"
       extraction_decision_type:
         | "category_assignment"
         | "schema_assignment"
@@ -8152,6 +8572,14 @@ export type Database = {
         | "accessories"
         | "compatibility"
         | "spare_parts"
+      product_relationship_type:
+        | "complementary"
+        | "accessory"
+        | "upgrade"
+        | "substitute"
+        | "bundle_candidate"
+        | "cross_sell"
+        | "upsell"
       product_status:
         | "pending"
         | "processing"
@@ -8168,11 +8596,24 @@ export type Database = {
         | "published"
         | "archived"
         | "rejected"
+      promotion_type:
+        | "discount"
+        | "bundle_offer"
+        | "limited_time_offer"
+        | "volume_discount"
+        | "channel_promotion"
       publish_lock_type:
         | "quality_gate"
         | "manual"
         | "validation"
         | "missing_data"
+      revenue_action_type:
+        | "create_bundle"
+        | "add_cross_sell"
+        | "add_upsell"
+        | "adjust_price"
+        | "launch_promotion"
+        | "create_product_pack"
       review_reason:
         | "low_confidence"
         | "ai_generated"
@@ -8657,6 +9098,23 @@ export const Constants = {
         "executed",
         "expired",
       ],
+      demand_signal_type: [
+        "search_volume",
+        "keyword_trend",
+        "click_through_rate",
+        "conversion_rate",
+        "ad_cost",
+        "keyword_gap",
+        "demand_spike",
+      ],
+      demand_source_type: [
+        "search_console",
+        "google_ads",
+        "analytics",
+        "site_search",
+        "marketplace_search",
+        "external_keyword_data",
+      ],
       extraction_decision_type: [
         "category_assignment",
         "schema_assignment",
@@ -8913,6 +9371,15 @@ export const Constants = {
         "compatibility",
         "spare_parts",
       ],
+      product_relationship_type: [
+        "complementary",
+        "accessory",
+        "upgrade",
+        "substitute",
+        "bundle_candidate",
+        "cross_sell",
+        "upsell",
+      ],
       product_status: [
         "pending",
         "processing",
@@ -8931,11 +9398,26 @@ export const Constants = {
         "archived",
         "rejected",
       ],
+      promotion_type: [
+        "discount",
+        "bundle_offer",
+        "limited_time_offer",
+        "volume_discount",
+        "channel_promotion",
+      ],
       publish_lock_type: [
         "quality_gate",
         "manual",
         "validation",
         "missing_data",
+      ],
+      revenue_action_type: [
+        "create_bundle",
+        "add_cross_sell",
+        "add_upsell",
+        "adjust_price",
+        "launch_promotion",
+        "create_product_pack",
       ],
       review_reason: [
         "low_confidence",

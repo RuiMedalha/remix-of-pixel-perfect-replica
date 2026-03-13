@@ -173,3 +173,30 @@ verify_jwt = false
 
 [functions.sync-market-intelligence]
 verify_jwt = false
+
+[functions.generate-product-relationships]
+verify_jwt = false
+
+[functions.generate-bundle-recommendations]
+verify_jwt = false
+
+[functions.calculate-price-optimization]
+verify_jwt = false
+
+[functions.detect-promotion-opportunities]
+verify_jwt = false
+
+[functions.evaluate-revenue-impact]
+verify_jwt = false
+
+[functions.collect-demand-data]
+verify_jwt = false
+
+[functions.generate-demand-signals]
+verify_jwt = false
+
+[functions.detect-keyword-opportunities]
+verify_jwt = false
+
+[functions.generate-demand-trends]
+verify_jwt = false
