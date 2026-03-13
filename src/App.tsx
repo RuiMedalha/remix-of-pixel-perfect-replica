@@ -50,6 +50,7 @@ function ProtectedRoutes() {
           <Route path="/assets" element={<AssetLibraryPage />} />
           <Route path="/pdf-extraction" element={<PDFExtractionPage />} />
           <Route path="/extraction-memory" element={<ExtractionMemoryPage />} />
+          <Route path="/traducoes" element={<TranslationMemoryPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
