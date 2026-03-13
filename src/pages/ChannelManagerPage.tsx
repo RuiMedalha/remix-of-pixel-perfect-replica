@@ -38,7 +38,7 @@ export default function ChannelManagerPage() {
 
   const handleCreateChannel = () => {
     if (!activeWorkspace || !newChannel.channel_name.trim()) return;
-    createChannel.mutate({ ...newChannel, workspace_id: activeWorkspace.id });
+    createChannel.mutate({ ...newChannel, workspace_id: activeWorkspace.id, channel_type: newChannel.channel_type as any });
     setShowNewChannel(false);
     setNewChannel({ channel_name: "", channel_type: "woocommerce" });
   };
