@@ -6099,6 +6099,11 @@ export type Database = {
         | "supplier_cluster"
         | "behavior_cluster"
         | "opportunity_cluster"
+        | "technical_cluster"
+        | "seo_cluster"
+        | "visual_cluster"
+        | "translation_cluster"
+        | "monetization_cluster"
       brain_entity_type:
         | "product"
         | "category"
@@ -6109,6 +6114,12 @@ export type Database = {
         | "attribute"
         | "image"
         | "translation"
+        | "product_family"
+        | "variant"
+        | "schema"
+        | "asset"
+        | "document"
+        | "feed"
       brain_observation_type:
         | "quality_gate_fail"
         | "review_correction"
@@ -6122,11 +6133,28 @@ export type Database = {
         | "feed_error"
         | "duplicate_detected"
         | "supplier_signal"
+        | "low_confidence"
+        | "feed_rejection"
+        | "high_conversion"
+        | "poor_ctr"
+        | "untranslated_content"
+        | "image_quality_issue"
+        | "schema_mismatch"
+        | "supplier_pattern_detected"
       brain_outcome_type:
         | "improvement"
         | "degradation"
         | "neutral"
         | "pending_measurement"
+        | "seo_score"
+        | "quality_score"
+        | "feed_acceptance"
+        | "publish_success"
+        | "ctr"
+        | "conversion_rate"
+        | "revenue"
+        | "review_time"
+        | "completion_rate"
       brain_plan_status:
         | "draft"
         | "ready"
@@ -6134,6 +6162,8 @@ export type Database = {
         | "completed"
         | "failed"
         | "cancelled"
+        | "queued"
+        | "waiting_review"
       brain_relation_type:
         | "belongs_to"
         | "similar_to"
@@ -6146,6 +6176,16 @@ export type Database = {
         | "cross_sell_for"
         | "same_supplier"
         | "same_category"
+        | "belongs_to_family"
+        | "has_variant"
+        | "uses_schema"
+        | "derived_from"
+        | "sourced_from"
+        | "related_bundle"
+        | "translated_to"
+        | "published_to"
+        | "blocked_by"
+        | "optimized_by"
       brain_step_status:
         | "pending"
         | "running"
@@ -6655,6 +6695,11 @@ export const Constants = {
         "supplier_cluster",
         "behavior_cluster",
         "opportunity_cluster",
+        "technical_cluster",
+        "seo_cluster",
+        "visual_cluster",
+        "translation_cluster",
+        "monetization_cluster",
       ],
       brain_entity_type: [
         "product",
@@ -6666,6 +6711,12 @@ export const Constants = {
         "attribute",
         "image",
         "translation",
+        "product_family",
+        "variant",
+        "schema",
+        "asset",
+        "document",
+        "feed",
       ],
       brain_observation_type: [
         "quality_gate_fail",
@@ -6680,12 +6731,29 @@ export const Constants = {
         "feed_error",
         "duplicate_detected",
         "supplier_signal",
+        "low_confidence",
+        "feed_rejection",
+        "high_conversion",
+        "poor_ctr",
+        "untranslated_content",
+        "image_quality_issue",
+        "schema_mismatch",
+        "supplier_pattern_detected",
       ],
       brain_outcome_type: [
         "improvement",
         "degradation",
         "neutral",
         "pending_measurement",
+        "seo_score",
+        "quality_score",
+        "feed_acceptance",
+        "publish_success",
+        "ctr",
+        "conversion_rate",
+        "revenue",
+        "review_time",
+        "completion_rate",
       ],
       brain_plan_status: [
         "draft",
@@ -6694,6 +6762,8 @@ export const Constants = {
         "completed",
         "failed",
         "cancelled",
+        "queued",
+        "waiting_review",
       ],
       brain_relation_type: [
         "belongs_to",
@@ -6707,6 +6777,16 @@ export const Constants = {
         "cross_sell_for",
         "same_supplier",
         "same_category",
+        "belongs_to_family",
+        "has_variant",
+        "uses_schema",
+        "derived_from",
+        "sourced_from",
+        "related_bundle",
+        "translated_to",
+        "published_to",
+        "blocked_by",
+        "optimized_by",
       ],
       brain_step_status: [
         "pending",
