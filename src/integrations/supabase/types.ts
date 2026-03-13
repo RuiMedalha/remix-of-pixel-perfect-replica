@@ -571,6 +571,81 @@ export type Database = {
           },
         ]
       }
+      channel_feed_profiles: {
+        Row: {
+          attribute_blacklist: string[] | null
+          attribute_whitelist: string[] | null
+          channel_id: string
+          created_at: string | null
+          currency: string | null
+          description_template: string | null
+          feed_type: Database["public"]["Enums"]["feed_type_enum"] | null
+          id: string
+          image_strategy: Json | null
+          is_default: boolean | null
+          locale: string | null
+          price_strategy: Json | null
+          profile_name: string
+          title_template: string | null
+          updated_at: string | null
+          validation_profile: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          attribute_blacklist?: string[] | null
+          attribute_whitelist?: string[] | null
+          channel_id: string
+          created_at?: string | null
+          currency?: string | null
+          description_template?: string | null
+          feed_type?: Database["public"]["Enums"]["feed_type_enum"] | null
+          id?: string
+          image_strategy?: Json | null
+          is_default?: boolean | null
+          locale?: string | null
+          price_strategy?: Json | null
+          profile_name: string
+          title_template?: string | null
+          updated_at?: string | null
+          validation_profile?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          attribute_blacklist?: string[] | null
+          attribute_whitelist?: string[] | null
+          channel_id?: string
+          created_at?: string | null
+          currency?: string | null
+          description_template?: string | null
+          feed_type?: Database["public"]["Enums"]["feed_type_enum"] | null
+          id?: string
+          image_strategy?: Json | null
+          is_default?: boolean | null
+          locale?: string | null
+          price_strategy?: Json | null
+          profile_name?: string
+          title_template?: string | null
+          updated_at?: string | null
+          validation_profile?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_feed_profiles_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_feed_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_field_mappings: {
         Row: {
           canonical_field: string
@@ -794,6 +869,187 @@ export type Database = {
           },
           {
             foreignKeyName: "channel_publish_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_rejections: {
+        Row: {
+          channel_id: string
+          created_at: string | null
+          external_code: string | null
+          external_message: string | null
+          field_impacted: string | null
+          id: string
+          product_id: string
+          rejection_type: string | null
+          resolution_note: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string | null
+          external_code?: string | null
+          external_message?: string | null
+          field_impacted?: string | null
+          id?: string
+          product_id: string
+          rejection_type?: string | null
+          resolution_note?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string | null
+          external_code?: string | null
+          external_message?: string | null
+          field_impacted?: string | null
+          id?: string
+          product_id?: string
+          rejection_type?: string | null
+          resolution_note?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_rejections_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_rejections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_rejections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_rule_learning: {
+        Row: {
+          accepted_by_user: boolean | null
+          channel_id: string
+          created_at: string | null
+          frequency: number | null
+          id: string
+          pattern_detected: string
+          source_type:
+            | Database["public"]["Enums"]["learning_source_enum"]
+            | null
+          suggested_rule: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          accepted_by_user?: boolean | null
+          channel_id: string
+          created_at?: string | null
+          frequency?: number | null
+          id?: string
+          pattern_detected: string
+          source_type?:
+            | Database["public"]["Enums"]["learning_source_enum"]
+            | null
+          suggested_rule?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          accepted_by_user?: boolean | null
+          channel_id?: string
+          created_at?: string | null
+          frequency?: number | null
+          id?: string
+          pattern_detected?: string
+          source_type?:
+            | Database["public"]["Enums"]["learning_source_enum"]
+            | null
+          suggested_rule?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_rule_learning_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_rule_learning_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_rules: {
+        Row: {
+          actions: Json
+          channel_id: string
+          conditions: Json
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          rule_name: string
+          rule_type: Database["public"]["Enums"]["channel_rule_type_enum"]
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          actions?: Json
+          channel_id: string
+          conditions?: Json
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_name: string
+          rule_type: Database["public"]["Enums"]["channel_rule_type_enum"]
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          actions?: Json
+          channel_id?: string
+          conditions?: Json
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_name?: string
+          rule_type?: Database["public"]["Enums"]["channel_rule_type_enum"]
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_rules_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_rules_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -4607,6 +4863,20 @@ export type Database = {
         | "custom"
         | "unknown"
       channel_job_status_enum: "queued" | "running" | "completed" | "failed"
+      channel_rule_type_enum:
+        | "title_template"
+        | "description_template"
+        | "exclude_product"
+        | "require_attribute"
+        | "fallback_attribute"
+        | "category_override"
+        | "price_adjustment"
+        | "image_selection"
+        | "variant_strategy"
+        | "feed_cleanup"
+        | "stock_policy"
+        | "shipping_policy"
+        | "validation_rule"
       channel_type_enum:
         | "woocommerce"
         | "shopify"
@@ -4652,6 +4922,12 @@ export type Database = {
         | "language_pattern"
         | "supplier_rule"
         | "pdf_section_rule"
+      feed_type_enum:
+        | "marketplace"
+        | "merchant_feed"
+        | "partner_csv"
+        | "internal_api"
+        | "retailer_feed"
       field_validation_status: "valid" | "invalid" | "unvalidated"
       gate_severity: "error" | "warning" | "info"
       image_job_item_status:
@@ -4710,6 +4986,12 @@ export type Database = {
         | "webhook"
         | "supplier_feed"
       job_item_status: "queued" | "processing" | "done" | "error" | "skipped"
+      learning_source_enum:
+        | "rejection_pattern"
+        | "validation_failure"
+        | "manual_review"
+        | "ai_detection"
+        | "feed_analysis"
       normalization_type:
         | "unit"
         | "material"
@@ -5007,6 +5289,21 @@ export const Constants = {
         "unknown",
       ],
       channel_job_status_enum: ["queued", "running", "completed", "failed"],
+      channel_rule_type_enum: [
+        "title_template",
+        "description_template",
+        "exclude_product",
+        "require_attribute",
+        "fallback_attribute",
+        "category_override",
+        "price_adjustment",
+        "image_selection",
+        "variant_strategy",
+        "feed_cleanup",
+        "stock_policy",
+        "shipping_policy",
+        "validation_rule",
+      ],
       channel_type_enum: [
         "woocommerce",
         "shopify",
@@ -5056,6 +5353,13 @@ export const Constants = {
         "language_pattern",
         "supplier_rule",
         "pdf_section_rule",
+      ],
+      feed_type_enum: [
+        "marketplace",
+        "merchant_feed",
+        "partner_csv",
+        "internal_api",
+        "retailer_feed",
       ],
       field_validation_status: ["valid", "invalid", "unvalidated"],
       gate_severity: ["error", "warning", "info"],
@@ -5117,6 +5421,13 @@ export const Constants = {
         "supplier_feed",
       ],
       job_item_status: ["queued", "processing", "done", "error", "skipped"],
+      learning_source_enum: [
+        "rejection_pattern",
+        "validation_failure",
+        "manual_review",
+        "ai_detection",
+        "feed_analysis",
+      ],
       normalization_type: [
         "unit",
         "material",
