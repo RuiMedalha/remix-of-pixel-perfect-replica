@@ -49,6 +49,50 @@ export type Database = {
           },
         ]
       }
+      audit_trail: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          created_at: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["audit_entity_type"]
+          field_changes: Json | null
+          id: string
+          metadata: Json | null
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          created_at?: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["audit_entity_type"]
+          field_changes?: Json | null
+          id?: string
+          metadata?: Json | null
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          created_at?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["audit_entity_type"]
+          field_changes?: Json | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_trail_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -289,6 +333,78 @@ export type Database = {
           },
         ]
       }
+      optimization_job_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          error_payload: Json | null
+          fields_optimized: string[] | null
+          id: string
+          job_id: string
+          max_retries: number | null
+          model_used: string | null
+          product_id: string
+          rag_chunks_used: number | null
+          retry_count: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_item_status"]
+          tokens_used: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          error_payload?: Json | null
+          fields_optimized?: string[] | null
+          id?: string
+          job_id: string
+          max_retries?: number | null
+          model_used?: string | null
+          product_id: string
+          rag_chunks_used?: number | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_item_status"]
+          tokens_used?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          error_payload?: Json | null
+          fields_optimized?: string[] | null
+          id?: string
+          job_id?: string
+          max_retries?: number | null
+          model_used?: string | null
+          product_id?: string
+          rag_chunks_used?: number | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_item_status"]
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_job_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "optimization_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimization_job_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       optimization_jobs: {
         Row: {
           completed_at: string | null
@@ -436,6 +552,8 @@ export type Database = {
       }
       product_versions: {
         Row: {
+          change_reason: string | null
+          change_source: string | null
           created_at: string
           faq: Json | null
           id: string
@@ -453,6 +571,8 @@ export type Database = {
           version_number: number
         }
         Insert: {
+          change_reason?: string | null
+          change_source?: string | null
           created_at?: string
           faq?: Json | null
           id?: string
@@ -470,6 +590,8 @@ export type Database = {
           version_number?: number
         }
         Update: {
+          change_reason?: string | null
+          change_source?: string | null
           created_at?: string
           faq?: Json | null
           id?: string
@@ -535,6 +657,9 @@ export type Database = {
           upsell_skus: Json | null
           user_id: string
           woocommerce_id: number | null
+          workflow_changed_at: string | null
+          workflow_changed_by: string | null
+          workflow_state: Database["public"]["Enums"]["product_workflow"] | null
           workspace_id: string | null
         }
         Insert: {
@@ -575,6 +700,11 @@ export type Database = {
           upsell_skus?: Json | null
           user_id: string
           woocommerce_id?: number | null
+          workflow_changed_at?: string | null
+          workflow_changed_by?: string | null
+          workflow_state?:
+            | Database["public"]["Enums"]["product_workflow"]
+            | null
           workspace_id?: string | null
         }
         Update: {
@@ -615,6 +745,11 @@ export type Database = {
           upsell_skus?: Json | null
           user_id?: string
           woocommerce_id?: number | null
+          workflow_changed_at?: string | null
+          workflow_changed_by?: string | null
+          workflow_state?:
+            | Database["public"]["Enums"]["product_workflow"]
+            | null
           workspace_id?: string | null
         }
         Relationships: [
@@ -667,6 +802,72 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      publish_job_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          error_payload: Json | null
+          id: string
+          job_id: string
+          max_retries: number | null
+          product_id: string
+          publish_fields: string[] | null
+          retry_count: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_item_status"]
+          woocommerce_id: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          error_payload?: Json | null
+          id?: string
+          job_id: string
+          max_retries?: number | null
+          product_id: string
+          publish_fields?: string[] | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_item_status"]
+          woocommerce_id?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          error_payload?: Json | null
+          id?: string
+          job_id?: string
+          max_retries?: number | null
+          product_id?: string
+          publish_fields?: string[] | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_item_status"]
+          woocommerce_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publish_job_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "publish_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publish_job_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       publish_jobs: {
         Row: {
@@ -919,6 +1120,313 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_transitions: {
+        Row: {
+          created_at: string
+          from_state: Database["public"]["Enums"]["product_workflow"] | null
+          id: string
+          product_id: string
+          reason: string | null
+          to_state: Database["public"]["Enums"]["product_workflow"]
+          trigger_source: string | null
+          triggered_by: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_state?: Database["public"]["Enums"]["product_workflow"] | null
+          id?: string
+          product_id: string
+          reason?: string | null
+          to_state: Database["public"]["Enums"]["product_workflow"]
+          trigger_source?: string | null
+          triggered_by: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_state?: Database["public"]["Enums"]["product_workflow"] | null
+          id?: string
+          product_id?: string
+          reason?: string | null
+          to_state?: Database["public"]["Enums"]["product_workflow"]
+          trigger_source?: string | null
+          triggered_by?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_transitions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_transitions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_ai_settings: {
+        Row: {
+          brand_voice: string | null
+          created_at: string
+          custom_instructions: string | null
+          default_model: string | null
+          fallback_model: string | null
+          id: string
+          language: string | null
+          max_tokens: number | null
+          temperature: number | null
+          tone: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          brand_voice?: string | null
+          created_at?: string
+          custom_instructions?: string | null
+          default_model?: string | null
+          fallback_model?: string | null
+          id?: string
+          language?: string | null
+          max_tokens?: number | null
+          temperature?: number | null
+          tone?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          brand_voice?: string | null
+          created_at?: string
+          custom_instructions?: string | null
+          default_model?: string | null
+          fallback_model?: string | null
+          id?: string
+          language?: string | null
+          max_tokens?: number | null
+          temperature?: number | null
+          tone?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_ai_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_notification_settings: {
+        Row: {
+          created_at: string
+          email_enabled: boolean | null
+          email_recipients: string[] | null
+          id: string
+          notify_on_error: boolean | null
+          notify_on_job_complete: boolean | null
+          notify_on_publish: boolean | null
+          telegram_chat_id: string | null
+          telegram_enabled: boolean | null
+          updated_at: string
+          webhook_url: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean | null
+          email_recipients?: string[] | null
+          id?: string
+          notify_on_error?: boolean | null
+          notify_on_job_complete?: boolean | null
+          notify_on_publish?: boolean | null
+          telegram_chat_id?: string | null
+          telegram_enabled?: boolean | null
+          updated_at?: string
+          webhook_url?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean | null
+          email_recipients?: string[] | null
+          id?: string
+          notify_on_error?: boolean | null
+          notify_on_job_complete?: boolean | null
+          notify_on_publish?: boolean | null
+          telegram_chat_id?: string | null
+          telegram_enabled?: boolean | null
+          updated_at?: string
+          webhook_url?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_notification_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_prompt_profiles: {
+        Row: {
+          created_at: string
+          examples: Json | null
+          field_key: string
+          id: string
+          is_default: boolean | null
+          language: string | null
+          name: string
+          system_prompt: string | null
+          tone: string | null
+          updated_at: string
+          user_prompt_template: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          examples?: Json | null
+          field_key: string
+          id?: string
+          is_default?: boolean | null
+          language?: string | null
+          name: string
+          system_prompt?: string | null
+          tone?: string | null
+          updated_at?: string
+          user_prompt_template?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          examples?: Json | null
+          field_key?: string
+          id?: string
+          is_default?: boolean | null
+          language?: string | null
+          name?: string
+          system_prompt?: string | null
+          tone?: string | null
+          updated_at?: string
+          user_prompt_template?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_prompt_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_publish_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          pricing_rules: Json | null
+          publish_fields: string[] | null
+          sku_prefix_rules: Json | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          pricing_rules?: Json | null
+          publish_fields?: string[] | null
+          sku_prefix_rules?: Json | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          pricing_rules?: Json | null
+          publish_fields?: string[] | null
+          sku_prefix_rules?: Json | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_publish_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_supplier_configs: {
+        Row: {
+          auto_enrich: boolean | null
+          created_at: string
+          field_mappings: Json | null
+          id: string
+          is_active: boolean | null
+          last_run_at: string | null
+          schedule_cron: string | null
+          scrape_config: Json | null
+          supplier_name: string
+          supplier_url: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          auto_enrich?: boolean | null
+          created_at?: string
+          field_mappings?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          schedule_cron?: string | null
+          scrape_config?: Json | null
+          supplier_name: string
+          supplier_url?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          auto_enrich?: boolean | null
+          created_at?: string
+          field_mappings?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          schedule_cron?: string | null
+          scrape_config?: Json | null
+          supplier_name?: string
+          supplier_url?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_supplier_configs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspaces: {
         Row: {
           created_at: string
@@ -1083,6 +1591,26 @@ export type Database = {
         | "settings_change"
         | "error"
       app_role: "admin" | "user"
+      audit_action:
+        | "create"
+        | "update"
+        | "delete"
+        | "publish"
+        | "approve"
+        | "reject"
+        | "restore"
+        | "optimize"
+        | "enrich"
+        | "import"
+      audit_entity_type:
+        | "product"
+        | "category"
+        | "channel"
+        | "settings"
+        | "member"
+        | "workspace"
+        | "asset"
+        | "job"
       image_status:
         | "pending"
         | "downloading"
@@ -1090,6 +1618,7 @@ export type Database = {
         | "uploading"
         | "done"
         | "error"
+      job_item_status: "queued" | "processing" | "done" | "error" | "skipped"
       product_status:
         | "pending"
         | "processing"
@@ -1097,6 +1626,15 @@ export type Database = {
         | "published"
         | "error"
         | "needs_review"
+      product_workflow:
+        | "draft"
+        | "enriching"
+        | "review"
+        | "approved"
+        | "publishing"
+        | "published"
+        | "archived"
+        | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1232,6 +1770,28 @@ export const Constants = {
         "error",
       ],
       app_role: ["admin", "user"],
+      audit_action: [
+        "create",
+        "update",
+        "delete",
+        "publish",
+        "approve",
+        "reject",
+        "restore",
+        "optimize",
+        "enrich",
+        "import",
+      ],
+      audit_entity_type: [
+        "product",
+        "category",
+        "channel",
+        "settings",
+        "member",
+        "workspace",
+        "asset",
+        "job",
+      ],
       image_status: [
         "pending",
         "downloading",
@@ -1240,6 +1800,7 @@ export const Constants = {
         "done",
         "error",
       ],
+      job_item_status: ["queued", "processing", "done", "error", "skipped"],
       product_status: [
         "pending",
         "processing",
@@ -1247,6 +1808,16 @@ export const Constants = {
         "published",
         "error",
         "needs_review",
+      ],
+      product_workflow: [
+        "draft",
+        "enriching",
+        "review",
+        "approved",
+        "publishing",
+        "published",
+        "archived",
+        "rejected",
       ],
     },
   },
