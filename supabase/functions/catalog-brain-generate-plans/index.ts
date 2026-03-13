@@ -46,10 +46,15 @@ serve(async (req) => {
         workspace_id: workspaceId,
         plan_name: planName,
         plan_description: `${obs.length} observações detetadas com severidade média ${avgSeverity}`,
+        objective: planName,
+        target_entity_type: "product",
+        target_entity_id: productId !== "general" ? productId : null,
         priority: avgSeverity,
+        priority_score: avgSeverity,
         confidence: Math.min(90, avgSeverity + 10),
         estimated_impact: { observations: obs.length, types, avg_severity: avgSeverity },
         requires_approval: avgSeverity < 70,
+        created_by: "brain-orchestrator",
       }).select().single();
 
       if (planErr || !plan) continue;

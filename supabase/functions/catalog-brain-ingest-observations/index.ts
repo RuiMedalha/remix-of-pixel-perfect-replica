@@ -51,8 +51,10 @@ serve(async (req) => {
       };
       observations.push({
         workspace_id: workspaceId, observation_type: typeMap[i.insight_type] || "seo_weakness",
-        product_id: i.product_id, signal_source: "product_insights",
-        signal_payload: { insight_id: i.id, payload: i.insight_payload }, severity: i.priority || 50,
+        entity_type: "product", entity_id: i.product_id,
+        product_id: i.product_id, signal_source: "product_insights", source: "product_insights",
+        signal_payload: { insight_id: i.id, payload: i.insight_payload },
+        severity: i.priority || 50, signal_strength: i.priority || 50,
       });
     }
 
