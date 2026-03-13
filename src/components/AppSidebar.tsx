@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database, Library, FileText, Brain, Languages, Radio, TrendingUp, Bot, Sparkles, Target, GraduationCap, FlaskConical } from "lucide-react";
+import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database, Library, FileText, Brain, Languages, Radio, TrendingUp, Bot, Sparkles, Target, GraduationCap, FlaskConical, Copy } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +34,7 @@ const navItems = [
   { to: "/decisoes", icon: Target, label: "Decision Engine" },
   { to: "/aprendizagem", icon: GraduationCap, label: "Learning Engine" },
   { to: "/simulacao", icon: FlaskConical, label: "Simulation Engine" },
+  { to: "/digital-twin", icon: Copy, label: "Digital Twin" },
 ];
 
 const managementItems = [

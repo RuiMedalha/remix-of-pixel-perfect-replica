@@ -140,3 +140,18 @@ verify_jwt = false
 
 [functions.catalog-brain-assess-risk]
 verify_jwt = false
+
+[functions.catalog-brain-create-twin]
+verify_jwt = false
+
+[functions.catalog-brain-run-twin-scenario]
+verify_jwt = false
+
+[functions.catalog-brain-compare-scenarios]
+verify_jwt = false
+
+[functions.catalog-brain-promote-scenario]
+verify_jwt = false
+
+[functions.catalog-brain-sync-twin]
+verify_jwt = false

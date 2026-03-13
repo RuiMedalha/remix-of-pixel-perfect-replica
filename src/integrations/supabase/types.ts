@@ -1942,6 +1942,353 @@ export type Database = {
           },
         ]
       }
+      catalog_twin_actions: {
+        Row: {
+          action_payload: Json | null
+          action_type: string | null
+          created_at: string | null
+          id: string
+          scenario_id: string
+          target_entity_id: string | null
+          target_entity_type:
+            | Database["public"]["Enums"]["twin_entity_type"]
+            | null
+        }
+        Insert: {
+          action_payload?: Json | null
+          action_type?: string | null
+          created_at?: string | null
+          id?: string
+          scenario_id: string
+          target_entity_id?: string | null
+          target_entity_type?:
+            | Database["public"]["Enums"]["twin_entity_type"]
+            | null
+        }
+        Update: {
+          action_payload?: Json | null
+          action_type?: string | null
+          created_at?: string | null
+          id?: string
+          scenario_id?: string
+          target_entity_id?: string | null
+          target_entity_type?:
+            | Database["public"]["Enums"]["twin_entity_type"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_twin_actions_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_twin_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_twin_comparisons: {
+        Row: {
+          comparison_result: Json | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          recommended_scenario: string | null
+          scenario_a_id: string | null
+          scenario_b_id: string | null
+          twin_id: string
+        }
+        Insert: {
+          comparison_result?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          recommended_scenario?: string | null
+          scenario_a_id?: string | null
+          scenario_b_id?: string | null
+          twin_id: string
+        }
+        Update: {
+          comparison_result?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          recommended_scenario?: string | null
+          scenario_a_id?: string | null
+          scenario_b_id?: string | null
+          twin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_twin_comparisons_twin_id_fkey"
+            columns: ["twin_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_twins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_twin_entities: {
+        Row: {
+          canonical_data: Json | null
+          channel_data: Json | null
+          created_at: string | null
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["twin_entity_type"] | null
+          id: string
+          metadata: Json | null
+          twin_id: string
+        }
+        Insert: {
+          canonical_data?: Json | null
+          channel_data?: Json | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["twin_entity_type"] | null
+          id?: string
+          metadata?: Json | null
+          twin_id: string
+        }
+        Update: {
+          canonical_data?: Json | null
+          channel_data?: Json | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["twin_entity_type"] | null
+          id?: string
+          metadata?: Json | null
+          twin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_twin_entities_twin_id_fkey"
+            columns: ["twin_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_twins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_twin_relations: {
+        Row: {
+          created_at: string | null
+          from_entity_id: string | null
+          id: string
+          metadata: Json | null
+          relation_type: string | null
+          to_entity_id: string | null
+          twin_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          from_entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+          relation_type?: string | null
+          to_entity_id?: string | null
+          twin_id: string
+        }
+        Update: {
+          created_at?: string | null
+          from_entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+          relation_type?: string | null
+          to_entity_id?: string | null
+          twin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_twin_relations_twin_id_fkey"
+            columns: ["twin_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_twins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_twin_results: {
+        Row: {
+          baseline_value: number | null
+          confidence: number | null
+          created_at: string | null
+          delta: number | null
+          id: string
+          metadata: Json | null
+          metric_type:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          predicted_value: number | null
+          result_type: Database["public"]["Enums"]["twin_result_type"] | null
+          scenario_id: string
+        }
+        Insert: {
+          baseline_value?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          delta?: number | null
+          id?: string
+          metadata?: Json | null
+          metric_type?:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          predicted_value?: number | null
+          result_type?: Database["public"]["Enums"]["twin_result_type"] | null
+          scenario_id: string
+        }
+        Update: {
+          baseline_value?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          delta?: number | null
+          id?: string
+          metadata?: Json | null
+          metric_type?:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          predicted_value?: number | null
+          result_type?: Database["public"]["Enums"]["twin_result_type"] | null
+          scenario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_twin_results_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_twin_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_twin_scenarios: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          input_parameters: Json | null
+          scenario_name: string | null
+          scenario_type:
+            | Database["public"]["Enums"]["twin_scenario_type"]
+            | null
+          status: Database["public"]["Enums"]["twin_scenario_status"] | null
+          twin_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          input_parameters?: Json | null
+          scenario_name?: string | null
+          scenario_type?:
+            | Database["public"]["Enums"]["twin_scenario_type"]
+            | null
+          status?: Database["public"]["Enums"]["twin_scenario_status"] | null
+          twin_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          input_parameters?: Json | null
+          scenario_name?: string | null
+          scenario_type?:
+            | Database["public"]["Enums"]["twin_scenario_type"]
+            | null
+          status?: Database["public"]["Enums"]["twin_scenario_status"] | null
+          twin_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_twin_scenarios_twin_id_fkey"
+            columns: ["twin_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_twins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_twin_snapshots: {
+        Row: {
+          created_at: string | null
+          id: string
+          snapshot_metadata: Json | null
+          snapshot_name: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          snapshot_metadata?: Json | null
+          snapshot_name?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          snapshot_metadata?: Json | null
+          snapshot_name?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_twin_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_twins: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          source_snapshot_id: string | null
+          twin_name: string | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          source_snapshot_id?: string | null
+          twin_name?: string | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          source_snapshot_id?: string | null
+          twin_name?: string | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_twins_source_snapshot_id_fkey"
+            columns: ["source_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_twin_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_twins_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -7447,6 +7794,33 @@ export type Database = {
         | "translation_quality_simulation"
         | "image_quality_simulation"
         | "schema_validation_simulation"
+      twin_entity_type:
+        | "product"
+        | "product_family"
+        | "variant"
+        | "category"
+        | "asset"
+        | "channel"
+        | "schema"
+        | "bundle"
+        | "translation"
+      twin_result_type: "expected_improvement" | "expected_decline" | "neutral"
+      twin_scenario_status:
+        | "draft"
+        | "running"
+        | "completed"
+        | "failed"
+        | "promoted"
+      twin_scenario_type:
+        | "seo_optimization"
+        | "bundle_creation"
+        | "price_adjustment"
+        | "taxonomy_change"
+        | "translation_rollout"
+        | "image_replacement"
+        | "channel_publish"
+        | "schema_update"
+        | "catalog_reorganization"
       validation_rule_type:
         | "required"
         | "regex"
@@ -8147,6 +8521,36 @@ export const Constants = {
         "translation_quality_simulation",
         "image_quality_simulation",
         "schema_validation_simulation",
+      ],
+      twin_entity_type: [
+        "product",
+        "product_family",
+        "variant",
+        "category",
+        "asset",
+        "channel",
+        "schema",
+        "bundle",
+        "translation",
+      ],
+      twin_result_type: ["expected_improvement", "expected_decline", "neutral"],
+      twin_scenario_status: [
+        "draft",
+        "running",
+        "completed",
+        "failed",
+        "promoted",
+      ],
+      twin_scenario_type: [
+        "seo_optimization",
+        "bundle_creation",
+        "price_adjustment",
+        "taxonomy_change",
+        "translation_rollout",
+        "image_replacement",
+        "channel_publish",
+        "schema_update",
+        "catalog_reorganization",
       ],
       validation_rule_type: [
         "required",
