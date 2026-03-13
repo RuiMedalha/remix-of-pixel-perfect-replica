@@ -45,6 +45,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
   const restoreVersion = useRestoreVersion();
   const { processImages, isProcessing, progress: imgProgress } = useProcessImages();
   const { activeWorkspace } = useWorkspaceContext();
+  const { data: gateResults } = useQualityGateResults(product?.id ?? null);
+  const { data: publishLocks } = usePublishLocks(product?.id ?? null);
+  const evaluateGate = useEvaluateQualityGate();
 
   // Fetch optimized images from images table
   const { data: optimizedImages } = useQuery({
