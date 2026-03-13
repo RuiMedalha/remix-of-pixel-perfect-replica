@@ -358,7 +358,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             <FileText className="h-3 w-3" /> Texto
                           </h4>
                           <div className="bg-muted rounded-md p-2 max-h-60 overflow-auto">
-                            {(selectedPage.text_result?.zones || selectedPage.layout_zones || []).map((z: any, i: number) => (
+                            {(((selectedPage.text_result as any)?.zones || (selectedPage.layout_zones as any[]) || []) as any[]).map((z: any, i: number) => (
                               <div key={i} className={`text-xs p-1 mb-1 rounded ${zoneColors[z.type] || ""}`}>
                                 <span className="font-medium">[{z.type}]</span> {(z.content || z.content_summary || "").substring(0, 80)}
                               </div>
@@ -372,8 +372,8 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             <Brain className="h-3 w-3" /> Visão AI
                           </h4>
                           <div className="bg-muted rounded-md p-2 max-h-60 overflow-auto">
-                            {selectedPage.vision_result?.tables?.length > 0 ? (
-                              (selectedPage.vision_result.tables || []).map((t: any, i: number) => (
+                            {((selectedPage.vision_result as any)?.tables?.length > 0) ? (
+                              (((selectedPage.vision_result as any).tables || []) as any[]).map((t: any, i: number) => (
                                 <div key={i} className="text-xs p-1 mb-1 border-b border-border">
                                   <span className="font-medium">Tabela {i + 1}:</span> {(t.headers || []).join(", ")}
                                   <br />
@@ -383,13 +383,13 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             ) : (
                               <p className="text-xs text-muted-foreground">Sem resultados AI — clique "AI Parse"</p>
                             )}
-                            {selectedPage.vision_result?.page_context && (
+                            {(selectedPage.vision_result as any)?.page_context && (
                               <div className="text-xs p-1 mt-2">
-                                {selectedPage.vision_result.page_context.supplier_name && (
-                                  <p><span className="font-medium">Fornecedor:</span> {selectedPage.vision_result.page_context.supplier_name}</p>
+                                {(selectedPage.vision_result as any).page_context.supplier_name && (
+                                  <p><span className="font-medium">Fornecedor:</span> {(selectedPage.vision_result as any).page_context.supplier_name}</p>
                                 )}
-                                {selectedPage.vision_result.page_context.category_hint && (
-                                  <p><span className="font-medium">Categoria:</span> {selectedPage.vision_result.page_context.category_hint}</p>
+                                {(selectedPage.vision_result as any).page_context.category_hint && (
+                                  <p><span className="font-medium">Categoria:</span> {(selectedPage.vision_result as any).page_context.category_hint}</p>
                                 )}
                               </div>
                             )}
@@ -402,18 +402,18 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             <GitCompare className="h-3 w-3" /> Reconciliado
                           </h4>
                           <div className="bg-muted rounded-md p-2 max-h-60 overflow-auto">
-                            {(selectedPage.reconciled_result?.zones || []).map((z: any, i: number) => (
+                            {(((selectedPage.reconciled_result as any)?.zones || []) as any[]).map((z: any, i: number) => (
                               <div key={i} className={`text-xs p-1 mb-1 rounded ${zoneColors[z.type] || ""}`}>
                                 <span className="font-medium">[{z.type}]</span> {(z.content_summary || "").substring(0, 80)}
                               </div>
                             ))}
-                            {selectedPage.reconciled_result?.page_context?.template_matched && (
+                            {(selectedPage.reconciled_result as any)?.page_context?.template_matched && (
                               <div className="text-xs p-1 mt-2 flex items-center gap-1">
                                 <Shield className="h-3 w-3 text-primary" />
-                                <span className="font-medium">Template:</span> {selectedPage.reconciled_result.page_context.template_matched}
+                                <span className="font-medium">Template:</span> {(selectedPage.reconciled_result as any).page_context.template_matched}
                               </div>
                             )}
-                            {!selectedPage.reconciled_result?.zones?.length && (
+                            {!((selectedPage.reconciled_result as any)?.zones?.length) && (
                               <p className="text-xs text-muted-foreground">Execute AI Parse para gerar reconciliação</p>
                             )}
                           </div>
