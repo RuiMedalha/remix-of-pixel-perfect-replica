@@ -694,6 +694,7 @@ export type Database = {
       }
       catalog_brain_entities: {
         Row: {
+          canonical_label: string | null
           created_at: string
           embedding: Json | null
           entity_id: string
@@ -705,6 +706,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          canonical_label?: string | null
           created_at?: string
           embedding?: Json | null
           entity_id: string
@@ -716,6 +718,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          canonical_label?: string | null
           created_at?: string
           embedding?: Json | null
           entity_id?: string
@@ -740,6 +743,7 @@ export type Database = {
         Row: {
           created_at: string
           entity_id: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"] | null
           id: string
           observation_type: Database["public"]["Enums"]["brain_observation_type"]
           processed: boolean
@@ -747,11 +751,14 @@ export type Database = {
           severity: number | null
           signal_payload: Json | null
           signal_source: string | null
+          signal_strength: number | null
+          source: string | null
           workspace_id: string
         }
         Insert: {
           created_at?: string
           entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
           id?: string
           observation_type: Database["public"]["Enums"]["brain_observation_type"]
           processed?: boolean
@@ -759,11 +766,14 @@ export type Database = {
           severity?: number | null
           signal_payload?: Json | null
           signal_source?: string | null
+          signal_strength?: number | null
+          source?: string | null
           workspace_id: string
         }
         Update: {
           created_at?: string
           entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
           id?: string
           observation_type?: Database["public"]["Enums"]["brain_observation_type"]
           processed?: boolean
@@ -771,6 +781,8 @@ export type Database = {
           severity?: number | null
           signal_payload?: Json | null
           signal_source?: string | null
+          signal_strength?: number | null
+          source?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -799,9 +811,12 @@ export type Database = {
       }
       catalog_brain_outcomes: {
         Row: {
+          baseline_value: number | null
           created_at: string
+          delta: number | null
           feedback_human: string | null
           feedback_rating: number | null
+          final_value: number | null
           id: string
           impact_score: number | null
           measured_at: string | null
@@ -814,9 +829,12 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          baseline_value?: number | null
           created_at?: string
+          delta?: number | null
           feedback_human?: string | null
           feedback_rating?: number | null
+          final_value?: number | null
           id?: string
           impact_score?: number | null
           measured_at?: string | null
@@ -829,9 +847,12 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          baseline_value?: number | null
           created_at?: string
+          delta?: number | null
           feedback_human?: string | null
           feedback_rating?: number | null
+          final_value?: number | null
           id?: string
           impact_score?: number | null
           measured_at?: string | null
@@ -877,14 +898,18 @@ export type Database = {
       catalog_brain_plan_steps: {
         Row: {
           agent_id: string | null
+          assigned_agent_type: string | null
           completed_at: string | null
+          confidence: number | null
           depends_on: string[] | null
+          depends_on_step_id: string | null
           error_message: string | null
           id: string
           input_payload: Json | null
           output_payload: Json | null
           plan_id: string
           product_id: string | null
+          result: Json | null
           started_at: string | null
           status: Database["public"]["Enums"]["brain_step_status"]
           step_description: string | null
@@ -893,14 +918,18 @@ export type Database = {
         }
         Insert: {
           agent_id?: string | null
+          assigned_agent_type?: string | null
           completed_at?: string | null
+          confidence?: number | null
           depends_on?: string[] | null
+          depends_on_step_id?: string | null
           error_message?: string | null
           id?: string
           input_payload?: Json | null
           output_payload?: Json | null
           plan_id: string
           product_id?: string | null
+          result?: Json | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["brain_step_status"]
           step_description?: string | null
@@ -909,14 +938,18 @@ export type Database = {
         }
         Update: {
           agent_id?: string | null
+          assigned_agent_type?: string | null
           completed_at?: string | null
+          confidence?: number | null
           depends_on?: string[] | null
+          depends_on_step_id?: string | null
           error_message?: string | null
           id?: string
           input_payload?: Json | null
           output_payload?: Json | null
           plan_id?: string
           product_id?: string | null
+          result?: Json | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["brain_step_status"]
           step_description?: string | null
@@ -929,6 +962,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "catalog_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_plan_steps_depends_on_step_id_fkey"
+            columns: ["depends_on_step_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_plan_steps"
             referencedColumns: ["id"]
           },
           {
@@ -953,15 +993,22 @@ export type Database = {
           completed_at: string | null
           confidence: number | null
           created_at: string
+          created_by: string | null
           estimated_impact: Json | null
           id: string
+          objective: string | null
           plan_description: string | null
           plan_name: string
           policy_checks: Json | null
           priority: number | null
+          priority_score: number | null
           requires_approval: boolean
           started_at: string | null
           status: Database["public"]["Enums"]["brain_plan_status"]
+          target_entity_id: string | null
+          target_entity_type:
+            | Database["public"]["Enums"]["brain_entity_type"]
+            | null
           workspace_id: string
         }
         Insert: {
@@ -969,15 +1016,22 @@ export type Database = {
           completed_at?: string | null
           confidence?: number | null
           created_at?: string
+          created_by?: string | null
           estimated_impact?: Json | null
           id?: string
+          objective?: string | null
           plan_description?: string | null
           plan_name: string
           policy_checks?: Json | null
           priority?: number | null
+          priority_score?: number | null
           requires_approval?: boolean
           started_at?: string | null
           status?: Database["public"]["Enums"]["brain_plan_status"]
+          target_entity_id?: string | null
+          target_entity_type?:
+            | Database["public"]["Enums"]["brain_entity_type"]
+            | null
           workspace_id: string
         }
         Update: {
@@ -985,15 +1039,22 @@ export type Database = {
           completed_at?: string | null
           confidence?: number | null
           created_at?: string
+          created_by?: string | null
           estimated_impact?: Json | null
           id?: string
+          objective?: string | null
           plan_description?: string | null
           plan_name?: string
           policy_checks?: Json | null
           priority?: number | null
+          priority_score?: number | null
           requires_approval?: boolean
           started_at?: string | null
           status?: Database["public"]["Enums"]["brain_plan_status"]
+          target_entity_id?: string | null
+          target_entity_type?:
+            | Database["public"]["Enums"]["brain_entity_type"]
+            | null
           workspace_id?: string
         }
         Relationships: [
@@ -1008,32 +1069,44 @@ export type Database = {
       }
       catalog_brain_relations: {
         Row: {
+          confidence: number | null
           created_at: string
+          from_entity_id: string | null
           id: string
           metadata: Json | null
           relation_type: Database["public"]["Enums"]["brain_relation_type"]
+          source: string | null
           source_entity_id: string
           target_entity_id: string
+          to_entity_id: string | null
           weight: number | null
           workspace_id: string
         }
         Insert: {
+          confidence?: number | null
           created_at?: string
+          from_entity_id?: string | null
           id?: string
           metadata?: Json | null
           relation_type: Database["public"]["Enums"]["brain_relation_type"]
+          source?: string | null
           source_entity_id: string
           target_entity_id: string
+          to_entity_id?: string | null
           weight?: number | null
           workspace_id: string
         }
         Update: {
+          confidence?: number | null
           created_at?: string
+          from_entity_id?: string | null
           id?: string
           metadata?: Json | null
           relation_type?: Database["public"]["Enums"]["brain_relation_type"]
+          source?: string | null
           source_entity_id?: string
           target_entity_id?: string
+          to_entity_id?: string | null
           weight?: number | null
           workspace_id?: string
         }
@@ -1068,6 +1141,7 @@ export type Database = {
           cluster_name: string
           cluster_type: Database["public"]["Enums"]["brain_cluster_type"]
           created_at: string
+          description: string | null
           id: string
           metrics: Json | null
           product_ids: string[] | null
@@ -1080,6 +1154,7 @@ export type Database = {
           cluster_name: string
           cluster_type: Database["public"]["Enums"]["brain_cluster_type"]
           created_at?: string
+          description?: string | null
           id?: string
           metrics?: Json | null
           product_ids?: string[] | null
@@ -1092,6 +1167,7 @@ export type Database = {
           cluster_name?: string
           cluster_type?: Database["public"]["Enums"]["brain_cluster_type"]
           created_at?: string
+          description?: string | null
           id?: string
           metrics?: Json | null
           product_ids?: string[] | null
@@ -3714,45 +3790,66 @@ export type Database = {
       }
       product_dna_profiles: {
         Row: {
+          category_cluster: string | null
           channel_dna: Json | null
+          channel_identity: Json | null
           commercial_dna: Json | null
+          commercial_identity: Json | null
           completeness_score: number | null
           created_at: string
+          family_id: string | null
           id: string
           linguistic_dna: Json | null
+          linguistic_identity: Json | null
           product_id: string
           quality_score: number | null
           technical_dna: Json | null
+          technical_identity: Json | null
           updated_at: string
           visual_dna: Json | null
+          visual_identity: Json | null
           workspace_id: string
         }
         Insert: {
+          category_cluster?: string | null
           channel_dna?: Json | null
+          channel_identity?: Json | null
           commercial_dna?: Json | null
+          commercial_identity?: Json | null
           completeness_score?: number | null
           created_at?: string
+          family_id?: string | null
           id?: string
           linguistic_dna?: Json | null
+          linguistic_identity?: Json | null
           product_id: string
           quality_score?: number | null
           technical_dna?: Json | null
+          technical_identity?: Json | null
           updated_at?: string
           visual_dna?: Json | null
+          visual_identity?: Json | null
           workspace_id: string
         }
         Update: {
+          category_cluster?: string | null
           channel_dna?: Json | null
+          channel_identity?: Json | null
           commercial_dna?: Json | null
+          commercial_identity?: Json | null
           completeness_score?: number | null
           created_at?: string
+          family_id?: string | null
           id?: string
           linguistic_dna?: Json | null
+          linguistic_identity?: Json | null
           product_id?: string
           quality_score?: number | null
           technical_dna?: Json | null
+          technical_identity?: Json | null
           updated_at?: string
           visual_dna?: Json | null
+          visual_identity?: Json | null
           workspace_id?: string
         }
         Relationships: [
