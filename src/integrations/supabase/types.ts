@@ -600,6 +600,148 @@ export type Database = {
           },
         ]
       }
+      autonomous_actions: {
+        Row: {
+          action_payload: Json | null
+          action_type: Database["public"]["Enums"]["autonomous_action_type"]
+          confidence: number | null
+          created_at: string
+          executed_at: string | null
+          execution_mode: Database["public"]["Enums"]["autonomous_execution_mode"]
+          expected_conversion: number | null
+          expected_revenue: number | null
+          id: string
+          scheduled_at: string | null
+          status: Database["public"]["Enums"]["autonomous_action_status"]
+          target_category_id: string | null
+          target_channel_id: string | null
+          target_product_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          action_payload?: Json | null
+          action_type: Database["public"]["Enums"]["autonomous_action_type"]
+          confidence?: number | null
+          created_at?: string
+          executed_at?: string | null
+          execution_mode?: Database["public"]["Enums"]["autonomous_execution_mode"]
+          expected_conversion?: number | null
+          expected_revenue?: number | null
+          id?: string
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["autonomous_action_status"]
+          target_category_id?: string | null
+          target_channel_id?: string | null
+          target_product_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          action_payload?: Json | null
+          action_type?: Database["public"]["Enums"]["autonomous_action_type"]
+          confidence?: number | null
+          created_at?: string
+          executed_at?: string | null
+          execution_mode?: Database["public"]["Enums"]["autonomous_execution_mode"]
+          expected_conversion?: number | null
+          expected_revenue?: number | null
+          id?: string
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["autonomous_action_status"]
+          target_category_id?: string | null
+          target_channel_id?: string | null
+          target_product_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autonomous_actions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      autonomous_execution_logs: {
+        Row: {
+          action_id: string
+          duration_ms: number | null
+          error_payload: Json | null
+          executed_at: string
+          execution_result: Json | null
+          id: string
+          workspace_id: string
+        }
+        Insert: {
+          action_id: string
+          duration_ms?: number | null
+          error_payload?: Json | null
+          executed_at?: string
+          execution_result?: Json | null
+          id?: string
+          workspace_id: string
+        }
+        Update: {
+          action_id?: string
+          duration_ms?: number | null
+          error_payload?: Json | null
+          executed_at?: string
+          execution_result?: Json | null
+          id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autonomous_execution_logs_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "autonomous_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autonomous_execution_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      autonomous_guardrails: {
+        Row: {
+          created_at: string
+          guardrail_type: string
+          id: string
+          is_active: boolean
+          rule_payload: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          guardrail_type?: string
+          id?: string
+          is_active?: boolean
+          rule_payload?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          guardrail_type?: string
+          id?: string
+          is_active?: boolean
+          rule_payload?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autonomous_guardrails_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brain_decision_policies: {
         Row: {
           allowed_actions: Json | null
@@ -8357,6 +8499,27 @@ export type Database = {
         | "workspace"
         | "asset"
         | "job"
+      autonomous_action_status:
+        | "pending"
+        | "approved"
+        | "scheduled"
+        | "executing"
+        | "completed"
+        | "failed"
+        | "cancelled"
+      autonomous_action_type:
+        | "create_bundle"
+        | "update_price"
+        | "create_promotion"
+        | "add_cross_sell"
+        | "add_upsell"
+        | "create_product_pack"
+        | "expand_category"
+        | "optimize_listing"
+      autonomous_execution_mode:
+        | "manual"
+        | "semi_autonomous"
+        | "fully_autonomous"
       background_enum:
         | "white"
         | "transparent"
@@ -9138,6 +9301,30 @@ export const Constants = {
         "workspace",
         "asset",
         "job",
+      ],
+      autonomous_action_status: [
+        "pending",
+        "approved",
+        "scheduled",
+        "executing",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
+      autonomous_action_type: [
+        "create_bundle",
+        "update_price",
+        "create_promotion",
+        "add_cross_sell",
+        "add_upsell",
+        "create_product_pack",
+        "expand_category",
+        "optimize_listing",
+      ],
+      autonomous_execution_mode: [
+        "manual",
+        "semi_autonomous",
+        "fully_autonomous",
       ],
       background_enum: [
         "white",
