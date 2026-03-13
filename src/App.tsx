@@ -23,6 +23,7 @@ import IngestionHubPage from "./pages/IngestionHubPage";
 import AssetLibraryPage from "./pages/AssetLibraryPage";
 import PDFExtractionPage from "./pages/PDFExtractionPage";
 import ExtractionMemoryPage from "./pages/ExtractionMemoryPage";
+import TranslationMemoryPage from "./pages/TranslationMemoryPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
