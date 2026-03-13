@@ -109,7 +109,7 @@ export function useVisionParsePage() {
 
 export function useMapPdfToProducts() {
   const queryClient = useQueryClient();
-  const { currentWorkspace } = useWorkspaceContext();
+  const { activeWorkspace } = useWorkspaceContext();
 
   return useMutation({
     mutationFn: async ({ extractionId, sendToIngestion }: { extractionId: string; sendToIngestion?: boolean }) => {
