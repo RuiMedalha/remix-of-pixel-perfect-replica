@@ -164,9 +164,9 @@ export function useCreateValidationRule() {
       const { error } = await supabase.from("validation_rules").insert({
         workspace_id: activeWorkspace!.id,
         field_key: rule.field_key,
-        rule_type: rule.rule_type,
+        rule_type: rule.rule_type as any,
         rule_config: rule.rule_config || {},
-        severity: rule.severity || "error",
+        severity: (rule.severity || "error") as any,
         schema_id: rule.schema_id || null,
         error_message_template: rule.error_message_template || null,
       });

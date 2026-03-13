@@ -24,10 +24,10 @@ export function useReviewQueue(filters?: {
         .order("created_at", { ascending: false });
 
       if (filters?.status && filters.status !== "all") {
-        q = q.eq("status", filters.status);
+        q = q.eq("status", filters.status as any);
       }
       if (filters?.reason && filters.reason !== "all") {
-        q = q.eq("reason", filters.reason);
+        q = q.eq("reason", filters.reason as any);
       }
       if (filters?.assignedTo) {
         q = q.eq("assigned_to", filters.assignedTo);

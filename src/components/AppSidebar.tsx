@@ -26,6 +26,7 @@ const navItems = [
 
 const managementItems = [
   { to: "/membros", icon: UserCog, label: "Membros" },
+  { to: "/revisao", icon: ClipboardList, label: "Revisão" },
 ];
 
 const adminItems = [
