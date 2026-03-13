@@ -31,6 +31,7 @@ import CatalogBrainPage from "./pages/CatalogBrainPage";
 import BrainDecisionEnginePage from "./pages/BrainDecisionEnginePage";
 import BrainLearningEnginePage from "./pages/BrainLearningEnginePage";
 import BrainSimulationPage from "./pages/BrainSimulationPage";
+import DigitalTwinPage from "./pages/DigitalTwinPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
