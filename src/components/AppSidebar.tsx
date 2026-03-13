@@ -25,6 +25,7 @@ const navItems = [
   { to: "/assets", icon: Library, label: "Asset Library" },
   { to: "/ingestao", icon: Database, label: "Ingestion Hub" },
   { to: "/pdf-extraction", icon: FileText, label: "Extração PDF" },
+  { to: "/extraction-memory", icon: Brain, label: "Memória de Extração" },
 ];
 
 const managementItems = [
