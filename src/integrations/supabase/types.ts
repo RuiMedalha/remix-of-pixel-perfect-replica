@@ -168,6 +168,7 @@ export type Database = {
           channel_id: string | null
           created_at: string
           id: string
+          is_primary: boolean
           product_id: string
           sort_order: number
           usage_context: Database["public"]["Enums"]["asset_usage_enum"]
@@ -177,6 +178,7 @@ export type Database = {
           channel_id?: string | null
           created_at?: string
           id?: string
+          is_primary?: boolean
           product_id: string
           sort_order?: number
           usage_context?: Database["public"]["Enums"]["asset_usage_enum"]
@@ -186,6 +188,7 @@ export type Database = {
           channel_id?: string | null
           created_at?: string
           id?: string
+          is_primary?: boolean
           product_id?: string
           sort_order?: number
           usage_context?: Database["public"]["Enums"]["asset_usage_enum"]
@@ -2691,6 +2694,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      get_product_assets: {
+        Args: {
+          _channel_id?: string
+          _product_id: string
+          _usage_context?: Database["public"]["Enums"]["asset_usage_enum"]
+        }
+        Returns: {
+          ai_alt_text: string
+          asset_id: string
+          asset_type: Database["public"]["Enums"]["asset_type_enum"]
+          is_primary: boolean
+          public_url: string
+          sort_order: number
+          source: string
+          usage_context: Database["public"]["Enums"]["asset_usage_enum"]
+        }[]
       }
       get_product_filter_options: {
         Args: { _workspace_id: string }
