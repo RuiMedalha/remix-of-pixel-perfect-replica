@@ -77,3 +77,21 @@ verify_jwt = false
 
 [functions.learn-agent-decisions]
 verify_jwt = false
+
+[functions.catalog-brain-ingest-observations]
+verify_jwt = false
+
+[functions.catalog-brain-build-graph]
+verify_jwt = false
+
+[functions.catalog-brain-generate-plans]
+verify_jwt = false
+
+[functions.catalog-brain-orchestrate]
+verify_jwt = false
+
+[functions.catalog-brain-evaluate-outcomes]
+verify_jwt = false
+
+[functions.catalog-brain-learn]
+verify_jwt = false

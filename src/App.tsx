@@ -27,6 +27,7 @@ import TranslationMemoryPage from "./pages/TranslationMemoryPage";
 import ChannelManagerPage from "./pages/ChannelManagerPage";
 import CommerceIntelligencePage from "./pages/CommerceIntelligencePage";
 import AgentControlCenterPage from "./pages/AgentControlCenterPage";
+import CatalogBrainPage from "./pages/CatalogBrainPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -57,6 +58,7 @@ function ProtectedRoutes() {
           <Route path="/canais" element={<ChannelManagerPage />} />
           <Route path="/inteligencia" element={<CommerceIntelligencePage />} />
           <Route path="/agentes" element={<AgentControlCenterPage />} />
+          <Route path="/brain" element={<CatalogBrainPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

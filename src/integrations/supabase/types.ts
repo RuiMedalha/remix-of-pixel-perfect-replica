@@ -692,6 +692,422 @@ export type Database = {
           },
         ]
       }
+      catalog_brain_entities: {
+        Row: {
+          created_at: string
+          embedding: Json | null
+          entity_id: string
+          entity_label: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"]
+          id: string
+          metadata: Json | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          embedding?: Json | null
+          entity_id: string
+          entity_label?: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"]
+          id?: string
+          metadata?: Json | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: Json | null
+          entity_id?: string
+          entity_label?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"]
+          id?: string
+          metadata?: Json | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_brain_entities_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_brain_observations: {
+        Row: {
+          created_at: string
+          entity_id: string | null
+          id: string
+          observation_type: Database["public"]["Enums"]["brain_observation_type"]
+          processed: boolean
+          product_id: string | null
+          severity: number | null
+          signal_payload: Json | null
+          signal_source: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id?: string | null
+          id?: string
+          observation_type: Database["public"]["Enums"]["brain_observation_type"]
+          processed?: boolean
+          product_id?: string | null
+          severity?: number | null
+          signal_payload?: Json | null
+          signal_source?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string | null
+          id?: string
+          observation_type?: Database["public"]["Enums"]["brain_observation_type"]
+          processed?: boolean
+          product_id?: string | null
+          severity?: number | null
+          signal_payload?: Json | null
+          signal_source?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_brain_observations_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_observations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_observations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_brain_outcomes: {
+        Row: {
+          created_at: string
+          feedback_human: string | null
+          feedback_rating: number | null
+          id: string
+          impact_score: number | null
+          measured_at: string | null
+          metrics_after: Json | null
+          metrics_before: Json | null
+          outcome_type: Database["public"]["Enums"]["brain_outcome_type"]
+          plan_id: string | null
+          product_id: string | null
+          step_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_human?: string | null
+          feedback_rating?: number | null
+          id?: string
+          impact_score?: number | null
+          measured_at?: string | null
+          metrics_after?: Json | null
+          metrics_before?: Json | null
+          outcome_type?: Database["public"]["Enums"]["brain_outcome_type"]
+          plan_id?: string | null
+          product_id?: string | null
+          step_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_human?: string | null
+          feedback_rating?: number | null
+          id?: string
+          impact_score?: number | null
+          measured_at?: string | null
+          metrics_after?: Json | null
+          metrics_before?: Json | null
+          outcome_type?: Database["public"]["Enums"]["brain_outcome_type"]
+          plan_id?: string | null
+          product_id?: string | null
+          step_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_brain_outcomes_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_outcomes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_outcomes_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_plan_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_outcomes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_brain_plan_steps: {
+        Row: {
+          agent_id: string | null
+          completed_at: string | null
+          depends_on: string[] | null
+          error_message: string | null
+          id: string
+          input_payload: Json | null
+          output_payload: Json | null
+          plan_id: string
+          product_id: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["brain_step_status"]
+          step_description: string | null
+          step_order: number
+          step_type: string
+        }
+        Insert: {
+          agent_id?: string | null
+          completed_at?: string | null
+          depends_on?: string[] | null
+          error_message?: string | null
+          id?: string
+          input_payload?: Json | null
+          output_payload?: Json | null
+          plan_id: string
+          product_id?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["brain_step_status"]
+          step_description?: string | null
+          step_order?: number
+          step_type: string
+        }
+        Update: {
+          agent_id?: string | null
+          completed_at?: string | null
+          depends_on?: string[] | null
+          error_message?: string | null
+          id?: string
+          input_payload?: Json | null
+          output_payload?: Json | null
+          plan_id?: string
+          product_id?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["brain_step_status"]
+          step_description?: string | null
+          step_order?: number
+          step_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_brain_plan_steps_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_plan_steps_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_plan_steps_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_brain_plans: {
+        Row: {
+          approved_by: string | null
+          completed_at: string | null
+          confidence: number | null
+          created_at: string
+          estimated_impact: Json | null
+          id: string
+          plan_description: string | null
+          plan_name: string
+          policy_checks: Json | null
+          priority: number | null
+          requires_approval: boolean
+          started_at: string | null
+          status: Database["public"]["Enums"]["brain_plan_status"]
+          workspace_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          completed_at?: string | null
+          confidence?: number | null
+          created_at?: string
+          estimated_impact?: Json | null
+          id?: string
+          plan_description?: string | null
+          plan_name: string
+          policy_checks?: Json | null
+          priority?: number | null
+          requires_approval?: boolean
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["brain_plan_status"]
+          workspace_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          completed_at?: string | null
+          confidence?: number | null
+          created_at?: string
+          estimated_impact?: Json | null
+          id?: string
+          plan_description?: string | null
+          plan_name?: string
+          policy_checks?: Json | null
+          priority?: number | null
+          requires_approval?: boolean
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["brain_plan_status"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_brain_plans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_brain_relations: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          relation_type: Database["public"]["Enums"]["brain_relation_type"]
+          source_entity_id: string
+          target_entity_id: string
+          weight: number | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          relation_type: Database["public"]["Enums"]["brain_relation_type"]
+          source_entity_id: string
+          target_entity_id: string
+          weight?: number | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          relation_type?: Database["public"]["Enums"]["brain_relation_type"]
+          source_entity_id?: string
+          target_entity_id?: string
+          weight?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_brain_relations_source_entity_id_fkey"
+            columns: ["source_entity_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_relations_target_entity_id_fkey"
+            columns: ["target_entity_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_brain_relations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_clusters: {
+        Row: {
+          centroid: Json | null
+          cluster_description: string | null
+          cluster_name: string
+          cluster_type: Database["public"]["Enums"]["brain_cluster_type"]
+          created_at: string
+          id: string
+          metrics: Json | null
+          product_ids: string[] | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          centroid?: Json | null
+          cluster_description?: string | null
+          cluster_name: string
+          cluster_type: Database["public"]["Enums"]["brain_cluster_type"]
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          product_ids?: string[] | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          centroid?: Json | null
+          cluster_description?: string | null
+          cluster_name?: string
+          cluster_type?: Database["public"]["Enums"]["brain_cluster_type"]
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          product_ids?: string[] | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_clusters_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_gap_analysis: {
         Row: {
           category_id: string | null
@@ -3296,6 +3712,66 @@ export type Database = {
           },
         ]
       }
+      product_dna_profiles: {
+        Row: {
+          channel_dna: Json | null
+          commercial_dna: Json | null
+          completeness_score: number | null
+          created_at: string
+          id: string
+          linguistic_dna: Json | null
+          product_id: string
+          quality_score: number | null
+          technical_dna: Json | null
+          updated_at: string
+          visual_dna: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          channel_dna?: Json | null
+          commercial_dna?: Json | null
+          completeness_score?: number | null
+          created_at?: string
+          id?: string
+          linguistic_dna?: Json | null
+          product_id: string
+          quality_score?: number | null
+          technical_dna?: Json | null
+          updated_at?: string
+          visual_dna?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          channel_dna?: Json | null
+          commercial_dna?: Json | null
+          completeness_score?: number | null
+          created_at?: string
+          id?: string
+          linguistic_dna?: Json | null
+          product_id?: string
+          quality_score?: number | null
+          technical_dna?: Json | null
+          updated_at?: string
+          visual_dna?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_dna_profiles_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_dna_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_field_confidence: {
         Row: {
           confidence_score: number
@@ -5615,6 +6091,67 @@ export type Database = {
         | "lifestyle"
         | "custom"
         | "unknown"
+      brain_cluster_type:
+        | "performance_cluster"
+        | "attribute_cluster"
+        | "price_cluster"
+        | "category_cluster"
+        | "supplier_cluster"
+        | "behavior_cluster"
+        | "opportunity_cluster"
+      brain_entity_type:
+        | "product"
+        | "category"
+        | "supplier"
+        | "channel"
+        | "bundle"
+        | "cluster"
+        | "attribute"
+        | "image"
+        | "translation"
+      brain_observation_type:
+        | "quality_gate_fail"
+        | "review_correction"
+        | "seo_weakness"
+        | "missing_attribute"
+        | "channel_rejection"
+        | "low_conversion"
+        | "price_anomaly"
+        | "image_issue"
+        | "translation_gap"
+        | "feed_error"
+        | "duplicate_detected"
+        | "supplier_signal"
+      brain_outcome_type:
+        | "improvement"
+        | "degradation"
+        | "neutral"
+        | "pending_measurement"
+      brain_plan_status:
+        | "draft"
+        | "ready"
+        | "running"
+        | "completed"
+        | "failed"
+        | "cancelled"
+      brain_relation_type:
+        | "belongs_to"
+        | "similar_to"
+        | "complementary"
+        | "competes_with"
+        | "variant_of"
+        | "accessory_for"
+        | "bundled_with"
+        | "upsell_for"
+        | "cross_sell_for"
+        | "same_supplier"
+        | "same_category"
+      brain_step_status:
+        | "pending"
+        | "running"
+        | "completed"
+        | "failed"
+        | "skipped"
       bundle_type_enum:
         | "frequently_bought_together"
         | "accessory_bundle"
@@ -6109,6 +6646,74 @@ export const Constants = {
         "lifestyle",
         "custom",
         "unknown",
+      ],
+      brain_cluster_type: [
+        "performance_cluster",
+        "attribute_cluster",
+        "price_cluster",
+        "category_cluster",
+        "supplier_cluster",
+        "behavior_cluster",
+        "opportunity_cluster",
+      ],
+      brain_entity_type: [
+        "product",
+        "category",
+        "supplier",
+        "channel",
+        "bundle",
+        "cluster",
+        "attribute",
+        "image",
+        "translation",
+      ],
+      brain_observation_type: [
+        "quality_gate_fail",
+        "review_correction",
+        "seo_weakness",
+        "missing_attribute",
+        "channel_rejection",
+        "low_conversion",
+        "price_anomaly",
+        "image_issue",
+        "translation_gap",
+        "feed_error",
+        "duplicate_detected",
+        "supplier_signal",
+      ],
+      brain_outcome_type: [
+        "improvement",
+        "degradation",
+        "neutral",
+        "pending_measurement",
+      ],
+      brain_plan_status: [
+        "draft",
+        "ready",
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
+      brain_relation_type: [
+        "belongs_to",
+        "similar_to",
+        "complementary",
+        "competes_with",
+        "variant_of",
+        "accessory_for",
+        "bundled_with",
+        "upsell_for",
+        "cross_sell_for",
+        "same_supplier",
+        "same_category",
+      ],
+      brain_step_status: [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
       ],
       bundle_type_enum: [
         "frequently_bought_together",
