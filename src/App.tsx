@@ -38,6 +38,7 @@ function ProtectedRoutes() {
           <Route path="/importar-woo" element={<WooImportPage />} />
           <Route path="/imagens" element={<ImagesPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="/membros" element={<WorkspaceMembersPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

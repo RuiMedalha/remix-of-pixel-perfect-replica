@@ -46,7 +46,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [mergeWs, setMergeWs] = useState<{ sourceId: string; sourceName: string } | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
 
-  const allItems = [...navItems, ...(profile?.isAdmin ? adminItems : [])];
+  const allItems = [...navItems, ...managementItems, ...(profile?.isAdmin ? adminItems : [])];
 
   const handleCreateWorkspace = () => {
     if (newWsName.trim()) {
