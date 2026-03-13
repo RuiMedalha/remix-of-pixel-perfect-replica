@@ -6,13 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Semantic column types for classification
 const SEMANTIC_TYPES = ["sku", "title", "description", "price", "dimensions", "capacity", "material", "weight", "voltage", "color", "size", "notes", "image_url", "category", "brand", "quantity", "unit", "unknown"] as const;
+const TABLE_TYPES = ["product_table", "technical_specs", "pricing_table", "accessories", "compatibility", "spare_parts"] as const;
 
-// Zone types for page segmentation
-const ZONE_TYPES = ["header", "section_title", "table", "notes", "footer", "images", "body_text", "metadata"] as const;
-
-// Column validation rules by semantic type
 const COLUMN_VALIDATION: Record<string, (v: string) => boolean> = {
   sku: (v) => /^[A-Za-z0-9\-_.\/]{2,}$/.test(v.trim()),
   price: (v) => /[\d]+[.,]?\d*/.test(v.replace(/[€$£\s]/g, "")),
@@ -43,17 +39,22 @@ serve(async (req) => {
 
     const workspaceId = page.pdf_extractions?.workspace_id;
 
-    // Check for supplier templates
+    // Load templates + supplier profiles
     let templates: any[] = [];
+    let supplierProfiles: any[] = [];
     if (workspaceId) {
-      const { data: tpls } = await supabase
-        .from("pdf_table_templates")
-        .select("*")
-        .eq("workspace_id", workspaceId);
-      templates = tpls || [];
+      const [tplRes, profRes] = await Promise.all([
+        supabase.from("pdf_table_templates").select("*").eq("workspace_id", workspaceId),
+        supabase.from("supplier_layout_profiles").select("*").eq("workspace_id", workspaceId),
+      ]);
+      templates = tplRes.data || [];
+      supplierProfiles = profRes.data || [];
     }
 
-    // ─── STEP 1: Zone Segmentation ───
+    // Load technical symbols
+    const { data: symbols } = await supabase.from("technical_symbol_dictionary").select("*");
+
+    // Zone Segmentation from text
     const rawText = (page.raw_text || "").substring(0, 10000);
     const lines = rawText.split("\n");
     const zones: any[] = [];
@@ -62,10 +63,9 @@ serve(async (req) => {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-
-      let zoneType = "body_text";
+      let zoneType = "paragraph";
       if (i < 3 && /^[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇÑ\s]{5,}$/.test(line)) zoneType = "header";
-      else if (/^(nota|notes|obs|observ|atenção|aviso)/i.test(line)) zoneType = "notes";
+      else if (/^(nota|notes|obs|observ|atenção|aviso)/i.test(line)) zoneType = "note";
       else if (i > lines.length - 4 && line.length < 60) zoneType = "footer";
       else if (/[\t|]/.test(line) && line.split(/[\t|]/).length >= 3) zoneType = "table";
       else if (line.length < 40 && /^[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇÑ]/.test(line) && !line.includes("\t")) zoneType = "section_title";
@@ -80,77 +80,74 @@ serve(async (req) => {
     }
     if (currentZone) zones.push(currentZone);
 
-    // Build page_context from zones
     const headerZones = zones.filter(z => z.type === "header" || z.type === "section_title");
     const pageContext = {
       detected_sections: headerZones.map((z: any) => z.content.substring(0, 100)),
       zone_summary: zones.map((z: any) => z.type),
       has_tables: zones.some((z: any) => z.type === "table"),
-      has_notes: zones.some((z: any) => z.type === "notes"),
+      has_notes: zones.some((z: any) => z.type === "note"),
     };
 
-    // Text-based extraction result
-    const textResult = {
-      zones,
-      page_context: pageContext,
-      extraction_method: "text_layout",
-    };
+    const textResult = { zones, page_context: pageContext, extraction_method: "text_layout" };
 
-    // ─── STEP 2: AI Vision Extraction ───
-    const aiPrompt = `Analyze this PDF page text with Hybrid Layout Intelligence.
+    // AI Vision Extraction with table type classification
+    const aiPrompt = `Analyze this PDF page text with Document Intelligence.
 
 INSTRUCTIONS:
-1. Identify ALL tables/structured data on the page
-2. For each table, classify each column semantically: ${SEMANTIC_TYPES.join(", ")}
-3. Detect page zones: ${ZONE_TYPES.join(", ")}
-4. Extract context from headers/section titles that apply to the tables
+1. Identify ALL tables/structured data
+2. For each table:
+   - Classify each column semantically: ${SEMANTIC_TYPES.join(", ")}
+   - Classify the table type: ${TABLE_TYPES.join(", ")}
+   - Detect if it contains products or just specs/accessories
+3. Detect page zones and section hierarchy
+4. Identify any image references or product image patterns
+5. Detect the language of the content
 
 Page text:
 ${rawText}`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a PDF data extraction expert. Extract tables with semantic column classification and confidence scores. Be precise about column types." },
+          { role: "system", content: "You are a PDF data extraction expert for technical/commercial catalogs. Extract tables with semantic column classification, table type, and confidence scores." },
           { role: "user", content: aiPrompt },
         ],
         tools: [{
           type: "function",
           function: {
-            name: "extract_hybrid_layout",
-            description: "Extract tables with zone segmentation and semantic classification",
+            name: "extract_document_intelligence",
+            description: "Extract tables with Document Intelligence including table type classification and image detection",
             parameters: {
               type: "object",
               properties: {
-                zones: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      type: { type: "string", enum: [...ZONE_TYPES] },
-                      content_summary: { type: "string" },
-                    },
-                    required: ["type", "content_summary"],
-                  },
-                },
+                zones: { type: "array", items: { type: "object", properties: { type: { type: "string" }, content_summary: { type: "string" } }, required: ["type", "content_summary"] } },
                 tables: {
                   type: "array",
                   items: {
                     type: "object",
                     properties: {
                       headers: { type: "array", items: { type: "string" } },
-                      column_types: { type: "array", items: { type: "string", enum: [...SEMANTIC_TYPES] } },
+                      column_types: { type: "array", items: { type: "string" } },
                       rows: { type: "array", items: { type: "array", items: { type: "string" } } },
                       confidence: { type: "number" },
                       context: { type: "string" },
+                      table_type: { type: "string", enum: [...TABLE_TYPES] },
                     },
                     required: ["headers", "column_types", "rows", "confidence"],
+                  },
+                },
+                detected_images: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      description: { type: "string" },
+                      image_type: { type: "string", enum: ["product", "lifestyle", "technical", "icon", "logo", "unknown"] },
+                      associated_product_hint: { type: "string" },
+                    },
                   },
                 },
                 page_context: {
@@ -160,6 +157,7 @@ ${rawText}`;
                     section_title: { type: "string" },
                     category_hint: { type: "string" },
                     notes: { type: "string" },
+                    language: { type: "string" },
                   },
                 },
                 summary: { type: "string" },
@@ -168,11 +166,11 @@ ${rawText}`;
             },
           },
         }],
-        tool_choice: { type: "function", function: { name: "extract_hybrid_layout" } },
+        tool_choice: { type: "function", function: { name: "extract_document_intelligence" } },
       }),
     });
 
-    let visionResult: any = { tables: [], summary: "", zones: [], page_context: {} };
+    let visionResult: any = { tables: [], summary: "", zones: [], page_context: {}, detected_images: [] };
 
     if (aiResponse.ok) {
       const aiData = await aiResponse.json();
@@ -181,35 +179,35 @@ ${rawText}`;
         try { visionResult = JSON.parse(toolCall.function.arguments); } catch { /* keep default */ }
       }
     } else {
-      const errText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errText);
-      visionResult = { tables: [], summary: "AI unavailable - text fallback", zones: [], page_context: {} };
+      console.error("AI error:", aiResponse.status, await aiResponse.text());
     }
 
-    // ─── STEP 3: Reconciliation Engine ───
-    // Match template if supplier detected
+    // Match supplier template/profile
     let matchedTemplate: any = null;
+    let matchedProfile: any = null;
     const detectedSupplier = visionResult.page_context?.supplier_name;
-    if (detectedSupplier && templates.length > 0) {
-      matchedTemplate = templates.find((t: any) =>
-        t.supplier_name.toLowerCase() === detectedSupplier.toLowerCase()
-      );
+    if (detectedSupplier) {
+      matchedTemplate = templates.find((t: any) => t.supplier_name.toLowerCase() === detectedSupplier.toLowerCase());
+      matchedProfile = supplierProfiles.find((p: any) => p.supplier_name.toLowerCase() === detectedSupplier.toLowerCase());
     }
 
-    // Reconcile text zones with vision zones
+    // Merge column aliases from both template and profile
+    const combinedAliases: Record<string, string> = {
+      ...(matchedProfile?.column_aliases || {}),
+      ...(matchedTemplate?.column_aliases || {}),
+    };
+
     const reconciledZones = (visionResult.zones || []).length > 0 ? visionResult.zones : zones.map((z: any) => ({
-      type: z.type,
-      content_summary: z.content.substring(0, 200),
+      type: z.type, content_summary: z.content.substring(0, 200),
     }));
 
-    // Merge page context
     const mergedPageContext = {
       ...pageContext,
       ...(visionResult.page_context || {}),
       template_matched: matchedTemplate?.supplier_name || null,
+      profile_matched: matchedProfile?.supplier_name || null,
     };
 
-    // Update page with all layers
     const bestConfidence = Math.max(
       page.confidence_score || 0,
       ...((visionResult.tables || []).map((t: any) => t.confidence || 0))
@@ -226,9 +224,23 @@ ${rawText}`;
       has_tables: (visionResult.tables || []).length > 0 || zones.some((z: any) => z.type === "table"),
     }).eq("id", pageId);
 
-    // ─── STEP 4: Create Reconciled Tables ───
+    // Insert detected images
+    if ((visionResult.detected_images || []).length > 0) {
+      const imageInserts = visionResult.detected_images.map((img: any) => ({
+        page_id: pageId,
+        image_type: img.image_type || "unknown",
+        confidence: 60,
+        bbox: {},
+        image_url: null, // actual URL detected in vision phase
+      }));
+      await supabase.from("pdf_detected_images").insert(imageInserts);
+    }
+
+    // Create Reconciled Tables with table_type classification
     for (let ti = 0; ti < (visionResult.tables || []).length; ti++) {
       const vTable = visionResult.tables[ti];
+      const tableType = vTable.table_type || "product_table";
+
       const columnClassifications = (vTable.column_types || []).map((ct: string, ci: number) => ({
         index: ci,
         header: (vTable.headers || [])[ci] || `col_${ci}`,
@@ -237,19 +249,17 @@ ${rawText}`;
         source: "vision",
       }));
 
-      // Apply template confidence boosts
-      if (matchedTemplate) {
-        for (const col of columnClassifications) {
-          const alias = matchedTemplate.column_aliases?.[col.header.toLowerCase()];
-          if (alias) {
-            col.semantic_type = alias;
-            col.confidence = Math.min(100, col.confidence + 15);
-            col.source = "template";
-          }
+      // Apply combined aliases (template + profile)
+      for (const col of columnClassifications) {
+        const alias = combinedAliases[col.header.toLowerCase()];
+        if (alias) {
+          col.semantic_type = alias;
+          col.confidence = Math.min(100, col.confidence + 15);
+          col.source = "template";
         }
       }
 
-      // Build reconciled rows with per-cell confidence
+      // Build reconciled rows with per-cell confidence and symbol normalization
       const reconciledRows = (vTable.rows || []).map((r: string[], ri: number) => {
         const cells = r.map((value: string, ci: number) => {
           const colType = columnClassifications[ci]?.semantic_type || "unknown";
@@ -258,28 +268,32 @@ ${rawText}`;
           const baseConf = vTable.confidence || 70;
           const cellConfidence = passesValidation ? Math.min(100, baseConf + 10) : Math.max(0, baseConf - 20);
 
+          // Check for technical symbols
+          let normalizedValue = value;
+          for (const sym of (symbols || [])) {
+            if (value.includes(sym.symbol)) {
+              normalizedValue = `${value} [${sym.normalized_field}: ${sym.unit}]`;
+              break;
+            }
+          }
+
           return {
             value,
+            normalized_value: normalizedValue !== value ? normalizedValue : undefined,
             confidence: cellConfidence,
             source: "reconciled",
             header: (vTable.headers || [])[ci] || `col_${ci}`,
             semantic_type: colType,
             validation_passed: passesValidation,
-            reason: passesValidation
-              ? `${colType} validation passed`
-              : `${colType} validation failed for value "${value}"`,
+            reason: passesValidation ? `${colType} validation passed` : `${colType} validation failed for "${value}"`,
           };
         });
         return { row_index: ri, cells };
       });
 
       const reconciliationReasons = columnClassifications.map((c: any) => ({
-        column: c.header,
-        semantic_type: c.semantic_type,
-        source: c.source,
-        reason: c.source === "template"
-          ? `Matched template alias for ${c.header}`
-          : `AI classified as ${c.semantic_type} (${c.confidence}%)`,
+        column: c.header, semantic_type: c.semantic_type, source: c.source,
+        reason: c.source === "template" ? `Matched alias for ${c.header}` : `AI classified as ${c.semantic_type} (${c.confidence}%)`,
       }));
 
       const { data: tableRec } = await supabase.from("pdf_tables").insert({
@@ -290,6 +304,7 @@ ${rawText}`;
         confidence_score: vTable.confidence || 70,
         row_count: reconciledRows.length,
         col_count: (vTable.headers || []).length,
+        table_type: tableType,
         column_classifications: columnClassifications,
         text_source_data: {},
         vision_source_data: { headers: vTable.headers, rows: vTable.rows, confidence: vTable.confidence },
@@ -308,10 +323,8 @@ ${rawText}`;
             header: (vTable.headers || [])[ci] || `col_${ci}`,
           })) || [],
           reconciled_cells: r.cells,
-          row_context: { table_context: vTable.context || "", page_context: mergedPageContext },
-          validation_errors: r.cells.filter((c: any) => !c.validation_passed).map((c: any) => ({
-            field: c.header, message: c.reason,
-          })),
+          row_context: { table_context: vTable.context || "", page_context: mergedPageContext, table_type: tableType },
+          validation_errors: r.cells.filter((c: any) => !c.validation_passed).map((c: any) => ({ field: c.header, message: c.reason })),
           mapping_confidence: Math.round(r.cells.reduce((s: number, c: any) => s + c.confidence, 0) / Math.max(r.cells.length, 1)),
           status: "unmapped" as const,
         }));
@@ -331,6 +344,8 @@ ${rawText}`;
       tablesFound: (visionResult.tables || []).length,
       zonesDetected: reconciledZones.length,
       templateMatched: matchedTemplate?.supplier_name || null,
+      profileMatched: matchedProfile?.supplier_name || null,
+      detectedImages: (visionResult.detected_images || []).length,
       summary: visionResult.summary,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

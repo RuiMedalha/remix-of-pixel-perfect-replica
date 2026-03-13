@@ -1184,6 +1184,105 @@ export type Database = {
           },
         ]
       }
+      pdf_detected_images: {
+        Row: {
+          bbox: Json | null
+          confidence: number | null
+          created_at: string
+          id: string
+          image_type: Database["public"]["Enums"]["pdf_image_type"]
+          image_url: string | null
+          nearest_row_id: string | null
+          nearest_table_id: string | null
+          page_id: string
+        }
+        Insert: {
+          bbox?: Json | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          image_type?: Database["public"]["Enums"]["pdf_image_type"]
+          image_url?: string | null
+          nearest_row_id?: string | null
+          nearest_table_id?: string | null
+          page_id: string
+        }
+        Update: {
+          bbox?: Json | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          image_type?: Database["public"]["Enums"]["pdf_image_type"]
+          image_url?: string | null
+          nearest_row_id?: string | null
+          nearest_table_id?: string | null
+          page_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_detected_images_nearest_row_id_fkey"
+            columns: ["nearest_row_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_table_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdf_detected_images_nearest_table_id_fkey"
+            columns: ["nearest_table_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdf_detected_images_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_extraction_metrics: {
+        Row: {
+          avg_confidence: number | null
+          created_at: string
+          extraction_id: string
+          id: string
+          mapping_success_rate: number | null
+          processing_time: number | null
+          rows_extracted: number | null
+          tables_detected: number | null
+        }
+        Insert: {
+          avg_confidence?: number | null
+          created_at?: string
+          extraction_id: string
+          id?: string
+          mapping_success_rate?: number | null
+          processing_time?: number | null
+          rows_extracted?: number | null
+          tables_detected?: number | null
+        }
+        Update: {
+          avg_confidence?: number | null
+          created_at?: string
+          extraction_id?: string
+          id?: string
+          mapping_success_rate?: number | null
+          processing_time?: number | null
+          rows_extracted?: number | null
+          tables_detected?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_extraction_metrics_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_extractions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pdf_extractions: {
         Row: {
           completed_at: string | null
@@ -1240,6 +1339,125 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_language_segments: {
+        Row: {
+          bbox: Json | null
+          confidence: number | null
+          id: string
+          language: string
+          page_id: string
+        }
+        Insert: {
+          bbox?: Json | null
+          confidence?: number | null
+          id?: string
+          language: string
+          page_id: string
+        }
+        Update: {
+          bbox?: Json | null
+          confidence?: number | null
+          id?: string
+          language?: string
+          page_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_language_segments_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_layout_signatures: {
+        Row: {
+          column_count: number | null
+          created_at: string
+          id: string
+          image_positions: Json | null
+          layout_structure: Json | null
+          page_hash: string
+          supplier_guess: string | null
+          table_positions: Json | null
+        }
+        Insert: {
+          column_count?: number | null
+          created_at?: string
+          id?: string
+          image_positions?: Json | null
+          layout_structure?: Json | null
+          page_hash: string
+          supplier_guess?: string | null
+          table_positions?: Json | null
+        }
+        Update: {
+          column_count?: number | null
+          created_at?: string
+          id?: string
+          image_positions?: Json | null
+          layout_structure?: Json | null
+          page_hash?: string
+          supplier_guess?: string | null
+          table_positions?: Json | null
+        }
+        Relationships: []
+      }
+      pdf_page_blocks: {
+        Row: {
+          bbox: Json | null
+          block_type: Database["public"]["Enums"]["pdf_block_type"]
+          confidence: number | null
+          created_at: string
+          id: string
+          page_id: string
+          parent_block_id: string | null
+          reading_order: number
+          semantic_role: Database["public"]["Enums"]["pdf_block_role"] | null
+          text_content: string | null
+        }
+        Insert: {
+          bbox?: Json | null
+          block_type: Database["public"]["Enums"]["pdf_block_type"]
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          page_id: string
+          parent_block_id?: string | null
+          reading_order?: number
+          semantic_role?: Database["public"]["Enums"]["pdf_block_role"] | null
+          text_content?: string | null
+        }
+        Update: {
+          bbox?: Json | null
+          block_type?: Database["public"]["Enums"]["pdf_block_type"]
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          page_id?: string
+          parent_block_id?: string | null
+          reading_order?: number
+          semantic_role?: Database["public"]["Enums"]["pdf_block_role"] | null
+          text_content?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_page_blocks_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_pages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdf_page_blocks_parent_block_id_fkey"
+            columns: ["parent_block_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_page_blocks"
             referencedColumns: ["id"]
           },
         ]
@@ -1302,6 +1520,38 @@ export type Database = {
             columns: ["extraction_id"]
             isOneToOne: false
             referencedRelation: "pdf_extractions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_sections: {
+        Row: {
+          bbox: Json | null
+          confidence: number | null
+          id: string
+          page_id: string
+          section_title: string
+        }
+        Insert: {
+          bbox?: Json | null
+          confidence?: number | null
+          id?: string
+          page_id: string
+          section_title: string
+        }
+        Update: {
+          bbox?: Json | null
+          confidence?: number | null
+          id?: string
+          page_id?: string
+          section_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_sections_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_pages"
             referencedColumns: ["id"]
           },
         ]
@@ -1428,6 +1678,7 @@ export type Database = {
           row_count: number | null
           rows: Json | null
           table_index: number
+          table_type: Database["public"]["Enums"]["pdf_table_type"] | null
           template_id: string | null
           text_source_data: Json | null
           vision_source_data: Json | null
@@ -1446,6 +1697,7 @@ export type Database = {
           row_count?: number | null
           rows?: Json | null
           table_index?: number
+          table_type?: Database["public"]["Enums"]["pdf_table_type"] | null
           template_id?: string | null
           text_source_data?: Json | null
           vision_source_data?: Json | null
@@ -1464,6 +1716,7 @@ export type Database = {
           row_count?: number | null
           rows?: Json | null
           table_index?: number
+          table_type?: Database["public"]["Enums"]["pdf_table_type"] | null
           template_id?: string | null
           text_source_data?: Json | null
           vision_source_data?: Json | null
@@ -2299,6 +2552,80 @@ export type Database = {
           updated_at?: string
           user_id?: string
           value?: string | null
+        }
+        Relationships: []
+      }
+      supplier_layout_profiles: {
+        Row: {
+          column_aliases: Json
+          confidence_rules: Json
+          created_at: string
+          header_patterns: Json
+          id: string
+          language: string | null
+          layout_signature: Json
+          supplier_name: string
+          table_patterns: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          column_aliases?: Json
+          confidence_rules?: Json
+          created_at?: string
+          header_patterns?: Json
+          id?: string
+          language?: string | null
+          layout_signature?: Json
+          supplier_name: string
+          table_patterns?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          column_aliases?: Json
+          confidence_rules?: Json
+          created_at?: string
+          header_patterns?: Json
+          id?: string
+          language?: string | null
+          layout_signature?: Json
+          supplier_name?: string
+          table_patterns?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_layout_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      technical_symbol_dictionary: {
+        Row: {
+          examples: Json | null
+          id: string
+          normalized_field: string
+          symbol: string
+          unit: string | null
+        }
+        Insert: {
+          examples?: Json | null
+          id?: string
+          normalized_field: string
+          symbol: string
+          unit?: string | null
+        }
+        Update: {
+          examples?: Json | null
+          id?: string
+          normalized_field?: string
+          symbol?: string
+          unit?: string | null
         }
         Relationships: []
       }
@@ -3278,6 +3605,24 @@ export type Database = {
         | "webhook"
         | "supplier_feed"
       job_item_status: "queued" | "processing" | "done" | "error" | "skipped"
+      pdf_block_role:
+        | "product_family"
+        | "product_group"
+        | "table_header"
+        | "table_row"
+        | "table_cell"
+        | "description"
+        | "attribute"
+        | "context_label"
+      pdf_block_type:
+        | "header"
+        | "section_title"
+        | "paragraph"
+        | "table"
+        | "image"
+        | "caption"
+        | "footer"
+        | "note"
       pdf_extraction_method: "text_only" | "vision_only" | "hybrid"
       pdf_extraction_status:
         | "queued"
@@ -3285,8 +3630,22 @@ export type Database = {
         | "reviewing"
         | "done"
         | "error"
+      pdf_image_type:
+        | "product"
+        | "lifestyle"
+        | "technical"
+        | "icon"
+        | "logo"
+        | "unknown"
       pdf_page_status: "extracted" | "reviewed" | "approved"
       pdf_row_status: "unmapped" | "mapped" | "skipped" | "error"
+      pdf_table_type:
+        | "product_table"
+        | "technical_specs"
+        | "pricing_table"
+        | "accessories"
+        | "compatibility"
+        | "spare_parts"
       product_status:
         | "pending"
         | "processing"
@@ -3594,6 +3953,26 @@ export const Constants = {
         "supplier_feed",
       ],
       job_item_status: ["queued", "processing", "done", "error", "skipped"],
+      pdf_block_role: [
+        "product_family",
+        "product_group",
+        "table_header",
+        "table_row",
+        "table_cell",
+        "description",
+        "attribute",
+        "context_label",
+      ],
+      pdf_block_type: [
+        "header",
+        "section_title",
+        "paragraph",
+        "table",
+        "image",
+        "caption",
+        "footer",
+        "note",
+      ],
       pdf_extraction_method: ["text_only", "vision_only", "hybrid"],
       pdf_extraction_status: [
         "queued",
@@ -3602,8 +3981,24 @@ export const Constants = {
         "done",
         "error",
       ],
+      pdf_image_type: [
+        "product",
+        "lifestyle",
+        "technical",
+        "icon",
+        "logo",
+        "unknown",
+      ],
       pdf_page_status: ["extracted", "reviewed", "approved"],
       pdf_row_status: ["unmapped", "mapped", "skipped", "error"],
+      pdf_table_type: [
+        "product_table",
+        "technical_specs",
+        "pricing_table",
+        "accessories",
+        "compatibility",
+        "spare_parts",
+      ],
       product_status: [
         "pending",
         "processing",
