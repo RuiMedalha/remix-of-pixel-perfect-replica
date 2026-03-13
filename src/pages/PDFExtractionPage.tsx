@@ -222,9 +222,9 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                   <TableCell key={ci} className="text-xs">
                                     <div className="flex items-center gap-1">
                                       {cell.value}
-                                      {cell.confidence >= 80 && <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />}
-                                      {cell.confidence >= 50 && cell.confidence < 80 && <AlertTriangle className="h-3 w-3 text-yellow-500 shrink-0" />}
-                                      {cell.confidence < 50 && <XCircle className="h-3 w-3 text-red-500 shrink-0" />}
+                                      {cell.confidence >= 80 && <CheckCircle className="h-3 w-3 text-primary shrink-0" />}
+                                      {cell.confidence >= 50 && cell.confidence < 80 && <AlertTriangle className="h-3 w-3 text-accent-foreground shrink-0" />}
+                                      {cell.confidence < 50 && <XCircle className="h-3 w-3 text-destructive shrink-0" />}
                                     </div>
                                   </TableCell>
                                 ))}
