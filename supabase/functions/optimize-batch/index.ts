@@ -331,7 +331,10 @@ serve(async (req) => {
 
       const batchResults = await Promise.allSettled(
         batchIds.map(async (productId) => {
+          const itemStartedAt = new Date().toISOString();
+          const itemStartMs = Date.now();
           let productOk = false;
+          let lastError = "";
           for (const phaseConfig of selectedPhases) {
             try {
               const callBody: any = {
@@ -371,19 +374,67 @@ serve(async (req) => {
               if (!response.ok) {
                 const errText = await response.text();
                 console.error(`Product ${productId} phase ${phaseConfig.phase} failed: ${response.status} ${errText}`);
+                lastError = errText;
+                // Write job item for error
+                await supabase.from("optimization_job_items").insert({
+                  job_id: job.id,
+                  product_id: productId,
+                  status: "error",
+                  fields_optimized: callBody.fieldsToOptimize || [],
+                  model_used: job.model_override || null,
+                  started_at: itemStartedAt,
+                  completed_at: new Date().toISOString(),
+                  duration_ms: Date.now() - itemStartMs,
+                  error_message: errText.substring(0, 500),
+                });
                 return { productId, status: "error", error: errText };
               }
 
               const data = await response.json();
               if (data.error) {
+                lastError = data.error;
+                await supabase.from("optimization_job_items").insert({
+                  job_id: job.id,
+                  product_id: productId,
+                  status: "error",
+                  fields_optimized: callBody.fieldsToOptimize || [],
+                  model_used: job.model_override || null,
+                  started_at: itemStartedAt,
+                  completed_at: new Date().toISOString(),
+                  duration_ms: Date.now() - itemStartMs,
+                  error_message: data.error.substring(0, 500),
+                });
                 return { productId, status: "error", error: data.error };
               }
               productOk = true;
             } catch (err: any) {
               console.error(`Product ${productId} phase ${phaseConfig.phase} error:`, err.message);
+              lastError = err.message;
+              await supabase.from("optimization_job_items").insert({
+                job_id: job.id,
+                product_id: productId,
+                status: "error",
+                started_at: itemStartedAt,
+                completed_at: new Date().toISOString(),
+                duration_ms: Date.now() - itemStartMs,
+                error_message: err.message?.substring(0, 500),
+              });
               return { productId, status: "error", error: err.message };
             }
           }
+          // Write successful job item
+          const durationMs = Date.now() - itemStartMs;
+          await supabase.from("optimization_job_items").insert({
+            job_id: job.id,
+            product_id: productId,
+            status: productOk ? "done" : "error",
+            fields_optimized: job.fields_to_optimize || [],
+            model_used: job.model_override || null,
+            started_at: itemStartedAt,
+            completed_at: new Date().toISOString(),
+            duration_ms: durationMs,
+            error_message: productOk ? null : lastError?.substring(0, 500),
+          });
           return { productId, status: productOk ? "optimized" : "error" };
         })
       );
