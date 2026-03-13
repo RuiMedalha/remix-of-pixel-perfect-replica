@@ -215,3 +215,15 @@ verify_jwt = false
 
 [functions.generate-launch-opportunities]
 verify_jwt = false
+
+[functions.execute-autonomous-action]
+verify_jwt = false
+
+[functions.schedule-autonomous-actions]
+verify_jwt = false
+
+[functions.validate-guardrails]
+verify_jwt = false
+
+[functions.apply-commerce-action]
+verify_jwt = false

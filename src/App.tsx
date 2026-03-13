@@ -74,6 +74,7 @@ function ProtectedRoutes() {
           <Route path="/market-intelligence" element={<MarketIntelligencePage />} />
           <Route path="/revenue-demand" element={<RevenueAndDemandPage />} />
           <Route path="/strategic-planner" element={<StrategicPlannerPage />} />
+          <Route path="/autonomous-commerce" element={<AutonomousCommercePage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

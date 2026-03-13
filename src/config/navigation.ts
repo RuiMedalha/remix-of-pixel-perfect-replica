@@ -100,6 +100,7 @@ export const navGroups: NavGroup[] = [
       { title: "Market Intelligence", icon: Globe, route: "/market-intelligence" },
       { title: "Revenue & Demand", icon: DollarSign, route: "/revenue-demand" },
       { title: "Strategic Planner", icon: Map, route: "/strategic-planner" },
+      { title: "Autonomous Commerce", icon: Zap, route: "/autonomous-commerce" },
     ],
   },
   {
