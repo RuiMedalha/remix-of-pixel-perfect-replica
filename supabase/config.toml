@@ -32,3 +32,15 @@ verify_jwt = false
 
 [functions.map-pdf-to-products]
 verify_jwt = false
+
+[functions.apply-extraction-memory]
+verify_jwt = false
+
+[functions.learn-from-review]
+verify_jwt = false
+
+[functions.update-pattern-confidence]
+verify_jwt = false
+
+[functions.normalize-extracted-values]
+verify_jwt = false
