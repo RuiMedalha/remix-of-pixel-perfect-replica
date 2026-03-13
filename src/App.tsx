@@ -28,6 +28,7 @@ import ChannelManagerPage from "./pages/ChannelManagerPage";
 import CommerceIntelligencePage from "./pages/CommerceIntelligencePage";
 import AgentControlCenterPage from "./pages/AgentControlCenterPage";
 import CatalogBrainPage from "./pages/CatalogBrainPage";
+import BrainDecisionEnginePage from "./pages/BrainDecisionEnginePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
