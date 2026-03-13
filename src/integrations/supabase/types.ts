@@ -550,6 +550,118 @@ export type Database = {
           },
         ]
       }
+      product_field_confidence: {
+        Row: {
+          confidence_score: number
+          created_at: string
+          extraction_method: string | null
+          field_key: string
+          id: string
+          product_id: string
+          source: Database["public"]["Enums"]["confidence_source"]
+          source_attribution: Json | null
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+          validation_reason: string | null
+          validation_status:
+            | Database["public"]["Enums"]["field_validation_status"]
+            | null
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string
+          extraction_method?: string | null
+          field_key: string
+          id?: string
+          product_id: string
+          source?: Database["public"]["Enums"]["confidence_source"]
+          source_attribution?: Json | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validation_reason?: string | null
+          validation_status?:
+            | Database["public"]["Enums"]["field_validation_status"]
+            | null
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string
+          extraction_method?: string | null
+          field_key?: string
+          id?: string
+          product_id?: string
+          source?: Database["public"]["Enums"]["confidence_source"]
+          source_attribution?: Json | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validation_reason?: string | null
+          validation_status?:
+            | Database["public"]["Enums"]["field_validation_status"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_field_confidence_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_quality_scores: {
+        Row: {
+          calculated_at: string
+          completeness_score: number | null
+          description_score: number | null
+          id: string
+          image_score: number | null
+          overall_score: number | null
+          price_score: number | null
+          product_id: string
+          schema_match_score: number | null
+          seo_score: number | null
+          title_score: number | null
+        }
+        Insert: {
+          calculated_at?: string
+          completeness_score?: number | null
+          description_score?: number | null
+          id?: string
+          image_score?: number | null
+          overall_score?: number | null
+          price_score?: number | null
+          product_id: string
+          schema_match_score?: number | null
+          seo_score?: number | null
+          title_score?: number | null
+        }
+        Update: {
+          calculated_at?: string
+          completeness_score?: number | null
+          description_score?: number | null
+          id?: string
+          image_score?: number | null
+          overall_score?: number | null
+          price_score?: number | null
+          product_id?: string
+          schema_match_score?: number | null
+          seo_score?: number | null
+          title_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_quality_scores_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_versions: {
         Row: {
           change_reason: string | null
@@ -630,6 +742,7 @@ export type Database = {
           id: string
           image_alt_texts: Json | null
           image_urls: string[] | null
+          locked_for_publish: boolean | null
           meta_description: string | null
           meta_title: string | null
           optimized_description: string | null
@@ -642,6 +755,7 @@ export type Database = {
           original_title: string | null
           parent_product_id: string | null
           product_type: string
+          quality_score: number | null
           sale_price: number | null
           seo_score: number | null
           seo_slug: string | null
@@ -656,6 +770,8 @@ export type Database = {
           updated_at: string
           upsell_skus: Json | null
           user_id: string
+          validation_errors: Json | null
+          validation_status: string | null
           woocommerce_id: number | null
           workflow_changed_at: string | null
           workflow_changed_by: string | null
@@ -673,6 +789,7 @@ export type Database = {
           id?: string
           image_alt_texts?: Json | null
           image_urls?: string[] | null
+          locked_for_publish?: boolean | null
           meta_description?: string | null
           meta_title?: string | null
           optimized_description?: string | null
@@ -685,6 +802,7 @@ export type Database = {
           original_title?: string | null
           parent_product_id?: string | null
           product_type?: string
+          quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
           seo_slug?: string | null
@@ -699,6 +817,8 @@ export type Database = {
           updated_at?: string
           upsell_skus?: Json | null
           user_id: string
+          validation_errors?: Json | null
+          validation_status?: string | null
           woocommerce_id?: number | null
           workflow_changed_at?: string | null
           workflow_changed_by?: string | null
@@ -718,6 +838,7 @@ export type Database = {
           id?: string
           image_alt_texts?: Json | null
           image_urls?: string[] | null
+          locked_for_publish?: boolean | null
           meta_description?: string | null
           meta_title?: string | null
           optimized_description?: string | null
@@ -730,6 +851,7 @@ export type Database = {
           original_title?: string | null
           parent_product_id?: string | null
           product_type?: string
+          quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
           seo_slug?: string | null
@@ -744,6 +866,8 @@ export type Database = {
           updated_at?: string
           upsell_skus?: Json | null
           user_id?: string
+          validation_errors?: Json | null
+          validation_status?: string | null
           woocommerce_id?: number | null
           workflow_changed_at?: string | null
           workflow_changed_by?: string | null
@@ -933,6 +1057,149 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "publish_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publish_locks: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          lock_type: Database["public"]["Enums"]["publish_lock_type"]
+          locked_at: string
+          locked_by: string | null
+          product_id: string
+          reason: string
+          unlocked_at: string | null
+          unlocked_by: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          lock_type?: Database["public"]["Enums"]["publish_lock_type"]
+          locked_at?: string
+          locked_by?: string | null
+          product_id: string
+          reason: string
+          unlocked_at?: string | null
+          unlocked_by?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          lock_type?: Database["public"]["Enums"]["publish_lock_type"]
+          locked_at?: string
+          locked_by?: string | null
+          product_id?: string
+          reason?: string
+          unlocked_at?: string | null
+          unlocked_by?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publish_locks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publish_locks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_gate_results: {
+        Row: {
+          evaluated_at: string
+          failures: Json | null
+          gate_id: string
+          id: string
+          passed: boolean
+          product_id: string
+          score: number | null
+        }
+        Insert: {
+          evaluated_at?: string
+          failures?: Json | null
+          gate_id: string
+          id?: string
+          passed?: boolean
+          product_id: string
+          score?: number | null
+        }
+        Update: {
+          evaluated_at?: string
+          failures?: Json | null
+          gate_id?: string
+          id?: string
+          passed?: boolean
+          product_id?: string
+          score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_gate_results_gate_id_fkey"
+            columns: ["gate_id"]
+            isOneToOne: false
+            referencedRelation: "quality_gates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_gate_results_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_gates: {
+        Row: {
+          block_publish: boolean | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          rules: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          block_publish?: boolean | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          rules?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          block_publish?: boolean | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          rules?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_gates_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -1611,6 +1878,9 @@ export type Database = {
         | "workspace"
         | "asset"
         | "job"
+      confidence_source: "ai" | "human" | "import" | "scrape" | "ocr" | "api"
+      field_validation_status: "valid" | "invalid" | "unvalidated"
+      gate_severity: "error" | "warning" | "info"
       image_status:
         | "pending"
         | "downloading"
@@ -1635,6 +1905,11 @@ export type Database = {
         | "published"
         | "archived"
         | "rejected"
+      publish_lock_type:
+        | "quality_gate"
+        | "manual"
+        | "validation"
+        | "missing_data"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1792,6 +2067,9 @@ export const Constants = {
         "asset",
         "job",
       ],
+      confidence_source: ["ai", "human", "import", "scrape", "ocr", "api"],
+      field_validation_status: ["valid", "invalid", "unvalidated"],
+      gate_severity: ["error", "warning", "info"],
       image_status: [
         "pending",
         "downloading",
@@ -1818,6 +2096,12 @@ export const Constants = {
         "published",
         "archived",
         "rejected",
+      ],
+      publish_lock_type: [
+        "quality_gate",
+        "manual",
+        "validation",
+        "missing_data",
       ],
     },
   },
