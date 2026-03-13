@@ -34,6 +34,7 @@ import BrainSimulationPage from "./pages/BrainSimulationPage";
 import DigitalTwinPage from "./pages/DigitalTwinPage";
 import MarketIntelligencePage from "./pages/MarketIntelligencePage";
 import RevenueAndDemandPage from "./pages/RevenueAndDemandPage";
+import StrategicPlannerPage from "./pages/StrategicPlannerPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
