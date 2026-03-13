@@ -8,9 +8,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Upload, Eye, Brain, Send, Loader2, CheckCircle, AlertTriangle, XCircle, Table2, Layers, GitCompare, Shield } from "lucide-react";
+import { FileText, Upload, Eye, Brain, Send, Loader2, CheckCircle, AlertTriangle, XCircle, Table2, Layers, GitCompare, Shield, BarChart3, Languages, ImageIcon } from "lucide-react";
 import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -26,10 +28,12 @@ const zoneColors: Record<string, string> = {
   section_title: "bg-accent text-accent-foreground",
   table: "bg-muted text-foreground",
   notes: "bg-secondary text-secondary-foreground",
+  note: "bg-secondary text-secondary-foreground",
   footer: "bg-muted text-muted-foreground",
+  paragraph: "text-foreground",
   body_text: "text-foreground",
-  images: "bg-accent/50 text-accent-foreground",
-  metadata: "bg-muted text-muted-foreground",
+  image: "bg-accent/50 text-accent-foreground",
+  caption: "bg-muted text-muted-foreground",
 };
 
 const semanticTypeColors: Record<string, string> = {
@@ -41,6 +45,15 @@ const semanticTypeColors: Record<string, string> = {
   capacity: "bg-accent/50 text-accent-foreground",
   material: "bg-secondary/50 text-secondary-foreground",
   unknown: "bg-muted text-muted-foreground",
+};
+
+const tableTypeLabels: Record<string, string> = {
+  product_table: "Produtos",
+  technical_specs: "Especificações",
+  pricing_table: "Preços",
+  accessories: "Acessórios",
+  compatibility: "Compatibilidade",
+  spare_parts: "Peças",
 };
 
 export default function PDFExtractionPage() {
@@ -63,15 +76,15 @@ export default function PDFExtractionPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Extração PDF — Hybrid Layout Intelligence</h1>
-          <p className="text-muted-foreground">Extração inteligente com segmentação de zonas, classificação semântica e reconciliação multi-layer</p>
+          <h1 className="text-2xl font-bold text-foreground">Extração PDF — Document Intelligence</h1>
+          <p className="text-muted-foreground">Motor enterprise com layout graph, classificação semântica, OCR adaptativo e monitorização de qualidade</p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" /> Nova Extração</CardTitle>
-          <CardDescription>Seleciona um PDF carregado para iniciar a extração com análise de layout</CardDescription>
+          <CardDescription>Seleciona um PDF carregado para iniciar a extração com Document Intelligence</CardDescription>
         </CardHeader>
         <CardContent className="flex gap-4 items-end">
           <div className="flex-1">
@@ -159,6 +172,35 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
   const [activeTab, setActiveTab] = useState("pages");
   const [reconcilePageId, setReconcilePageId] = useState<string | null>(null);
 
+  // Metrics query
+  const { data: metrics } = useQuery({
+    queryKey: ["pdf-extraction-metrics", extractionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pdf_extraction_metrics" as any)
+        .select("*")
+        .eq("extraction_id", extractionId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) return null;
+      return (data as any[])?.[0] || null;
+    },
+  });
+
+  // Sections query
+  const { data: sections } = useQuery({
+    queryKey: ["pdf-sections", pageIds],
+    enabled: pageIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pdf_sections" as any)
+        .select("*")
+        .in("page_id", pageIds);
+      if (error) return [];
+      return data as any[];
+    },
+  });
+
   const selectedPage = reconcilePageId ? (pages || []).find((p: any) => p.id === reconcilePageId) : null;
 
   return (
@@ -166,7 +208,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
       <DialogContent className="max-w-5xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Layers className="h-5 w-5" /> Hybrid Layout Intelligence
+            <Layers className="h-5 w-5" /> Document Intelligence
           </DialogTitle>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -174,9 +216,10 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
             <TabsTrigger value="pages">Páginas ({pages?.length || 0})</TabsTrigger>
             <TabsTrigger value="tables">Tabelas ({tables?.length || 0})</TabsTrigger>
             <TabsTrigger value="reconcile">Reconciliação</TabsTrigger>
+            <TabsTrigger value="metrics">Métricas</TabsTrigger>
           </TabsList>
 
-          {/* Pages Tab with Zone Visualization */}
+          {/* Pages Tab */}
           <TabsContent value="pages">
             <ScrollArea className="h-[65vh]">
               {isLoading ? (
@@ -190,6 +233,16 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                           <CardTitle className="text-sm">Página {page.page_number}</CardTitle>
                           <div className="flex items-center gap-2">
                             {page.has_tables && <Badge>Tabelas</Badge>}
+                            {(page.page_context as any)?.language && (
+                              <Badge variant="outline" className="text-xs flex items-center gap-1">
+                                <Languages className="h-3 w-3" /> {(page.page_context as any).language?.language || (page.page_context as any).language}
+                              </Badge>
+                            )}
+                            {(page.page_context as any)?.supplier_guess && (
+                              <Badge variant="secondary" className="text-xs">
+                                {(page.page_context as any).supplier_guess}
+                              </Badge>
+                            )}
                             <Badge variant="outline">Confiança: {page.confidence_score}%</Badge>
                             <Button size="sm" variant="outline" onClick={() => visionParse.mutate(page.id)} disabled={visionParse.isPending}>
                               <Brain className="h-3 w-3 mr-1" /> AI Parse
@@ -201,7 +254,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                         </div>
                       </CardHeader>
                       <CardContent>
-                        {/* Zone Segmentation Display */}
+                        {/* Zone Segmentation */}
                         {(page.zones || []).length > 0 && (
                           <div className="mb-3 flex flex-wrap gap-1">
                             {(page.zones || []).map((z: any, i: number) => (
@@ -211,10 +264,10 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             ))}
                           </div>
                         )}
-                        {/* Page Context */}
-                        {page.page_context?.detected_sections?.length > 0 && (
+                        {/* Detected Sections */}
+                        {(page.page_context as any)?.detected_sections?.length > 0 && (
                           <div className="mb-2 text-xs text-muted-foreground">
-                            Secções: {page.page_context.detected_sections.join(" → ")}
+                            Secções: {(page.page_context as any).detected_sections.join(" → ")}
                           </div>
                         )}
                         <pre className="text-xs bg-muted p-3 rounded-md max-h-32 overflow-auto whitespace-pre-wrap font-mono">
@@ -228,7 +281,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
             </ScrollArea>
           </TabsContent>
 
-          {/* Tables Tab with Semantic Classification */}
+          {/* Tables Tab with Table Type */}
           <TabsContent value="tables">
             <ScrollArea className="h-[65vh]">
               <div className="space-y-4">
@@ -237,8 +290,13 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle className="text-sm">
+                          <CardTitle className="text-sm flex items-center gap-2">
                             Tabela #{table.table_index} — {table.row_count}×{table.col_count}
+                            {table.table_type && (
+                              <Badge variant="secondary" className="text-xs">
+                                {tableTypeLabels[table.table_type] || table.table_type}
+                              </Badge>
+                            )}
                           </CardTitle>
                           {table.template_id && (
                             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
@@ -301,6 +359,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                         <p className="text-xs">Fonte: {cell.source}</p>
                                         {cell.reason && <p className="text-xs">{cell.reason}</p>}
                                         {cell.semantic_type && <p className="text-xs">Tipo: {cell.semantic_type}</p>}
+                                        {cell.normalized_value && <p className="text-xs">Normalizado: {cell.normalized_value}</p>}
                                       </TooltipContent>
                                     </Tooltip>
                                   </TableCell>
@@ -378,10 +437,17 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                   <span className="font-medium">Tabela {i + 1}:</span> {(t.headers || []).join(", ")}
                                   <br />
                                   <span className="text-muted-foreground">{(t.rows || []).length} linhas, confiança {t.confidence}%</span>
+                                  {t.table_type && <span className="ml-1 text-primary">({tableTypeLabels[t.table_type] || t.table_type})</span>}
                                 </div>
                               ))
                             ) : (
                               <p className="text-xs text-muted-foreground">Sem resultados AI — clique "AI Parse"</p>
+                            )}
+                            {(selectedPage.vision_result as any)?.detected_images?.length > 0 && (
+                              <div className="text-xs p-1 mt-2 flex items-center gap-1">
+                                <ImageIcon className="h-3 w-3" />
+                                <span>{(selectedPage.vision_result as any).detected_images.length} imagens detetadas</span>
+                              </div>
                             )}
                             {(selectedPage.vision_result as any)?.page_context && (
                               <div className="text-xs p-1 mt-2">
@@ -390,6 +456,9 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                 )}
                                 {(selectedPage.vision_result as any).page_context.category_hint && (
                                   <p><span className="font-medium">Categoria:</span> {(selectedPage.vision_result as any).page_context.category_hint}</p>
+                                )}
+                                {(selectedPage.vision_result as any).page_context.language && (
+                                  <p><span className="font-medium">Idioma:</span> {(selectedPage.vision_result as any).page_context.language}</p>
                                 )}
                               </div>
                             )}
@@ -413,6 +482,12 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                 <span className="font-medium">Template:</span> {(selectedPage.reconciled_result as any).page_context.template_matched}
                               </div>
                             )}
+                            {(selectedPage.reconciled_result as any)?.page_context?.profile_matched && (
+                              <div className="text-xs p-1 flex items-center gap-1">
+                                <Shield className="h-3 w-3 text-accent-foreground" />
+                                <span className="font-medium">Perfil:</span> {(selectedPage.reconciled_result as any).page_context.profile_matched}
+                              </div>
+                            )}
                             {!((selectedPage.reconciled_result as any)?.zones?.length) && (
                               <p className="text-xs text-muted-foreground">Execute AI Parse para gerar reconciliação</p>
                             )}
@@ -423,6 +498,68 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                   </Card>
                 </div>
               )}
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Metrics Tab */}
+          <TabsContent value="metrics">
+            <ScrollArea className="h-[65vh]">
+              <div className="space-y-4">
+                {metrics ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" /> Métricas de Qualidade OCR
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Confiança Média</p>
+                          <p className="text-2xl font-bold text-foreground">{metrics.avg_confidence}%</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Tabelas Detetadas</p>
+                          <p className="text-2xl font-bold text-foreground">{metrics.tables_detected}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Linhas Extraídas</p>
+                          <p className="text-2xl font-bold text-foreground">{metrics.rows_extracted}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Taxa de Mapeamento</p>
+                          <p className="text-2xl font-bold text-foreground">{metrics.mapping_success_rate}%</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Tempo de Processamento</p>
+                          <p className="text-2xl font-bold text-foreground">{(metrics.processing_time / 1000).toFixed(1)}s</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">Métricas disponíveis após a extração</p>
+                )}
+
+                {/* Sections detected */}
+                {(sections || []).length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Secções Detetadas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-1">
+                        {(sections || []).map((s: any) => (
+                          <div key={s.id} className="flex items-center justify-between text-xs border-b border-border py-1">
+                            <span className="font-medium">{s.section_title}</span>
+                            <Badge variant="outline" className="text-xs">Confiança: {s.confidence}%</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </ScrollArea>
           </TabsContent>
         </Tabs>
