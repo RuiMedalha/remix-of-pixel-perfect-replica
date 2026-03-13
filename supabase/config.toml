@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.translate-product]
 verify_jwt = false
+
+[functions.publish-to-channel]
+verify_jwt = false
+
+[functions.publish-batch-to-channel]
+verify_jwt = false
