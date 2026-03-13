@@ -25,6 +25,7 @@ import {
   Settings,
   DollarSign,
   Map,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
