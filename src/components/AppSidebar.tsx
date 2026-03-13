@@ -34,6 +34,7 @@ const navItems = [
   { to: "/decisoes", icon: Target, label: "Decision Engine" },
   { to: "/aprendizagem", icon: GraduationCap, label: "Learning Engine" },
   { to: "/simulacao", icon: FlaskConical, label: "Simulation Engine" },
+  { to: "/digital-twin", icon: Copy, label: "Digital Twin" },
 ];
 
 const managementItems = [
