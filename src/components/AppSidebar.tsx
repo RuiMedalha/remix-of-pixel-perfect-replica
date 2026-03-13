@@ -24,6 +24,10 @@ const navItems = [
   { to: "/imagens", icon: ImageIcon, label: "Imagens" },
 ];
 
+const managementItems = [
+  { to: "/membros", icon: UserCog, label: "Membros" },
+];
+
 const adminItems = [
   { to: "/configuracoes", icon: Settings, label: "Configurações" },
   { to: "/admin/utilizadores", icon: Users, label: "Utilizadores" },
