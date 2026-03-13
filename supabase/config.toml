@@ -155,3 +155,21 @@ verify_jwt = false
 
 [functions.catalog-brain-sync-twin]
 verify_jwt = false
+
+[functions.collect-market-data]
+verify_jwt = false
+
+[functions.match-market-products]
+verify_jwt = false
+
+[functions.compute-market-benchmarks]
+verify_jwt = false
+
+[functions.generate-market-signals]
+verify_jwt = false
+
+[functions.generate-market-opportunities]
+verify_jwt = false
+
+[functions.sync-market-intelligence]
+verify_jwt = false
