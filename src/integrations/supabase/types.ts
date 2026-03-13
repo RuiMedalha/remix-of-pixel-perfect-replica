@@ -1251,12 +1251,16 @@ export type Database = {
           has_images: boolean | null
           has_tables: boolean | null
           id: string
+          layout_zones: Json | null
+          page_context: Json | null
           page_image_url: string | null
           page_number: number
           raw_text: string | null
           reconciled_result: Json | null
           status: Database["public"]["Enums"]["pdf_page_status"]
+          text_result: Json | null
           vision_result: Json | null
+          zones: Json | null
         }
         Insert: {
           confidence_score?: number | null
@@ -1264,12 +1268,16 @@ export type Database = {
           has_images?: boolean | null
           has_tables?: boolean | null
           id?: string
+          layout_zones?: Json | null
+          page_context?: Json | null
           page_image_url?: string | null
           page_number: number
           raw_text?: string | null
           reconciled_result?: Json | null
           status?: Database["public"]["Enums"]["pdf_page_status"]
+          text_result?: Json | null
           vision_result?: Json | null
+          zones?: Json | null
         }
         Update: {
           confidence_score?: number | null
@@ -1277,12 +1285,16 @@ export type Database = {
           has_images?: boolean | null
           has_tables?: boolean | null
           id?: string
+          layout_zones?: Json | null
+          page_context?: Json | null
           page_image_url?: string | null
           page_number?: number
           raw_text?: string | null
           reconciled_result?: Json | null
           status?: Database["public"]["Enums"]["pdf_page_status"]
+          text_result?: Json | null
           vision_result?: Json | null
+          zones?: Json | null
         }
         Relationships: [
           {
@@ -1300,27 +1312,42 @@ export type Database = {
           id: string
           mapped_product_id: string | null
           mapping_confidence: number | null
+          reconciled_cells: Json | null
+          row_context: Json | null
           row_index: number
           status: Database["public"]["Enums"]["pdf_row_status"]
           table_id: string
+          text_cells: Json | null
+          validation_errors: Json | null
+          vision_cells: Json | null
         }
         Insert: {
           cells?: Json
           id?: string
           mapped_product_id?: string | null
           mapping_confidence?: number | null
+          reconciled_cells?: Json | null
+          row_context?: Json | null
           row_index?: number
           status?: Database["public"]["Enums"]["pdf_row_status"]
           table_id: string
+          text_cells?: Json | null
+          validation_errors?: Json | null
+          vision_cells?: Json | null
         }
         Update: {
           cells?: Json
           id?: string
           mapped_product_id?: string | null
           mapping_confidence?: number | null
+          reconciled_cells?: Json | null
+          row_context?: Json | null
           row_index?: number
           status?: Database["public"]["Enums"]["pdf_row_status"]
           table_id?: string
+          text_cells?: Json | null
+          validation_errors?: Json | null
+          vision_cells?: Json | null
         }
         Relationships: [
           {
@@ -1339,42 +1366,107 @@ export type Database = {
           },
         ]
       }
+      pdf_table_templates: {
+        Row: {
+          column_aliases: Json
+          confidence_boost_rules: Json
+          created_at: string
+          expected_columns: Json
+          header_patterns: Json
+          id: string
+          parsing_rules: Json
+          supplier_name: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          column_aliases?: Json
+          confidence_boost_rules?: Json
+          created_at?: string
+          expected_columns?: Json
+          header_patterns?: Json
+          id?: string
+          parsing_rules?: Json
+          supplier_name: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          column_aliases?: Json
+          confidence_boost_rules?: Json
+          created_at?: string
+          expected_columns?: Json
+          header_patterns?: Json
+          id?: string
+          parsing_rules?: Json
+          supplier_name?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_table_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pdf_tables: {
         Row: {
           bounding_box: Json | null
           col_count: number | null
+          column_classifications: Json | null
           confidence_score: number | null
           headers: string[] | null
           id: string
           mapped_to_products: boolean | null
           page_id: string
+          reconciled_data: Json | null
+          reconciliation_reasons: Json | null
           row_count: number | null
           rows: Json | null
           table_index: number
+          template_id: string | null
+          text_source_data: Json | null
+          vision_source_data: Json | null
         }
         Insert: {
           bounding_box?: Json | null
           col_count?: number | null
+          column_classifications?: Json | null
           confidence_score?: number | null
           headers?: string[] | null
           id?: string
           mapped_to_products?: boolean | null
           page_id: string
+          reconciled_data?: Json | null
+          reconciliation_reasons?: Json | null
           row_count?: number | null
           rows?: Json | null
           table_index?: number
+          template_id?: string | null
+          text_source_data?: Json | null
+          vision_source_data?: Json | null
         }
         Update: {
           bounding_box?: Json | null
           col_count?: number | null
+          column_classifications?: Json | null
           confidence_score?: number | null
           headers?: string[] | null
           id?: string
           mapped_to_products?: boolean | null
           page_id?: string
+          reconciled_data?: Json | null
+          reconciliation_reasons?: Json | null
           row_count?: number | null
           rows?: Json | null
           table_index?: number
+          template_id?: string | null
+          text_source_data?: Json | null
+          vision_source_data?: Json | null
         }
         Relationships: [
           {
@@ -1382,6 +1474,13 @@ export type Database = {
             columns: ["page_id"]
             isOneToOne: false
             referencedRelation: "pdf_pages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdf_tables_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_table_templates"
             referencedColumns: ["id"]
           },
         ]
