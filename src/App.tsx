@@ -70,6 +70,7 @@ function ProtectedRoutes() {
           <Route path="/simulacao" element={<BrainSimulationPage />} />
           <Route path="/digital-twin" element={<DigitalTwinPage />} />
           <Route path="/market-intelligence" element={<MarketIntelligencePage />} />
+          <Route path="/revenue-demand" element={<RevenueAndDemandPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
