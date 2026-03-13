@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database } from "lucide-react";
+import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database, Library } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,7 @@ const navItems = [
   { to: "/categorias", icon: FolderTree, label: "Categorias" },
   { to: "/importar-woo", icon: ShoppingCart, label: "Importar WooCommerce" },
   { to: "/imagens", icon: ImageIcon, label: "Imagens" },
+  { to: "/assets", icon: Library, label: "Asset Library" },
   { to: "/ingestao", icon: Database, label: "Ingestion Hub" },
 ];
 

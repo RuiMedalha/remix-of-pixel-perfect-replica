@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.webhook-ingestion]
 verify_jwt = false
+
+[functions.manage-assets]
+verify_jwt = false
