@@ -21,8 +21,9 @@ serve(async (req) => {
       if (r.passed === false) {
         observations.push({
           workspace_id: workspaceId, observation_type: "quality_gate_fail",
-          product_id: r.product_id, signal_source: "quality_gates",
-          signal_payload: { gate_id: r.id, failures: r.failures }, severity: 80,
+          entity_type: "product", entity_id: r.product_id,
+          product_id: r.product_id, signal_source: "quality_gates", source: "quality_gates",
+          signal_payload: { gate_id: r.id, failures: r.failures }, severity: 80, signal_strength: 80,
         });
       }
     }
