@@ -193,6 +193,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
               <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Qualidade
             </TabsTrigger>
             <TabsTrigger value="brutos">Dados Brutos</TabsTrigger>
+            <TabsTrigger value="idiomas">
+              <Languages className="w-3.5 h-3.5 mr-1" /> Idiomas
+            </TabsTrigger>
           </TabsList>
 
           {/* PUBLISH BLOCKER ALERT */}
