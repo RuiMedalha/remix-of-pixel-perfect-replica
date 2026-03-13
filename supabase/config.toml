@@ -23,3 +23,12 @@ verify_jwt = false
 
 [functions.manage-assets]
 verify_jwt = false
+
+[functions.extract-pdf-pages]
+verify_jwt = false
+
+[functions.vision-parse-pdf]
+verify_jwt = false
+
+[functions.map-pdf-to-products]
+verify_jwt = false

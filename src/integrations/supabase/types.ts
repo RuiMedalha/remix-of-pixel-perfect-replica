@@ -1184,6 +1184,208 @@ export type Database = {
           },
         ]
       }
+      pdf_extractions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          extraction_method:
+            | Database["public"]["Enums"]["pdf_extraction_method"]
+            | null
+          file_id: string
+          id: string
+          model_used: string | null
+          processed_pages: number | null
+          status: Database["public"]["Enums"]["pdf_extraction_status"]
+          total_pages: number | null
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          extraction_method?:
+            | Database["public"]["Enums"]["pdf_extraction_method"]
+            | null
+          file_id: string
+          id?: string
+          model_used?: string | null
+          processed_pages?: number | null
+          status?: Database["public"]["Enums"]["pdf_extraction_status"]
+          total_pages?: number | null
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          extraction_method?:
+            | Database["public"]["Enums"]["pdf_extraction_method"]
+            | null
+          file_id?: string
+          id?: string
+          model_used?: string | null
+          processed_pages?: number | null
+          status?: Database["public"]["Enums"]["pdf_extraction_status"]
+          total_pages?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_extractions_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "uploaded_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdf_extractions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_pages: {
+        Row: {
+          confidence_score: number | null
+          extraction_id: string
+          has_images: boolean | null
+          has_tables: boolean | null
+          id: string
+          page_image_url: string | null
+          page_number: number
+          raw_text: string | null
+          reconciled_result: Json | null
+          status: Database["public"]["Enums"]["pdf_page_status"]
+          vision_result: Json | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          extraction_id: string
+          has_images?: boolean | null
+          has_tables?: boolean | null
+          id?: string
+          page_image_url?: string | null
+          page_number: number
+          raw_text?: string | null
+          reconciled_result?: Json | null
+          status?: Database["public"]["Enums"]["pdf_page_status"]
+          vision_result?: Json | null
+        }
+        Update: {
+          confidence_score?: number | null
+          extraction_id?: string
+          has_images?: boolean | null
+          has_tables?: boolean | null
+          id?: string
+          page_image_url?: string | null
+          page_number?: number
+          raw_text?: string | null
+          reconciled_result?: Json | null
+          status?: Database["public"]["Enums"]["pdf_page_status"]
+          vision_result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_pages_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_extractions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_table_rows: {
+        Row: {
+          cells: Json
+          id: string
+          mapped_product_id: string | null
+          mapping_confidence: number | null
+          row_index: number
+          status: Database["public"]["Enums"]["pdf_row_status"]
+          table_id: string
+        }
+        Insert: {
+          cells?: Json
+          id?: string
+          mapped_product_id?: string | null
+          mapping_confidence?: number | null
+          row_index?: number
+          status?: Database["public"]["Enums"]["pdf_row_status"]
+          table_id: string
+        }
+        Update: {
+          cells?: Json
+          id?: string
+          mapped_product_id?: string | null
+          mapping_confidence?: number | null
+          row_index?: number
+          status?: Database["public"]["Enums"]["pdf_row_status"]
+          table_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_table_rows_mapped_product_id_fkey"
+            columns: ["mapped_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdf_table_rows_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_tables: {
+        Row: {
+          bounding_box: Json | null
+          col_count: number | null
+          confidence_score: number | null
+          headers: string[] | null
+          id: string
+          mapped_to_products: boolean | null
+          page_id: string
+          row_count: number | null
+          rows: Json | null
+          table_index: number
+        }
+        Insert: {
+          bounding_box?: Json | null
+          col_count?: number | null
+          confidence_score?: number | null
+          headers?: string[] | null
+          id?: string
+          mapped_to_products?: boolean | null
+          page_id: string
+          row_count?: number | null
+          rows?: Json | null
+          table_index?: number
+        }
+        Update: {
+          bounding_box?: Json | null
+          col_count?: number | null
+          confidence_score?: number | null
+          headers?: string[] | null
+          id?: string
+          mapped_to_products?: boolean | null
+          page_id?: string
+          row_count?: number | null
+          rows?: Json | null
+          table_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_tables_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_field_confidence: {
         Row: {
           confidence_score: number
@@ -2977,6 +3179,15 @@ export type Database = {
         | "webhook"
         | "supplier_feed"
       job_item_status: "queued" | "processing" | "done" | "error" | "skipped"
+      pdf_extraction_method: "text_only" | "vision_only" | "hybrid"
+      pdf_extraction_status:
+        | "queued"
+        | "extracting"
+        | "reviewing"
+        | "done"
+        | "error"
+      pdf_page_status: "extracted" | "reviewed" | "approved"
+      pdf_row_status: "unmapped" | "mapped" | "skipped" | "error"
       product_status:
         | "pending"
         | "processing"
@@ -3284,6 +3495,16 @@ export const Constants = {
         "supplier_feed",
       ],
       job_item_status: ["queued", "processing", "done", "error", "skipped"],
+      pdf_extraction_method: ["text_only", "vision_only", "hybrid"],
+      pdf_extraction_status: [
+        "queued",
+        "extracting",
+        "reviewing",
+        "done",
+        "error",
+      ],
+      pdf_page_status: ["extracted", "reviewed", "approved"],
+      pdf_row_status: ["unmapped", "mapped", "skipped", "error"],
       product_status: [
         "pending",
         "processing",
