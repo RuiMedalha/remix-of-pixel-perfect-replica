@@ -780,6 +780,45 @@ export function ProductDetailModal({ product, onClose }: Props) {
             <SupplierDataSection product={product} />
           </TabsContent>
 
+          {/* QUALITY TAB */}
+          <TabsContent value="qualidade" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Avaliação de Qualidade</h3>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (activeWorkspace?.id && product?.id) {
+                    evaluateGate.mutate({ workspaceId: activeWorkspace.id, productIds: [product.id] });
+                  }
+                }}
+                disabled={evaluateGate.isPending}
+              >
+                {evaluateGate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                Avaliar Qualidade
+              </Button>
+            </div>
+
+            <QualityGatePanel results={gateResults || []} gateName="Quality Gate" />
+
+            {(product as any).quality_score != null && (
+              <Card>
+                <CardContent className="py-3 px-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Quality Score</span>
+                    <Badge variant="outline" className={cn(
+                      (product as any).quality_score >= 70 ? "bg-success/10 text-success border-success/20" :
+                      (product as any).quality_score >= 40 ? "bg-warning/10 text-warning border-warning/20" :
+                      "bg-destructive/10 text-destructive border-destructive/20"
+                    )}>
+                      {(product as any).quality_score}%
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
           {/* RAW DATA TAB */}
           <TabsContent value="brutos" className="mt-4">
             <Card>
