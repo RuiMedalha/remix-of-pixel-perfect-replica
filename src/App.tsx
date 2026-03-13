@@ -34,6 +34,7 @@ import BrainSimulationPage from "./pages/BrainSimulationPage";
 import DigitalTwinPage from "./pages/DigitalTwinPage";
 import MarketIntelligencePage from "./pages/MarketIntelligencePage";
 import RevenueAndDemandPage from "./pages/RevenueAndDemandPage";
+import StrategicPlannerPage from "./pages/StrategicPlannerPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -71,6 +72,7 @@ function ProtectedRoutes() {
           <Route path="/digital-twin" element={<DigitalTwinPage />} />
           <Route path="/market-intelligence" element={<MarketIntelligencePage />} />
           <Route path="/revenue-demand" element={<RevenueAndDemandPage />} />
+          <Route path="/strategic-planner" element={<StrategicPlannerPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
