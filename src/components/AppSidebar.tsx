@@ -30,6 +30,7 @@ const navItems = [
   { to: "/canais", icon: Radio, label: "Canais" },
   { to: "/inteligencia", icon: TrendingUp, label: "Inteligência AI" },
   { to: "/agentes", icon: Bot, label: "Agentes AI" },
+  { to: "/brain", icon: Sparkles, label: "Catalog Brain" },
 ];
 
 const managementItems = [
