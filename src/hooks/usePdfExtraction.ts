@@ -56,7 +56,7 @@ export function usePdfTables(pageIds: string[]) {
 
 export function useStartPdfExtraction() {
   const queryClient = useQueryClient();
-  const { currentWorkspace } = useWorkspaceContext();
+  const { activeWorkspace } = useWorkspaceContext();
 
   return useMutation({
     mutationFn: async (fileId: string) => {
