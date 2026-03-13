@@ -44,6 +44,7 @@ function ProtectedRoutes() {
           <Route path="/membros" element={<WorkspaceMembersPage />} />
           <Route path="/revisao" element={<ReviewQueuePage />} />
           <Route path="/ingestao" element={<IngestionHubPage />} />
+          <Route path="/assets" element={<AssetLibraryPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
