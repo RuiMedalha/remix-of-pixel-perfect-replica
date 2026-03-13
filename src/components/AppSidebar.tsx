@@ -1,60 +1,78 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database, Library, FileText, Brain, Languages, Radio, TrendingUp, Bot, Sparkles, Target, GraduationCap, FlaskConical, Copy, Globe, DollarSign } from "lucide-react";
-import { useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  FolderOpen,
+  Check,
+  Pencil,
+  Trash2,
+  Merge,
+  MoreHorizontal,
+  Plus,
+  ChevronDown,
+} from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentUserProfile } from "@/hooks/useUserManagement";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { toast } from "sonner";
+import { navGroups, type NavGroup } from "@/config/navigation";
 
-const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/upload", icon: Upload, label: "Upload" },
-  { to: "/produtos", icon: Package, label: "Produtos" },
-  { to: "/variacoes", icon: GitBranch, label: "Variações" },
-  { to: "/categorias", icon: FolderTree, label: "Categorias" },
-  { to: "/importar-woo", icon: ShoppingCart, label: "Importar WooCommerce" },
-  { to: "/imagens", icon: ImageIcon, label: "Imagens" },
-  { to: "/assets", icon: Library, label: "Asset Library" },
-  { to: "/ingestao", icon: Database, label: "Ingestion Hub" },
-  { to: "/pdf-extraction", icon: FileText, label: "Extração PDF" },
-  { to: "/extraction-memory", icon: Brain, label: "Memória de Extração" },
-  { to: "/traducoes", icon: Languages, label: "Tradução & i18n" },
-  { to: "/canais", icon: Radio, label: "Canais" },
-  { to: "/inteligencia", icon: TrendingUp, label: "Inteligência AI" },
-  { to: "/agentes", icon: Bot, label: "Agentes AI" },
-  { to: "/brain", icon: Sparkles, label: "Catalog Brain" },
-  { to: "/decisoes", icon: Target, label: "Decision Engine" },
-  { to: "/aprendizagem", icon: GraduationCap, label: "Learning Engine" },
-  { to: "/simulacao", icon: FlaskConical, label: "Simulation Engine" },
-  { to: "/digital-twin", icon: Copy, label: "Digital Twin" },
-  { to: "/market-intelligence", icon: Globe, label: "Market Intelligence" },
-  { to: "/revenue-demand", icon: DollarSign, label: "Revenue & Demand" },
-];
+const STORAGE_KEY = "sidebar-groups-state";
 
-const managementItems = [
-  { to: "/membros", icon: UserCog, label: "Membros" },
-  { to: "/revisao", icon: ClipboardList, label: "Revisão" },
-];
+function loadGroupState(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
 
-const adminItems = [
-  { to: "/configuracoes", icon: Settings, label: "Configurações" },
-  { to: "/admin/utilizadores", icon: Users, label: "Utilizadores" },
-];
+function saveGroupState(state: Record<string, boolean>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { signOut, user } = useAuth();
   const { data: profile } = useCurrentUserProfile();
-  const { workspaces, activeWorkspace, setActiveWorkspaceId, createWorkspace, updateWorkspace, deleteWorkspace, mergeWorkspaces, isCreating } = useWorkspaceContext();
+  const {
+    workspaces,
+    activeWorkspace,
+    setActiveWorkspaceId,
+    createWorkspace,
+    updateWorkspace,
+    deleteWorkspace,
+    mergeWorkspaces,
+    isCreating,
+  } = useWorkspaceContext();
   const [showNewWs, setShowNewWs] = useState(false);
   const [newWsName, setNewWsName] = useState("");
   const [editWs, setEditWs] = useState<{ id: string; name: string } | null>(null);
@@ -62,7 +80,45 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [mergeWs, setMergeWs] = useState<{ sourceId: string; sourceName: string } | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
 
-  const allItems = [...navItems, ...managementItems, ...(profile?.isAdmin ? adminItems : [])];
+  // Group open/close state with localStorage persistence
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const saved = loadGroupState();
+    const initial: Record<string, boolean> = {};
+    navGroups.forEach((g) => {
+      initial[g.key] = saved[g.key] !== undefined ? saved[g.key] : (g.defaultOpen ?? false);
+    });
+    return initial;
+  });
+
+  const toggleGroup = useCallback((key: string) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveGroupState(next);
+      return next;
+    });
+  }, []);
+
+  // Auto-open group containing active route
+  useEffect(() => {
+    const activeGroup = navGroups.find((g) =>
+      g.items.some((item) => {
+        if (item.route === "/") return location.pathname === "/";
+        return location.pathname.startsWith(item.route);
+      })
+    );
+    if (activeGroup && !openGroups[activeGroup.key]) {
+      setOpenGroups((prev) => {
+        const next = { ...prev, [activeGroup.key]: true };
+        saveGroupState(next);
+        return next;
+      });
+    }
+  }, [location.pathname]);
+
+  const isRouteActive = (route: string) => {
+    if (route === "/") return location.pathname === "/";
+    return location.pathname === route;
+  };
 
   const handleCreateWorkspace = () => {
     if (newWsName.trim()) {
@@ -99,22 +155,24 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       <aside
         className={cn(
           "flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 h-screen sticky top-0",
-          collapsed ? "w-16" : "w-60"
+          collapsed ? "w-16" : "w-64"
         )}
       >
+        {/* Header / Branding */}
         <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-          {!collapsed && (
+          {!collapsed ? (
             <div className="flex items-center gap-2 overflow-hidden">
               <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
                 <span className="text-sidebar-primary-foreground font-bold text-sm">HE</span>
               </div>
               <div className="min-w-0">
-                <h1 className="text-sidebar-accent-foreground font-semibold text-sm truncate">Hotelequip</h1>
+                <h1 className="text-sidebar-accent-foreground font-semibold text-sm truncate">
+                  Hotelequip
+                </h1>
                 <p className="text-sidebar-muted text-xs truncate">Product Optimizer</p>
               </div>
             </div>
-          )}
-          {collapsed && (
+          ) : (
             <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center mx-auto">
               <span className="text-sidebar-primary-foreground font-bold text-sm">HE</span>
             </div>
@@ -124,7 +182,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         {/* Workspace Selector */}
         {!collapsed && (
           <div className="px-2 py-3 border-b border-sidebar-border">
-            <p className="text-[10px] uppercase tracking-wider text-sidebar-muted px-3 mb-1.5 font-medium">Workspace</p>
+            <p className="text-[10px] uppercase tracking-wider text-sidebar-muted px-3 mb-1.5 font-medium">
+              Workspace
+            </p>
             <div className="space-y-0.5 max-h-32 overflow-y-auto">
               {workspaces.map((ws) => (
                 <div key={ws.id} className="group flex items-center gap-1">
@@ -139,7 +199,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                   >
                     <FolderOpen className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{ws.name}</span>
-                    {ws.id === activeWorkspace?.id && <Check className="w-3 h-3 ml-auto shrink-0" />}
+                    {ws.id === activeWorkspace?.id && (
+                      <Check className="w-3 h-3 ml-auto shrink-0" />
+                    )}
                   </button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -148,16 +210,26 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem onClick={() => setEditWs({ id: ws.id, name: ws.name })}>
+                      <DropdownMenuItem
+                        onClick={() => setEditWs({ id: ws.id, name: ws.name })}
+                      >
                         <Pencil className="w-3.5 h-3.5 mr-2" /> Renomear
                       </DropdownMenuItem>
                       {workspaces.length > 1 && (
-                        <DropdownMenuItem onClick={() => { setMergeWs({ sourceId: ws.id, sourceName: ws.name }); setMergeTargetId(""); }}>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setMergeWs({ sourceId: ws.id, sourceName: ws.name });
+                            setMergeTargetId("");
+                          }}
+                        >
                           <Merge className="w-3.5 h-3.5 mr-2" /> Fundir noutro
                         </DropdownMenuItem>
                       )}
                       {workspaces.length > 1 && (
-                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteWs({ id: ws.id, name: ws.name })}>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setDeleteWs({ id: ws.id, name: ws.name })}
+                        >
                           <Trash2 className="w-3.5 h-3.5 mr-2" /> Eliminar
                         </DropdownMenuItem>
                       )}
@@ -187,28 +259,77 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         )}
 
-        <nav className="flex-1 py-4 px-2 space-y-1">
-          {allItems.map((item) => {
-            const isActive = location.pathname === item.to;
+        {/* Navigation Groups */}
+        <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+          {navGroups.map((group) => {
+            const isOpen = openGroups[group.key] ?? false;
+            const hasActiveItem = group.items.some((item) => isRouteActive(item.route));
+
             return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={onNavigate}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              <div key={group.key}>
+                {/* Group Header */}
+                {!collapsed ? (
+                  <button
+                    onClick={() => toggleGroup(group.key)}
+                    className={cn(
+                      "flex items-center w-full px-3 py-2 rounded-md text-[10px] uppercase tracking-widest font-semibold transition-colors",
+                      hasActiveItem
+                        ? "text-sidebar-primary"
+                        : "text-sidebar-muted hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <group.icon className="w-3.5 h-3.5 mr-2 shrink-0" />
+                    <span className="flex-1 text-left">{group.label}</span>
+                    <ChevronDown
+                      className={cn(
+                        "w-3 h-3 shrink-0 transition-transform duration-200",
+                        isOpen ? "rotate-0" : "-rotate-90"
+                      )}
+                    />
+                  </button>
+                ) : (
+                  <div className="flex justify-center py-1.5">
+                    <div className="w-6 h-px bg-sidebar-border" />
+                  </div>
                 )}
-              >
-                <item.icon className="w-5 h-5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </NavLink>
+
+                {/* Group Items */}
+                {(collapsed || isOpen) && (
+                  <div className={cn(!collapsed && "ml-2 mt-0.5 space-y-0.5 mb-2")}>
+                    {group.items.map((item) => {
+                      const active = isRouteActive(item.route);
+                      return (
+                        <NavLink
+                          key={item.route}
+                          to={item.route}
+                          onClick={onNavigate}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
+                            collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
+                            active
+                              ? "bg-sidebar-accent text-sidebar-primary"
+                              : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                          )}
+                          title={collapsed ? item.title : undefined}
+                        >
+                          <item.icon className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
+                          {!collapsed && <span>{item.title}</span>}
+                          {!collapsed && item.badge && (
+                            <span className="ml-auto text-[10px] font-semibold bg-primary/10 text-primary rounded-full px-1.5 py-0.5">
+                              {item.badge}
+                            </span>
+                          )}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
 
+        {/* Footer */}
         <div className="border-t border-sidebar-border px-2 py-2 space-y-1">
           {!collapsed && user && (
             <p className="text-sidebar-muted text-xs truncate px-3 py-1">{user.email}</p>
@@ -217,7 +338,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <button
             onClick={signOut}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors w-full",
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors w-full"
             )}
           >
             <LogOut className="w-5 h-5 shrink-0" />
@@ -225,11 +346,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           </button>
         </div>
 
+        {/* Collapse Toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-muted hover:text-sidebar-accent-foreground transition-colors"
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {collapsed ? (
+            <ChevronRight className="w-4 h-4" />
+          ) : (
+            <ChevronLeft className="w-4 h-4" />
+          )}
         </button>
       </aside>
 
@@ -252,7 +378,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewWs(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setShowNewWs(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleCreateWorkspace} disabled={!newWsName.trim() || isCreating}>
               Criar
             </Button>
@@ -271,15 +399,21 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               <Label className="text-xs">Nome</Label>
               <Input
                 value={editWs?.name ?? ""}
-                onChange={(e) => setEditWs((prev) => prev ? { ...prev, name: e.target.value } : null)}
+                onChange={(e) =>
+                  setEditWs((prev) => (prev ? { ...prev, name: e.target.value } : null))
+                }
                 onKeyDown={(e) => e.key === "Enter" && handleEditWorkspace()}
                 autoFocus
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditWs(null)}>Cancelar</Button>
-            <Button onClick={handleEditWorkspace} disabled={!editWs?.name.trim()}>Guardar</Button>
+            <Button variant="outline" onClick={() => setEditWs(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditWorkspace} disabled={!editWs?.name.trim()}>
+              Guardar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -290,12 +424,18 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <DialogHeader>
             <DialogTitle>Eliminar Workspace</DialogTitle>
             <DialogDescription>
-              Tem a certeza que deseja eliminar o workspace <strong>"{deleteWs?.name}"</strong>? Todos os produtos, ficheiros e dados associados serão eliminados permanentemente.
+              Tem a certeza que deseja eliminar o workspace{" "}
+              <strong>"{deleteWs?.name}"</strong>? Todos os produtos, ficheiros e dados
+              associados serão eliminados permanentemente.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteWs(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleDeleteWorkspace}>Eliminar</Button>
+            <Button variant="outline" onClick={() => setDeleteWs(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteWorkspace}>
+              Eliminar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -306,25 +446,37 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <DialogHeader>
             <DialogTitle>Fundir Workspaces</DialogTitle>
             <DialogDescription>
-              Mover todos os produtos e dados de <strong>"{mergeWs?.sourceName}"</strong> para outro workspace. O workspace de origem será eliminado após a fusão.
+              Mover todos os produtos e dados de{" "}
+              <strong>"{mergeWs?.sourceName}"</strong> para outro workspace. O workspace de
+              origem será eliminado após a fusão.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs">Workspace destino</Label>
               <Select value={mergeTargetId} onValueChange={setMergeTargetId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar workspace..." /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar workspace..." />
+                </SelectTrigger>
                 <SelectContent>
-                  {workspaces.filter((w) => w.id !== mergeWs?.sourceId).map((w) => (
-                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                  ))}
+                  {workspaces
+                    .filter((w) => w.id !== mergeWs?.sourceId)
+                    .map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setMergeWs(null)}>Cancelar</Button>
-            <Button onClick={handleMergeWorkspaces} disabled={!mergeTargetId}>Fundir</Button>
+            <Button variant="outline" onClick={() => setMergeWs(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleMergeWorkspaces} disabled={!mergeTargetId}>
+              Fundir
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
