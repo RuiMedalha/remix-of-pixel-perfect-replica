@@ -824,6 +824,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* IDIOMAS / LOCALIZATION TAB */}
+          <TabsContent value="idiomas" className="mt-4">
+            <ProductLocalizationTab productId={product.id} workspaceId={product.workspace_id} />
+          </TabsContent>
         </Tabs>
 
         {/* Footer actions */}
