@@ -31,6 +31,9 @@ import { useQualityGateResults, usePublishLocks, useEvaluateQualityGate } from "
 import { calculateSeoScore, getSeoScoreColor, getSeoScoreBg, getSeoFixSuggestions } from "@/lib/seoScore";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useProductLocalizations, useTranslateProduct, useApproveLocalization, SUPPORTED_LOCALES } from "@/hooks/useTranslations";
+import { useAuth } from "@/hooks/useAuth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Props {
   product: Product | null;
