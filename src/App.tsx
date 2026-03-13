@@ -32,6 +32,7 @@ import BrainDecisionEnginePage from "./pages/BrainDecisionEnginePage";
 import BrainLearningEnginePage from "./pages/BrainLearningEnginePage";
 import BrainSimulationPage from "./pages/BrainSimulationPage";
 import DigitalTwinPage from "./pages/DigitalTwinPage";
+import MarketIntelligencePage from "./pages/MarketIntelligencePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -67,6 +68,7 @@ function ProtectedRoutes() {
           <Route path="/aprendizagem" element={<BrainLearningEnginePage />} />
           <Route path="/simulacao" element={<BrainSimulationPage />} />
           <Route path="/digital-twin" element={<DigitalTwinPage />} />
+          <Route path="/market-intelligence" element={<MarketIntelligencePage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

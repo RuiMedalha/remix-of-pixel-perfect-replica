@@ -4117,6 +4117,373 @@ export type Database = {
           },
         ]
       }
+      market_benchmarks: {
+        Row: {
+          average_description_length: number | null
+          average_image_count: number | null
+          average_title_length: number | null
+          benchmark_date: string | null
+          category_id: string | null
+          channel_type: string | null
+          common_attributes: Json | null
+          common_keywords: Json | null
+          id: string
+          median_price: number | null
+          workspace_id: string
+        }
+        Insert: {
+          average_description_length?: number | null
+          average_image_count?: number | null
+          average_title_length?: number | null
+          benchmark_date?: string | null
+          category_id?: string | null
+          channel_type?: string | null
+          common_attributes?: Json | null
+          common_keywords?: Json | null
+          id?: string
+          median_price?: number | null
+          workspace_id: string
+        }
+        Update: {
+          average_description_length?: number | null
+          average_image_count?: number | null
+          average_title_length?: number | null
+          benchmark_date?: string | null
+          category_id?: string | null
+          channel_type?: string | null
+          common_attributes?: Json | null
+          common_keywords?: Json | null
+          id?: string
+          median_price?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_benchmarks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_observations: {
+        Row: {
+          id: string
+          observed_at: string | null
+          observed_attributes: Json | null
+          observed_availability: string | null
+          observed_brand: string | null
+          observed_category: string | null
+          observed_images: Json | null
+          observed_price: number | null
+          observed_rating: number | null
+          observed_reviews_count: number | null
+          observed_sale_price: number | null
+          observed_title: string | null
+          observed_url: string | null
+          source_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          id?: string
+          observed_at?: string | null
+          observed_attributes?: Json | null
+          observed_availability?: string | null
+          observed_brand?: string | null
+          observed_category?: string | null
+          observed_images?: Json | null
+          observed_price?: number | null
+          observed_rating?: number | null
+          observed_reviews_count?: number | null
+          observed_sale_price?: number | null
+          observed_title?: string | null
+          observed_url?: string | null
+          source_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          id?: string
+          observed_at?: string | null
+          observed_attributes?: Json | null
+          observed_availability?: string | null
+          observed_brand?: string | null
+          observed_category?: string | null
+          observed_images?: Json | null
+          observed_price?: number | null
+          observed_rating?: number | null
+          observed_reviews_count?: number | null
+          observed_sale_price?: number | null
+          observed_title?: string | null
+          observed_url?: string | null
+          source_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_observations_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "market_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_observations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_opportunities: {
+        Row: {
+          category_id: string | null
+          confidence_score: number | null
+          created_at: string | null
+          estimated_revenue_impact: number | null
+          id: string
+          opportunity_type:
+            | Database["public"]["Enums"]["market_opportunity_type"]
+            | null
+          priority_score: number | null
+          product_id: string | null
+          recommendation_payload: Json | null
+          status: string | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          estimated_revenue_impact?: number | null
+          id?: string
+          opportunity_type?:
+            | Database["public"]["Enums"]["market_opportunity_type"]
+            | null
+          priority_score?: number | null
+          product_id?: string | null
+          recommendation_payload?: Json | null
+          status?: string | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          estimated_revenue_impact?: number | null
+          id?: string
+          opportunity_type?:
+            | Database["public"]["Enums"]["market_opportunity_type"]
+            | null
+          priority_score?: number | null
+          product_id?: string | null
+          recommendation_payload?: Json | null
+          status?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_opportunities_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_opportunities_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_product_matches: {
+        Row: {
+          created_at: string | null
+          id: string
+          market_observation_id: string | null
+          match_confidence: number | null
+          match_reason: string | null
+          product_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          market_observation_id?: string | null
+          match_confidence?: number | null
+          match_reason?: string | null
+          product_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          market_observation_id?: string | null
+          match_confidence?: number | null
+          match_reason?: string | null
+          product_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_product_matches_market_observation_id_fkey"
+            columns: ["market_observation_id"]
+            isOneToOne: false
+            referencedRelation: "market_observations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_product_matches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_product_matches_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_signals: {
+        Row: {
+          category_id: string | null
+          detected_at: string | null
+          id: string
+          product_id: string | null
+          signal_payload: Json | null
+          signal_strength: number | null
+          signal_type: Database["public"]["Enums"]["market_signal_type"] | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          detected_at?: string | null
+          id?: string
+          product_id?: string | null
+          signal_payload?: Json | null
+          signal_strength?: number | null
+          signal_type?: Database["public"]["Enums"]["market_signal_type"] | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string | null
+          detected_at?: string | null
+          id?: string
+          product_id?: string | null
+          signal_payload?: Json | null
+          signal_strength?: number | null
+          signal_type?: Database["public"]["Enums"]["market_signal_type"] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_signals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_signals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_sources: {
+        Row: {
+          base_url: string | null
+          config: Json | null
+          crawl_frequency: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          source_name: string | null
+          source_type: Database["public"]["Enums"]["market_source_type"] | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          base_url?: string | null
+          config?: Json | null
+          crawl_frequency?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_name?: string | null
+          source_type?: Database["public"]["Enums"]["market_source_type"] | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          base_url?: string | null
+          config?: Json | null
+          crawl_frequency?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_name?: string | null
+          source_type?: Database["public"]["Enums"]["market_source_type"] | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_trends: {
+        Row: {
+          category_id: string | null
+          detected_at: string | null
+          id: string
+          trend_signal: Json | null
+          trend_strength: number | null
+          trend_type: string | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          detected_at?: string | null
+          id?: string
+          trend_signal?: Json | null
+          trend_strength?: number | null
+          trend_type?: string | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string | null
+          detected_at?: string | null
+          id?: string
+          trend_signal?: Json | null
+          trend_strength?: number | null
+          trend_type?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_trends_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monetization_opportunities: {
         Row: {
           confidence: number | null
@@ -7383,6 +7750,14 @@ export type Database = {
         | "lifestyle"
         | "custom"
         | "unknown"
+      benchmark_metric:
+        | "median_price"
+        | "average_title_length"
+        | "average_description_length"
+        | "image_count"
+        | "attribute_coverage"
+        | "keyword_density"
+        | "bundle_frequency"
       brain_cluster_type:
         | "performance_cluster"
         | "attribute_cluster"
@@ -7693,6 +8068,33 @@ export type Database = {
         | "manual_review"
         | "ai_detection"
         | "feed_analysis"
+      market_opportunity_type:
+        | "price_adjustment"
+        | "seo_improvement"
+        | "content_enrichment"
+        | "image_upgrade"
+        | "bundle_creation"
+        | "taxonomy_update"
+        | "channel_expansion"
+      market_signal_type:
+        | "price_competitiveness"
+        | "seo_alignment"
+        | "content_gap"
+        | "image_gap"
+        | "bundle_opportunity"
+        | "pricing_opportunity"
+        | "category_gap"
+        | "attribute_gap"
+        | "keyword_opportunity"
+        | "market_trend"
+      market_source_type:
+        | "competitor_site"
+        | "google_serp"
+        | "google_shopping"
+        | "marketplace"
+        | "supplier_feed"
+        | "public_catalog"
+        | "price_comparison"
       normalization_type:
         | "unit"
         | "material"
@@ -8072,6 +8474,15 @@ export const Constants = {
         "custom",
         "unknown",
       ],
+      benchmark_metric: [
+        "median_price",
+        "average_title_length",
+        "average_description_length",
+        "image_count",
+        "attribute_coverage",
+        "keyword_density",
+        "bundle_frequency",
+      ],
       brain_cluster_type: [
         "performance_cluster",
         "attribute_cluster",
@@ -8407,6 +8818,36 @@ export const Constants = {
         "manual_review",
         "ai_detection",
         "feed_analysis",
+      ],
+      market_opportunity_type: [
+        "price_adjustment",
+        "seo_improvement",
+        "content_enrichment",
+        "image_upgrade",
+        "bundle_creation",
+        "taxonomy_update",
+        "channel_expansion",
+      ],
+      market_signal_type: [
+        "price_competitiveness",
+        "seo_alignment",
+        "content_gap",
+        "image_gap",
+        "bundle_opportunity",
+        "pricing_opportunity",
+        "category_gap",
+        "attribute_gap",
+        "keyword_opportunity",
+        "market_trend",
+      ],
+      market_source_type: [
+        "competitor_site",
+        "google_serp",
+        "google_shopping",
+        "marketplace",
+        "supplier_feed",
+        "public_catalog",
+        "price_comparison",
       ],
       normalization_type: [
         "unit",
