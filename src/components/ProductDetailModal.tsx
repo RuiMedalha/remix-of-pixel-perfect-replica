@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck } from "lucide-react";
+import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck } from "lucide-react";
 import { useProcessImages } from "@/hooks/useProcessImages";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,6 +15,8 @@ import { VariationsPanel } from "@/components/VariationsPanel";
 import { QualityGatePanel } from "@/components/QualityGatePanel";
 import { PublishBlockerAlert } from "@/components/PublishBlockerAlert";
 import { WorkflowStateBadge } from "@/components/WorkflowStateBadge";
+import { ValidationPanel } from "@/components/ValidationPanel";
+import { TrustScoreCard } from "@/components/TrustScoreCard";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/hooks/useProducts";
 import { useAllProductIds } from "@/hooks/useProducts";
@@ -782,6 +784,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
           {/* QUALITY TAB */}
           <TabsContent value="qualidade" className="space-y-4 mt-4">
+            <TrustScoreCard
+              qualityScore={(product as any).quality_score}
+              validationStatus={(product as any).validation_status}
+            />
+
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Avaliação de Qualidade</h3>
               <Button
@@ -795,28 +802,13 @@ export function ProductDetailModal({ product, onClose }: Props) {
                 disabled={evaluateGate.isPending}
               >
                 {evaluateGate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
-                Avaliar Qualidade
+                Avaliar Quality Gate
               </Button>
             </div>
 
             <QualityGatePanel results={gateResults || []} gateName="Quality Gate" />
 
-            {(product as any).quality_score != null && (
-              <Card>
-                <CardContent className="py-3 px-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Quality Score</span>
-                    <Badge variant="outline" className={cn(
-                      (product as any).quality_score >= 70 ? "bg-success/10 text-success border-success/20" :
-                      (product as any).quality_score >= 40 ? "bg-warning/10 text-warning border-warning/20" :
-                      "bg-destructive/10 text-destructive border-destructive/20"
-                    )}>
-                      {(product as any).quality_score}%
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <ValidationPanel productId={product.id} />
           </TabsContent>
 
           {/* RAW DATA TAB */}

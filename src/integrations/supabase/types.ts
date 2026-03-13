@@ -159,6 +159,66 @@ export type Database = {
           },
         ]
       }
+      category_schemas: {
+        Row: {
+          category_id: string | null
+          channel_overrides: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          optional_fields: string[]
+          required_fields: string[]
+          schema_definition: Json
+          updated_at: string
+          variation_attributes: Json
+          workspace_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          channel_overrides?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          optional_fields?: string[]
+          required_fields?: string[]
+          schema_definition?: Json
+          updated_at?: string
+          variation_attributes?: Json
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string | null
+          channel_overrides?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          optional_fields?: string[]
+          required_fields?: string[]
+          schema_definition?: Json
+          updated_at?: string
+          variation_attributes?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_schemas_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_schemas_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           context: Json | null
@@ -1207,6 +1267,60 @@ export type Database = {
           },
         ]
       }
+      review_queue: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          id: string
+          priority: number
+          product_id: string
+          reason: Database["public"]["Enums"]["review_reason"]
+          resolved_at: string | null
+          reviewer_notes: string | null
+          status: Database["public"]["Enums"]["review_status"]
+          workspace_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          priority?: number
+          product_id: string
+          reason: Database["public"]["Enums"]["review_reason"]
+          resolved_at?: string | null
+          reviewer_notes?: string | null
+          status?: Database["public"]["Enums"]["review_status"]
+          workspace_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          priority?: number
+          product_id?: string
+          reason?: Database["public"]["Enums"]["review_reason"]
+          resolved_at?: string | null
+          reviewer_notes?: string | null
+          status?: Database["public"]["Enums"]["review_status"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_queue_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_queue_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scrape_cache: {
         Row: {
           content_html: string | null
@@ -1386,6 +1500,133 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      validation_results: {
+        Row: {
+          actual_value: string | null
+          channel_id: string | null
+          details: Json
+          expected: string | null
+          id: string
+          passed: boolean
+          product_id: string
+          rule_id: string | null
+          schema_id: string | null
+          severity: Database["public"]["Enums"]["validation_severity"]
+          validated_at: string
+        }
+        Insert: {
+          actual_value?: string | null
+          channel_id?: string | null
+          details?: Json
+          expected?: string | null
+          id?: string
+          passed: boolean
+          product_id: string
+          rule_id?: string | null
+          schema_id?: string | null
+          severity: Database["public"]["Enums"]["validation_severity"]
+          validated_at?: string
+        }
+        Update: {
+          actual_value?: string | null
+          channel_id?: string | null
+          details?: Json
+          expected?: string | null
+          id?: string
+          passed?: boolean
+          product_id?: string
+          rule_id?: string | null
+          schema_id?: string | null
+          severity?: Database["public"]["Enums"]["validation_severity"]
+          validated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_results_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_results_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "validation_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_results_schema_id_fkey"
+            columns: ["schema_id"]
+            isOneToOne: false
+            referencedRelation: "category_schemas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_rules: {
+        Row: {
+          applies_to_channels: string[] | null
+          applies_to_product_types: string[] | null
+          created_at: string
+          error_message_template: string | null
+          field_key: string
+          id: string
+          is_active: boolean
+          rule_config: Json
+          rule_type: Database["public"]["Enums"]["validation_rule_type"]
+          schema_id: string | null
+          severity: Database["public"]["Enums"]["validation_severity"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          applies_to_channels?: string[] | null
+          applies_to_product_types?: string[] | null
+          created_at?: string
+          error_message_template?: string | null
+          field_key: string
+          id?: string
+          is_active?: boolean
+          rule_config?: Json
+          rule_type: Database["public"]["Enums"]["validation_rule_type"]
+          schema_id?: string | null
+          severity?: Database["public"]["Enums"]["validation_severity"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          applies_to_channels?: string[] | null
+          applies_to_product_types?: string[] | null
+          created_at?: string
+          error_message_template?: string | null
+          field_key?: string
+          id?: string
+          is_active?: boolean
+          rule_config?: Json
+          rule_type?: Database["public"]["Enums"]["validation_rule_type"]
+          schema_id?: string | null
+          severity?: Database["public"]["Enums"]["validation_severity"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_rules_schema_id_fkey"
+            columns: ["schema_id"]
+            isOneToOne: false
+            referencedRelation: "category_schemas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflow_transitions: {
         Row: {
@@ -1844,6 +2085,42 @@ export type Database = {
         Args: { _workspace_id: string }
         Returns: boolean
       }
+      compute_product_completeness_score: {
+        Args: { _product_id: string }
+        Returns: number
+      }
+      enqueue_product_for_review: {
+        Args: {
+          _priority?: number
+          _product_id: string
+          _reason: Database["public"]["Enums"]["review_reason"]
+          _workspace_id: string
+        }
+        Returns: string
+      }
+      get_active_schema_for_product: {
+        Args: { _product_id: string }
+        Returns: {
+          category_id: string | null
+          channel_overrides: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          optional_fields: string[]
+          required_fields: string[]
+          schema_definition: Json
+          updated_at: string
+          variation_attributes: Json
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "category_schemas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_product_filter_options: {
         Args: { _workspace_id: string }
         Returns: {
@@ -2048,6 +2325,28 @@ export type Database = {
         | "manual"
         | "validation"
         | "missing_data"
+      review_reason:
+        | "low_confidence"
+        | "ai_generated"
+        | "missing_fields"
+        | "quality_gate_fail"
+        | "validation_fail"
+        | "human_requested"
+      review_status: "pending" | "in_review" | "approved" | "rejected"
+      validation_rule_type:
+        | "required"
+        | "regex"
+        | "min_length"
+        | "max_length"
+        | "min_value"
+        | "max_value"
+        | "min_items"
+        | "max_items"
+        | "enum"
+        | "not_empty"
+        | "json_schema"
+        | "custom"
+      validation_severity: "error" | "warning" | "info"
       workspace_invitation_status:
         | "pending"
         | "accepted"
@@ -2248,6 +2547,30 @@ export const Constants = {
         "validation",
         "missing_data",
       ],
+      review_reason: [
+        "low_confidence",
+        "ai_generated",
+        "missing_fields",
+        "quality_gate_fail",
+        "validation_fail",
+        "human_requested",
+      ],
+      review_status: ["pending", "in_review", "approved", "rejected"],
+      validation_rule_type: [
+        "required",
+        "regex",
+        "min_length",
+        "max_length",
+        "min_value",
+        "max_value",
+        "min_items",
+        "max_items",
+        "enum",
+        "not_empty",
+        "json_schema",
+        "custom",
+      ],
+      validation_severity: ["error", "warning", "info"],
       workspace_invitation_status: [
         "pending",
         "accepted",

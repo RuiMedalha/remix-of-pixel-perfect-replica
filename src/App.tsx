@@ -18,6 +18,7 @@ import CategoriesPage from "./pages/CategoriesPage";
 import VariationsPage from "./pages/VariationsPage";
 import WooImportPage from "./pages/WooImportPage";
 import ImagesPage from "./pages/ImagesPage";
+import ReviewQueuePage from "./pages/ReviewQueuePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -39,6 +40,7 @@ function ProtectedRoutes() {
           <Route path="/imagens" element={<ImagesPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
           <Route path="/membros" element={<WorkspaceMembersPage />} />
+          <Route path="/revisao" element={<ReviewQueuePage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
