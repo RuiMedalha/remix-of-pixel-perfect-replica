@@ -638,6 +638,54 @@ export type Database = {
           },
         ]
       }
+      brain_policy_adjustments: {
+        Row: {
+          adjustment_reason: string | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          new_configuration: Json | null
+          old_configuration: Json | null
+          policy_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          adjustment_reason?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          new_configuration?: Json | null
+          old_configuration?: Json | null
+          policy_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          adjustment_reason?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          new_configuration?: Json | null
+          old_configuration?: Json | null
+          policy_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brain_policy_adjustments_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "brain_decision_policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brain_policy_adjustments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bundle_suggestions: {
         Row: {
           accepted: boolean | null
@@ -1457,6 +1505,195 @@ export type Database = {
           },
           {
             foreignKeyName: "catalog_impact_evaluations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_learning_models: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_trained_at: string | null
+          model_parameters: Json | null
+          model_type: Database["public"]["Enums"]["learning_model_type"]
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_trained_at?: string | null
+          model_parameters?: Json | null
+          model_type: Database["public"]["Enums"]["learning_model_type"]
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_trained_at?: string | null
+          model_parameters?: Json | null
+          model_type?: Database["public"]["Enums"]["learning_model_type"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_learning_models_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_learning_signals: {
+        Row: {
+          created_at: string | null
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"] | null
+          feedback_type: Database["public"]["Enums"]["learning_feedback_type"]
+          id: string
+          metadata: Json | null
+          signal_strength: number | null
+          signal_type: Database["public"]["Enums"]["learning_signal_type"]
+          source: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          feedback_type?: Database["public"]["Enums"]["learning_feedback_type"]
+          id?: string
+          metadata?: Json | null
+          signal_strength?: number | null
+          signal_type: Database["public"]["Enums"]["learning_signal_type"]
+          source?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          feedback_type?: Database["public"]["Enums"]["learning_feedback_type"]
+          id?: string
+          metadata?: Json | null
+          signal_strength?: number | null
+          signal_type?: Database["public"]["Enums"]["learning_signal_type"]
+          source?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_learning_signals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_outcome_tracking: {
+        Row: {
+          baseline_value: number | null
+          confidence: number | null
+          delta: number | null
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"] | null
+          id: string
+          measured_at: string | null
+          metadata: Json | null
+          metric_type:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          new_value: number | null
+          plan_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          baseline_value?: number | null
+          confidence?: number | null
+          delta?: number | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          id?: string
+          measured_at?: string | null
+          metadata?: Json | null
+          metric_type?:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          new_value?: number | null
+          plan_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          baseline_value?: number | null
+          confidence?: number | null
+          delta?: number | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          id?: string
+          measured_at?: string | null
+          metadata?: Json | null
+          metric_type?:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          new_value?: number | null
+          plan_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_outcome_tracking_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_outcome_tracking_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_reinforcement_memory: {
+        Row: {
+          action_taken: string | null
+          confidence: number | null
+          context_features: Json | null
+          created_at: string | null
+          decision_type: string | null
+          id: string
+          reward: number | null
+          workspace_id: string
+        }
+        Insert: {
+          action_taken?: string | null
+          confidence?: number | null
+          context_features?: Json | null
+          created_at?: string | null
+          decision_type?: string | null
+          id?: string
+          reward?: number | null
+          workspace_id: string
+        }
+        Update: {
+          action_taken?: string | null
+          confidence?: number | null
+          context_features?: Json | null
+          created_at?: string | null
+          decision_type?: string | null
+          id?: string
+          reward?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_reinforcement_memory_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -2347,6 +2584,73 @@ export type Database = {
             columns: ["decision_id"]
             isOneToOne: false
             referencedRelation: "catalog_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decision_performance_history: {
+        Row: {
+          actual_impact: number | null
+          confidence: number | null
+          created_at: string | null
+          decision_id: string | null
+          expected_impact: number | null
+          id: string
+          learning_outcome:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          metadata: Json | null
+          plan_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          actual_impact?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          decision_id?: string | null
+          expected_impact?: number | null
+          id?: string
+          learning_outcome?:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          metadata?: Json | null
+          plan_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          actual_impact?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          decision_id?: string | null
+          expected_impact?: number | null
+          id?: string
+          learning_outcome?:
+            | Database["public"]["Enums"]["learning_outcome_type"]
+            | null
+          metadata?: Json | null
+          plan_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_performance_history_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_decisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_performance_history_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_brain_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_performance_history_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -6772,6 +7076,29 @@ export type Database = {
         | "catalog_gap"
         | "keyword_opportunity"
       job_item_status: "queued" | "processing" | "done" | "error" | "skipped"
+      learning_feedback_type:
+        | "explicit_feedback"
+        | "implicit_feedback"
+        | "system_observation"
+      learning_model_type:
+        | "impact_weight_adjustment"
+        | "decision_pattern_learning"
+        | "supplier_pattern_learning"
+        | "channel_behavior_learning"
+        | "translation_quality_learning"
+        | "bundle_success_learning"
+      learning_outcome_type: "positive" | "neutral" | "negative"
+      learning_signal_type:
+        | "human_approval"
+        | "human_rejection"
+        | "performance_improvement"
+        | "performance_degradation"
+        | "channel_acceptance"
+        | "channel_rejection"
+        | "seo_improvement"
+        | "conversion_change"
+        | "revenue_change"
+        | "workflow_speed"
       learning_source_enum:
         | "rejection_pattern"
         | "validation_failure"
@@ -7418,6 +7745,32 @@ export const Constants = {
         "keyword_opportunity",
       ],
       job_item_status: ["queued", "processing", "done", "error", "skipped"],
+      learning_feedback_type: [
+        "explicit_feedback",
+        "implicit_feedback",
+        "system_observation",
+      ],
+      learning_model_type: [
+        "impact_weight_adjustment",
+        "decision_pattern_learning",
+        "supplier_pattern_learning",
+        "channel_behavior_learning",
+        "translation_quality_learning",
+        "bundle_success_learning",
+      ],
+      learning_outcome_type: ["positive", "neutral", "negative"],
+      learning_signal_type: [
+        "human_approval",
+        "human_rejection",
+        "performance_improvement",
+        "performance_degradation",
+        "channel_acceptance",
+        "channel_rejection",
+        "seo_improvement",
+        "conversion_change",
+        "revenue_change",
+        "workflow_speed",
+      ],
       learning_source_enum: [
         "rejection_pattern",
         "validation_failure",

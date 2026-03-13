@@ -113,3 +113,21 @@ verify_jwt = false
 
 [functions.catalog-brain-create-plan-from-decision]
 verify_jwt = false
+
+[functions.catalog-brain-update-reinforcement]
+verify_jwt = false
+
+[functions.catalog-brain-adjust-impact-model]
+verify_jwt = false
+
+[functions.catalog-brain-discover-patterns]
+verify_jwt = false
+
+[functions.catalog-brain-update-models]
+verify_jwt = false
+
+[functions.catalog-brain-evaluate-feedback]
+verify_jwt = false
+
+[functions.catalog-brain-detect-success-patterns]
+verify_jwt = false
