@@ -53,3 +53,12 @@ verify_jwt = false
 
 [functions.publish-batch-to-channel]
 verify_jwt = false
+
+[functions.evaluate-channel-rules]
+verify_jwt = false
+
+[functions.ingest-channel-rejections]
+verify_jwt = false
+
+[functions.suggest-feed-rules]
+verify_jwt = false
