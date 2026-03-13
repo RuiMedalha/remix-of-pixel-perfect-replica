@@ -40,7 +40,7 @@ export function useOptimizationJobItems(jobId: string | null) {
         .eq("job_id", jobId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data || []) as OptimizationJobItem[];
+      return (data || []) as unknown as OptimizationJobItem[];
     },
   });
 
