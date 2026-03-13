@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.normalize-extracted-values]
 verify_jwt = false
+
+[functions.translate-product]
+verify_jwt = false

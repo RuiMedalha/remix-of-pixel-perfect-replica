@@ -1210,6 +1210,62 @@ export type Database = {
           },
         ]
       }
+      locale_style_guides: {
+        Row: {
+          channel_id: string | null
+          created_at: string | null
+          cta_patterns: string[] | null
+          forbidden_terms: string[] | null
+          id: string
+          locale: string
+          preferred_patterns: string[] | null
+          seo_rules: Json | null
+          tone: string | null
+          units_style: Json | null
+          updated_at: string | null
+          workspace_id: string
+          writing_rules: Json | null
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string | null
+          cta_patterns?: string[] | null
+          forbidden_terms?: string[] | null
+          id?: string
+          locale: string
+          preferred_patterns?: string[] | null
+          seo_rules?: Json | null
+          tone?: string | null
+          units_style?: Json | null
+          updated_at?: string | null
+          workspace_id: string
+          writing_rules?: Json | null
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string | null
+          cta_patterns?: string[] | null
+          forbidden_terms?: string[] | null
+          id?: string
+          locale?: string
+          preferred_patterns?: string[] | null
+          seo_rules?: Json | null
+          tone?: string | null
+          units_style?: Json | null
+          updated_at?: string | null
+          workspace_id?: string
+          writing_rules?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locale_style_guides_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       normalization_dictionary: {
         Row: {
           confidence: number
@@ -2090,6 +2146,87 @@ export type Database = {
           },
         ]
       }
+      product_localizations: {
+        Row: {
+          created_at: string | null
+          id: string
+          locale: string
+          needs_review: boolean | null
+          product_id: string
+          quality_score: number | null
+          source_language: string | null
+          status: string
+          translated_description: string | null
+          translated_faq: Json | null
+          translated_image_alt_texts: Json | null
+          translated_meta_description: string | null
+          translated_meta_title: string | null
+          translated_short_description: string | null
+          translated_slug: string | null
+          translated_tags: string[] | null
+          translated_title: string | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          locale: string
+          needs_review?: boolean | null
+          product_id: string
+          quality_score?: number | null
+          source_language?: string | null
+          status?: string
+          translated_description?: string | null
+          translated_faq?: Json | null
+          translated_image_alt_texts?: Json | null
+          translated_meta_description?: string | null
+          translated_meta_title?: string | null
+          translated_short_description?: string | null
+          translated_slug?: string | null
+          translated_tags?: string[] | null
+          translated_title?: string | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          locale?: string
+          needs_review?: boolean | null
+          product_id?: string
+          quality_score?: number | null
+          source_language?: string | null
+          status?: string
+          translated_description?: string | null
+          translated_faq?: Json | null
+          translated_image_alt_texts?: Json | null
+          translated_meta_description?: string | null
+          translated_meta_title?: string | null
+          translated_short_description?: string | null
+          translated_slug?: string | null
+          translated_tags?: string[] | null
+          translated_title?: string | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_localizations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_localizations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_quality_scores: {
         Row: {
           calculated_at: string
@@ -2918,6 +3055,224 @@ export type Database = {
           unit?: string | null
         }
         Relationships: []
+      }
+      terminology_dictionaries: {
+        Row: {
+          category_id: string | null
+          channel_id: string | null
+          created_at: string | null
+          id: string
+          is_mandatory: boolean | null
+          notes: string | null
+          source_locale: string
+          source_term: string
+          target_locale: string
+          target_term: string
+          workspace_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          channel_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_mandatory?: boolean | null
+          notes?: string | null
+          source_locale: string
+          source_term: string
+          target_locale: string
+          target_term: string
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string | null
+          channel_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_mandatory?: boolean | null
+          notes?: string | null
+          source_locale?: string
+          source_term?: string
+          target_locale?: string
+          target_term?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminology_dictionaries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminology_dictionaries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      translation_job_items: {
+        Row: {
+          completed_at: string | null
+          confidence_score: number | null
+          created_at: string | null
+          error_message: string | null
+          fields_translated: string[] | null
+          id: string
+          job_id: string
+          locale: string
+          product_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          fields_translated?: string[] | null
+          id?: string
+          job_id: string
+          locale: string
+          product_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          fields_translated?: string[] | null
+          id?: string
+          job_id?: string
+          locale?: string
+          product_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_job_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "translation_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "translation_job_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      translation_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          failed_products: number | null
+          id: string
+          processed_products: number | null
+          product_ids: string[]
+          source_locale: string
+          status: string
+          target_locales: string[]
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          failed_products?: number | null
+          id?: string
+          processed_products?: number | null
+          product_ids: string[]
+          source_locale: string
+          status?: string
+          target_locales: string[]
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          failed_products?: number | null
+          id?: string
+          processed_products?: number | null
+          product_ids?: string[]
+          source_locale?: string
+          status?: string
+          target_locales?: string[]
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      translation_memories: {
+        Row: {
+          approved_by: string | null
+          category_id: string | null
+          confidence_score: number | null
+          created_at: string | null
+          field_type: string | null
+          id: string
+          source_locale: string
+          source_text: string
+          target_locale: string
+          translated_text: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          category_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          field_type?: string | null
+          id?: string
+          source_locale: string
+          source_text: string
+          target_locale: string
+          translated_text: string
+          workspace_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          category_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          field_type?: string | null
+          id?: string
+          source_locale?: string
+          source_text?: string
+          target_locale?: string
+          translated_text?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_memories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "translation_memories_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       uploaded_files: {
         Row: {

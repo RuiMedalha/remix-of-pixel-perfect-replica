@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database, Library, FileText, Brain } from "lucide-react";
+import { LayoutDashboard, Upload, Package, Settings, ChevronLeft, ChevronRight, LogOut, Users, UserCog, Plus, FolderOpen, Check, FolderTree, GitBranch, Pencil, Trash2, Merge, MoreHorizontal, ShoppingCart, ImageIcon, ClipboardList, Database, Library, FileText, Brain, Languages } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +26,7 @@ const navItems = [
   { to: "/ingestao", icon: Database, label: "Ingestion Hub" },
   { to: "/pdf-extraction", icon: FileText, label: "Extração PDF" },
   { to: "/extraction-memory", icon: Brain, label: "Memória de Extração" },
+  { to: "/traducoes", icon: Languages, label: "Tradução & i18n" },
 ];
 
 const managementItems = [

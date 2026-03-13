@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck } from "lucide-react";
+import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages } from "lucide-react";
 import { useProcessImages } from "@/hooks/useProcessImages";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -31,6 +31,9 @@ import { useQualityGateResults, usePublishLocks, useEvaluateQualityGate } from "
 import { calculateSeoScore, getSeoScoreColor, getSeoScoreBg, getSeoFixSuggestions } from "@/lib/seoScore";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useProductLocalizations, useTranslateProduct, useApproveLocalization, SUPPORTED_LOCALES } from "@/hooks/useTranslations";
+import { useAuth } from "@/hooks/useAuth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Props {
   product: Product | null;
@@ -193,6 +196,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
               <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Qualidade
             </TabsTrigger>
             <TabsTrigger value="brutos">Dados Brutos</TabsTrigger>
+            <TabsTrigger value="idiomas">
+              <Languages className="w-3.5 h-3.5 mr-1" /> Idiomas
+            </TabsTrigger>
           </TabsList>
 
           {/* PUBLISH BLOCKER ALERT */}
@@ -821,6 +827,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* IDIOMAS / LOCALIZATION TAB */}
+          <TabsContent value="idiomas" className="mt-4">
+            <ProductLocalizationTab productId={product.id} workspaceId={product.workspace_id} />
+          </TabsContent>
         </Tabs>
 
         {/* Footer actions */}
@@ -1061,5 +1072,104 @@ function SupplierDataSection({ product }: { product: Product }) {
         </Alert>
       )}
     </>
+  );
+}
+
+function ProductLocalizationTab({ productId, workspaceId }: { productId: string; workspaceId: string }) {
+  const { data: localizations, isLoading } = useProductLocalizations(productId);
+  const translateProduct = useTranslateProduct();
+  const approveLocalization = useApproveLocalization();
+  const { user } = useAuth();
+  const [targetLocale, setTargetLocale] = useState("en-GB");
+
+  const handleTranslate = () => {
+    if (!user) return;
+    translateProduct.mutate({
+      product_id: productId,
+      workspace_id: workspaceId,
+      source_locale: "pt-PT",
+      target_locale: targetLocale,
+      user_id: user.id,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Select value={targetLocale} onValueChange={setTargetLocale}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {SUPPORTED_LOCALES.filter(l => l.code !== "pt-PT").map(l => (
+              <SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button size="sm" onClick={handleTranslate} disabled={translateProduct.isPending}>
+          {translateProduct.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Languages className="w-4 h-4 mr-1" />}
+          Traduzir
+        </Button>
+      </div>
+
+      {isLoading && <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin" /></div>}
+
+      {(!localizations || localizations.length === 0) && !isLoading && (
+        <p className="text-sm text-muted-foreground text-center py-8">Sem traduções. Selecione um idioma e clique "Traduzir".</p>
+      )}
+
+      <div className="space-y-3">
+        {(localizations || []).map((loc: any) => {
+          const locInfo = SUPPORTED_LOCALES.find(l => l.code === loc.locale);
+          return (
+            <Card key={loc.id}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{locInfo?.flag || "🌐"}</span>
+                    <span className="font-medium text-sm">{loc.locale}</span>
+                    <Badge variant={loc.status === "approved" ? "default" : loc.needs_review ? "destructive" : "secondary"}>
+                      {loc.status}
+                    </Badge>
+                    <Badge variant="outline">Score: {loc.quality_score}%</Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    {loc.needs_review && (
+                      <Button size="sm" variant="outline" onClick={() => approveLocalization.mutate({ id: loc.id, product_id: productId })}>
+                        <Check className="w-3.5 h-3.5 mr-1" /> Aprovar
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setTargetLocale(loc.locale);
+                      handleTranslate();
+                    }}>
+                      <RotateCcw className="w-3.5 h-3.5 mr-1" /> Re-traduzir
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {[
+                    { label: "Título", value: loc.translated_title },
+                    { label: "Meta Title", value: loc.translated_meta_title },
+                    { label: "Descrição Curta", value: loc.translated_short_description },
+                    { label: "Meta Description", value: loc.translated_meta_description },
+                    { label: "Slug", value: loc.translated_slug },
+                  ].map(({ label, value }) => value && (
+                    <div key={label}>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="truncate">{value}</p>
+                    </div>
+                  ))}
+                </div>
+                {loc.translated_description && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Descrição</p>
+                    <p className="text-sm max-h-24 overflow-y-auto">{loc.translated_description}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }
