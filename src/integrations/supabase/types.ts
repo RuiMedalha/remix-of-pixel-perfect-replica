@@ -6915,6 +6915,214 @@ export type Database = {
         }
         Relationships: []
       }
+      strategy_actions: {
+        Row: {
+          action_payload: Json | null
+          action_type: Database["public"]["Enums"]["strategy_action_type"]
+          created_at: string
+          expected_conversion: number | null
+          expected_margin: number | null
+          expected_revenue: number | null
+          id: string
+          plan_id: string
+          priority_score: number | null
+          status: Database["public"]["Enums"]["strategy_status"]
+          target_category_id: string | null
+          target_channel_id: string | null
+          target_product_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          action_payload?: Json | null
+          action_type: Database["public"]["Enums"]["strategy_action_type"]
+          created_at?: string
+          expected_conversion?: number | null
+          expected_margin?: number | null
+          expected_revenue?: number | null
+          id?: string
+          plan_id: string
+          priority_score?: number | null
+          status?: Database["public"]["Enums"]["strategy_status"]
+          target_category_id?: string | null
+          target_channel_id?: string | null
+          target_product_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          action_payload?: Json | null
+          action_type?: Database["public"]["Enums"]["strategy_action_type"]
+          created_at?: string
+          expected_conversion?: number | null
+          expected_margin?: number | null
+          expected_revenue?: number | null
+          id?: string
+          plan_id?: string
+          priority_score?: number | null
+          status?: Database["public"]["Enums"]["strategy_status"]
+          target_category_id?: string | null
+          target_channel_id?: string | null
+          target_product_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_actions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_actions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_plans: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          plan_type: Database["public"]["Enums"]["strategy_plan_type"]
+          planning_horizon_months: number | null
+          status: Database["public"]["Enums"]["strategy_status"]
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          plan_type?: Database["public"]["Enums"]["strategy_plan_type"]
+          planning_horizon_months?: number | null
+          status?: Database["public"]["Enums"]["strategy_status"]
+          title?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          plan_type?: Database["public"]["Enums"]["strategy_plan_type"]
+          planning_horizon_months?: number | null
+          status?: Database["public"]["Enums"]["strategy_status"]
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_plans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_recommendations: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          expected_impact: number | null
+          id: string
+          recommendation_payload: Json | null
+          recommendation_type: string
+          target_category_id: string | null
+          target_product_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          expected_impact?: number | null
+          id?: string
+          recommendation_payload?: Json | null
+          recommendation_type?: string
+          target_category_id?: string | null
+          target_product_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          expected_impact?: number | null
+          id?: string
+          recommendation_payload?: Json | null
+          recommendation_type?: string
+          target_category_id?: string | null
+          target_product_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_recommendations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_simulations: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          plan_id: string
+          predicted_conversion: number | null
+          predicted_margin: number | null
+          predicted_revenue: number | null
+          simulation_payload: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          plan_id: string
+          predicted_conversion?: number | null
+          predicted_margin?: number | null
+          predicted_revenue?: number | null
+          simulation_payload?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          plan_id?: string
+          predicted_conversion?: number | null
+          predicted_margin?: number | null
+          predicted_revenue?: number | null
+          simulation_payload?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_simulations_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_simulations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_layout_profiles: {
         Row: {
           column_aliases: Json
@@ -8637,6 +8845,29 @@ export type Database = {
         | "translation_quality_simulation"
         | "image_quality_simulation"
         | "schema_validation_simulation"
+      strategy_action_type:
+        | "launch_product"
+        | "expand_category"
+        | "create_bundle"
+        | "run_promotion"
+        | "optimize_price"
+        | "improve_content"
+        | "add_cross_sell"
+        | "add_upsell"
+      strategy_plan_type:
+        | "quarterly_plan"
+        | "category_strategy"
+        | "launch_plan"
+        | "promotion_strategy"
+        | "channel_strategy"
+      strategy_status:
+        | "draft"
+        | "simulated"
+        | "approved"
+        | "scheduled"
+        | "executing"
+        | "completed"
+        | "cancelled"
       twin_entity_type:
         | "product"
         | "product_family"
@@ -9444,6 +9675,32 @@ export const Constants = {
         "translation_quality_simulation",
         "image_quality_simulation",
         "schema_validation_simulation",
+      ],
+      strategy_action_type: [
+        "launch_product",
+        "expand_category",
+        "create_bundle",
+        "run_promotion",
+        "optimize_price",
+        "improve_content",
+        "add_cross_sell",
+        "add_upsell",
+      ],
+      strategy_plan_type: [
+        "quarterly_plan",
+        "category_strategy",
+        "launch_plan",
+        "promotion_strategy",
+        "channel_strategy",
+      ],
+      strategy_status: [
+        "draft",
+        "simulated",
+        "approved",
+        "scheduled",
+        "executing",
+        "completed",
+        "cancelled",
       ],
       twin_entity_type: [
         "product",
