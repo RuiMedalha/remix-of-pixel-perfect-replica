@@ -1,1 +1,10 @@
 project_id = "duzbnbugvshgdcaisyyr"
+
+[functions.invite-workspace-member]
+verify_jwt = false
+
+[functions.accept-workspace-invitation]
+verify_jwt = false
+
+[functions.manage-workspace-members]
+verify_jwt = false

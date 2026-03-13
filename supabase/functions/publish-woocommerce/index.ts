@@ -74,6 +74,25 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
+    // Workspace membership check for new publish jobs
+    if (!body.jobId && body.workspaceId) {
+      const { data: memberCheck } = await adminClient
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", body.workspaceId)
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (memberCheck) {
+        const rank = { owner: 4, admin: 3, editor: 2, viewer: 1 }[memberCheck.role] || 0;
+        if (rank < 3) {
+          return new Response(JSON.stringify({ error: "Sem permissão para publicar neste workspace (mínimo: admin)" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
     // ── MODE: Continue an existing job ──
     if (body.jobId && body.startIndex !== undefined) {
       const { jobId, startIndex } = body;
