@@ -26,6 +26,7 @@ import ExtractionMemoryPage from "./pages/ExtractionMemoryPage";
 import TranslationMemoryPage from "./pages/TranslationMemoryPage";
 import ChannelManagerPage from "./pages/ChannelManagerPage";
 import CommerceIntelligencePage from "./pages/CommerceIntelligencePage";
+import AgentControlCenterPage from "./pages/AgentControlCenterPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
