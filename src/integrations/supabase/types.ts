@@ -342,6 +342,240 @@ export type Database = {
           },
         ]
       }
+      ingestion_job_items: {
+        Row: {
+          action: Database["public"]["Enums"]["ingestion_action_type"] | null
+          created_at: string
+          error_message: string | null
+          error_payload: Json | null
+          grouping_confidence: number | null
+          id: string
+          is_parent: boolean | null
+          job_id: string
+          mapped_data: Json | null
+          match_confidence: number | null
+          matched_existing_id: string | null
+          parent_group_key: string | null
+          product_id: string | null
+          source_data: Json | null
+          source_row_index: number | null
+          status: Database["public"]["Enums"]["ingestion_item_status"]
+        }
+        Insert: {
+          action?: Database["public"]["Enums"]["ingestion_action_type"] | null
+          created_at?: string
+          error_message?: string | null
+          error_payload?: Json | null
+          grouping_confidence?: number | null
+          id?: string
+          is_parent?: boolean | null
+          job_id: string
+          mapped_data?: Json | null
+          match_confidence?: number | null
+          matched_existing_id?: string | null
+          parent_group_key?: string | null
+          product_id?: string | null
+          source_data?: Json | null
+          source_row_index?: number | null
+          status?: Database["public"]["Enums"]["ingestion_item_status"]
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["ingestion_action_type"] | null
+          created_at?: string
+          error_message?: string | null
+          error_payload?: Json | null
+          grouping_confidence?: number | null
+          id?: string
+          is_parent?: boolean | null
+          job_id?: string
+          mapped_data?: Json | null
+          match_confidence?: number | null
+          matched_existing_id?: string | null
+          parent_group_key?: string | null
+          product_id?: string | null
+          source_data?: Json | null
+          source_row_index?: number | null
+          status?: Database["public"]["Enums"]["ingestion_item_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingestion_job_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ingestion_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingestion_job_items_matched_existing_id_fkey"
+            columns: ["matched_existing_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingestion_job_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ingestion_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duplicate_rows: number
+          error_message: string | null
+          failed_rows: number
+          file_name: string | null
+          id: string
+          imported_rows: number
+          merge_strategy: Database["public"]["Enums"]["ingestion_merge_strategy"]
+          mode: Database["public"]["Enums"]["ingestion_mode"]
+          parsed_rows: number
+          results: Json
+          skipped_rows: number
+          source_id: string | null
+          source_type:
+            | Database["public"]["Enums"]["ingestion_source_type"]
+            | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["ingestion_job_status"]
+          total_rows: number
+          updated_at: string
+          updated_rows: number
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duplicate_rows?: number
+          error_message?: string | null
+          failed_rows?: number
+          file_name?: string | null
+          id?: string
+          imported_rows?: number
+          merge_strategy?: Database["public"]["Enums"]["ingestion_merge_strategy"]
+          mode?: Database["public"]["Enums"]["ingestion_mode"]
+          parsed_rows?: number
+          results?: Json
+          skipped_rows?: number
+          source_id?: string | null
+          source_type?:
+            | Database["public"]["Enums"]["ingestion_source_type"]
+            | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["ingestion_job_status"]
+          total_rows?: number
+          updated_at?: string
+          updated_rows?: number
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duplicate_rows?: number
+          error_message?: string | null
+          failed_rows?: number
+          file_name?: string | null
+          id?: string
+          imported_rows?: number
+          merge_strategy?: Database["public"]["Enums"]["ingestion_merge_strategy"]
+          mode?: Database["public"]["Enums"]["ingestion_mode"]
+          parsed_rows?: number
+          results?: Json
+          skipped_rows?: number
+          source_id?: string | null
+          source_type?:
+            | Database["public"]["Enums"]["ingestion_source_type"]
+            | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["ingestion_job_status"]
+          total_rows?: number
+          updated_at?: string
+          updated_rows?: number
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingestion_jobs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "ingestion_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingestion_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ingestion_sources: {
+        Row: {
+          config: Json
+          created_at: string
+          duplicate_detection_fields: string[]
+          field_mappings: Json
+          grouping_config: Json
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          merge_strategy: Database["public"]["Enums"]["ingestion_merge_strategy"]
+          name: string
+          schedule_cron: string | null
+          source_type: Database["public"]["Enums"]["ingestion_source_type"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          duplicate_detection_fields?: string[]
+          field_mappings?: Json
+          grouping_config?: Json
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          merge_strategy?: Database["public"]["Enums"]["ingestion_merge_strategy"]
+          name: string
+          schedule_cron?: string | null
+          source_type: Database["public"]["Enums"]["ingestion_source_type"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          duplicate_detection_fields?: string[]
+          field_mappings?: Json
+          grouping_config?: Json
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          merge_strategy?: Database["public"]["Enums"]["ingestion_merge_strategy"]
+          name?: string
+          schedule_cron?: string | null
+          source_type?: Database["public"]["Enums"]["ingestion_source_type"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingestion_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_chunks: {
         Row: {
           chunk_index: number
@@ -2303,6 +2537,42 @@ export type Database = {
         | "uploading"
         | "done"
         | "error"
+      ingestion_action_type:
+        | "insert"
+        | "update"
+        | "skip"
+        | "merge"
+        | "duplicate"
+      ingestion_item_status:
+        | "queued"
+        | "parsed"
+        | "mapped"
+        | "processed"
+        | "skipped"
+        | "error"
+      ingestion_job_status:
+        | "queued"
+        | "parsing"
+        | "mapping"
+        | "dry_run"
+        | "importing"
+        | "done"
+        | "error"
+      ingestion_merge_strategy:
+        | "insert_only"
+        | "update_only"
+        | "merge"
+        | "replace"
+      ingestion_mode: "dry_run" | "live"
+      ingestion_source_type:
+        | "csv"
+        | "xlsx"
+        | "xml"
+        | "json"
+        | "google_sheets"
+        | "api"
+        | "webhook"
+        | "supplier_feed"
       job_item_status: "queued" | "processing" | "done" | "error" | "skipped"
       product_status:
         | "pending"
@@ -2521,6 +2791,41 @@ export const Constants = {
         "uploading",
         "done",
         "error",
+      ],
+      ingestion_action_type: ["insert", "update", "skip", "merge", "duplicate"],
+      ingestion_item_status: [
+        "queued",
+        "parsed",
+        "mapped",
+        "processed",
+        "skipped",
+        "error",
+      ],
+      ingestion_job_status: [
+        "queued",
+        "parsing",
+        "mapping",
+        "dry_run",
+        "importing",
+        "done",
+        "error",
+      ],
+      ingestion_merge_strategy: [
+        "insert_only",
+        "update_only",
+        "merge",
+        "replace",
+      ],
+      ingestion_mode: ["dry_run", "live"],
+      ingestion_source_type: [
+        "csv",
+        "xlsx",
+        "xml",
+        "json",
+        "google_sheets",
+        "api",
+        "webhook",
+        "supplier_feed",
       ],
       job_item_status: ["queued", "processing", "done", "error", "skipped"],
       product_status: [

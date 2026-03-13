@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.validate-product]
 verify_jwt = false
+
+[functions.parse-ingestion]
+verify_jwt = false
+
+[functions.run-ingestion-job]
+verify_jwt = false
+
+[functions.webhook-ingestion]
+verify_jwt = false
