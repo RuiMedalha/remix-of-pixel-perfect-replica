@@ -22,6 +22,7 @@ import ReviewQueuePage from "./pages/ReviewQueuePage";
 import IngestionHubPage from "./pages/IngestionHubPage";
 import AssetLibraryPage from "./pages/AssetLibraryPage";
 import PDFExtractionPage from "./pages/PDFExtractionPage";
+import ExtractionMemoryPage from "./pages/ExtractionMemoryPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -47,6 +48,7 @@ function ProtectedRoutes() {
           <Route path="/ingestao" element={<IngestionHubPage />} />
           <Route path="/assets" element={<AssetLibraryPage />} />
           <Route path="/pdf-extraction" element={<PDFExtractionPage />} />
+          <Route path="/extraction-memory" element={<ExtractionMemoryPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
