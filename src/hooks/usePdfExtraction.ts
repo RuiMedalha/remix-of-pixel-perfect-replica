@@ -64,7 +64,7 @@ export function useStartPdfExtraction() {
       const { data: extraction, error: createErr } = await supabase
         .from("pdf_extractions")
         .insert({
-          workspace_id: currentWorkspace!.id,
+          workspace_id: activeWorkspace!.id,
           file_id: fileId,
           status: "queued",
         })
