@@ -13,6 +13,7 @@ import UploadPage from "./pages/UploadPage";
 import ProductsPage from "./pages/ProductsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import WorkspaceMembersPage from "./pages/WorkspaceMembersPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import VariationsPage from "./pages/VariationsPage";
 import WooImportPage from "./pages/WooImportPage";
