@@ -34,8 +34,10 @@ serve(async (req) => {
     for (const r of (rejections || [])) {
       observations.push({
         workspace_id: workspaceId, observation_type: "channel_rejection",
-        product_id: r.product_id, signal_source: "channel_rejections",
-        signal_payload: { rejection_id: r.id, code: r.external_code, message: r.external_message }, severity: 70,
+        entity_type: "product", entity_id: r.product_id,
+        product_id: r.product_id, signal_source: "channel_rejections", source: "channel_rejections",
+        signal_payload: { rejection_id: r.id, code: r.external_code, message: r.external_message },
+        severity: 70, signal_strength: 70,
       });
     }
 
