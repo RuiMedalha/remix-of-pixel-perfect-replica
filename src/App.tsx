@@ -30,6 +30,7 @@ import AgentControlCenterPage from "./pages/AgentControlCenterPage";
 import CatalogBrainPage from "./pages/CatalogBrainPage";
 import BrainDecisionEnginePage from "./pages/BrainDecisionEnginePage";
 import BrainLearningEnginePage from "./pages/BrainLearningEnginePage";
+import BrainSimulationPage from "./pages/BrainSimulationPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -63,6 +64,7 @@ function ProtectedRoutes() {
           <Route path="/brain" element={<CatalogBrainPage />} />
           <Route path="/decisoes" element={<BrainDecisionEnginePage />} />
           <Route path="/aprendizagem" element={<BrainLearningEnginePage />} />
+          <Route path="/simulacao" element={<BrainSimulationPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

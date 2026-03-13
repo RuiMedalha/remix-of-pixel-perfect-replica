@@ -737,6 +737,61 @@ export type Database = {
           },
         ]
       }
+      catalog_action_simulations: {
+        Row: {
+          created_at: string | null
+          decision_id: string | null
+          expected_value: number | null
+          id: string
+          recommended: boolean | null
+          risk_level: Database["public"]["Enums"]["risk_level"] | null
+          simulation_run_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          decision_id?: string | null
+          expected_value?: number | null
+          id?: string
+          recommended?: boolean | null
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          simulation_run_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          decision_id?: string | null
+          expected_value?: number | null
+          id?: string
+          recommended?: boolean | null
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          simulation_run_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_action_simulations_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_decisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_action_simulations_simulation_run_id_fkey"
+            columns: ["simulation_run_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_simulation_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_action_simulations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_agents: {
         Row: {
           agent_name: string
@@ -1414,6 +1469,41 @@ export type Database = {
           },
         ]
       }
+      catalog_expected_value_models: {
+        Row: {
+          created_at: string | null
+          formula: string | null
+          id: string
+          model_name: string
+          variables: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          formula?: string | null
+          id?: string
+          model_name: string
+          variables?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          formula?: string | null
+          id?: string
+          model_name?: string
+          variables?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_expected_value_models_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_gap_analysis: {
         Row: {
           category_id: string | null
@@ -1694,6 +1784,157 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "catalog_reinforcement_memory_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_simulation_results: {
+        Row: {
+          baseline_value: number | null
+          confidence: number | null
+          created_at: string | null
+          delta: number | null
+          id: string
+          metric_type: Database["public"]["Enums"]["brain_outcome_type"] | null
+          predicted_value: number | null
+          result_type:
+            | Database["public"]["Enums"]["simulation_result_type"]
+            | null
+          simulation_run_id: string
+        }
+        Insert: {
+          baseline_value?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          delta?: number | null
+          id?: string
+          metric_type?: Database["public"]["Enums"]["brain_outcome_type"] | null
+          predicted_value?: number | null
+          result_type?:
+            | Database["public"]["Enums"]["simulation_result_type"]
+            | null
+          simulation_run_id: string
+        }
+        Update: {
+          baseline_value?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          delta?: number | null
+          id?: string
+          metric_type?: Database["public"]["Enums"]["brain_outcome_type"] | null
+          predicted_value?: number | null
+          result_type?:
+            | Database["public"]["Enums"]["simulation_result_type"]
+            | null
+          simulation_run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_simulation_results_simulation_run_id_fkey"
+            columns: ["simulation_run_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_simulation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_simulation_runs: {
+        Row: {
+          completed_at: string | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          risk_level: Database["public"]["Enums"]["risk_level"] | null
+          scenario_id: string | null
+          simulation_output: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["simulation_status"] | null
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          scenario_id?: string | null
+          simulation_output?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["simulation_status"] | null
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          scenario_id?: string | null
+          simulation_output?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["simulation_status"] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_simulation_runs_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_simulation_scenarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_simulation_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_simulation_scenarios: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["brain_entity_type"] | null
+          expected_changes: Json | null
+          id: string
+          input_data: Json | null
+          scenario_name: string
+          simulation_type: Database["public"]["Enums"]["simulation_type"]
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          expected_changes?: Json | null
+          id?: string
+          input_data?: Json | null
+          scenario_name: string
+          simulation_type: Database["public"]["Enums"]["simulation_type"]
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["brain_entity_type"] | null
+          expected_changes?: Json | null
+          id?: string
+          input_data?: Json | null
+          scenario_name?: string
+          simulation_type?: Database["public"]["Enums"]["simulation_type"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_simulation_scenarios_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -7191,6 +7432,21 @@ export type Database = {
         | "validation_fail"
         | "human_requested"
       review_status: "pending" | "in_review" | "approved" | "rejected"
+      risk_level: "low" | "medium" | "high"
+      simulation_result_type:
+        | "expected_improvement"
+        | "expected_decline"
+        | "neutral"
+      simulation_status: "pending" | "running" | "completed" | "failed"
+      simulation_type:
+        | "seo_simulation"
+        | "feed_validation_simulation"
+        | "conversion_simulation"
+        | "pricing_simulation"
+        | "bundle_simulation"
+        | "translation_quality_simulation"
+        | "image_quality_simulation"
+        | "schema_validation_simulation"
       validation_rule_type:
         | "required"
         | "regex"
@@ -7875,6 +8131,23 @@ export const Constants = {
         "human_requested",
       ],
       review_status: ["pending", "in_review", "approved", "rejected"],
+      risk_level: ["low", "medium", "high"],
+      simulation_result_type: [
+        "expected_improvement",
+        "expected_decline",
+        "neutral",
+      ],
+      simulation_status: ["pending", "running", "completed", "failed"],
+      simulation_type: [
+        "seo_simulation",
+        "feed_validation_simulation",
+        "conversion_simulation",
+        "pricing_simulation",
+        "bundle_simulation",
+        "translation_quality_simulation",
+        "image_quality_simulation",
+        "schema_validation_simulation",
+      ],
       validation_rule_type: [
         "required",
         "regex",
