@@ -29,6 +29,7 @@ import {
   Workflow,
   ArrowDownUp,
   FileCode,
+  Cpu,
   type LucideIcon,
 } from "lucide-react";
 
