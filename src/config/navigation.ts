@@ -131,6 +131,7 @@ export const navGroups: NavGroup[] = [
       { title: "AI Governance", icon: Gauge, route: "/ai-governance" },
       { title: "Supplier Intelligence", icon: Building2, route: "/supplier-intelligence" },
       { title: "Canonical Assembly", icon: Layers, route: "/canonical-assembly" },
+      { title: "Conflict Center", icon: Scale, route: "/conflict-center" },
     ],
   },
   {
