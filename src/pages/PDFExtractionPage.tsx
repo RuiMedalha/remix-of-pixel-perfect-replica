@@ -90,9 +90,6 @@ export default function PDFExtractionPage() {
   const startExtraction = useStartPdfExtraction();
   const mapToProducts = useMapPdfToProducts();
   const deleteExtraction = useDeletePdfExtraction();
-  const runDocIntel = useRunDocumentIntelligence();
-  const analyzeLayout = useAnalyzePdfLayout();
-  const saveMappingRules = useSaveExtractionMappingRules();
   const sendToIngestion = useSendExtractionToIngestion();
 
   const [selectedExtraction, setSelectedExtraction] = useState<string | null>(null);
@@ -104,8 +101,6 @@ export default function PDFExtractionPage() {
   // Wizard state
   const [wizardStep, setWizardStep] = useState<WizardStep>("upload");
   const [wizardExtractionId, setWizardExtractionId] = useState<string | null>(null);
-  const [selectedEngine, setSelectedEngine] = useState("lovable_gateway");
-  const [columnMappings, setColumnMappings] = useState<Array<{ header: string; mappedTo: string; confidence: number; sampleValues: string[] }>>([]);
 
   const pdfFiles = (files || []).filter(f => f.file_type === "application/pdf" || f.file_name?.endsWith(".pdf"));
   const activeExtractions = (extractions || []).filter((e: any) => !e.archived_at);
