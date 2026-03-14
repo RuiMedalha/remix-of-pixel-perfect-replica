@@ -5900,6 +5900,94 @@ export type Database = {
           },
         ]
       }
+      extraction_mapping_rules: {
+        Row: {
+          bounding_box: Json | null
+          column_index: number | null
+          confidence: number | null
+          created_at: string | null
+          document_type: string | null
+          extraction_id: string | null
+          field_label: string
+          field_type: string
+          id: string
+          is_active: boolean | null
+          layout_signature: string | null
+          mapped_to: string
+          playbook_id: string | null
+          source: string | null
+          supplier_id: string | null
+          table_index: number | null
+          updated_at: string | null
+          workspace_id: string
+          zone_type: string | null
+        }
+        Insert: {
+          bounding_box?: Json | null
+          column_index?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          document_type?: string | null
+          extraction_id?: string | null
+          field_label: string
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          layout_signature?: string | null
+          mapped_to: string
+          playbook_id?: string | null
+          source?: string | null
+          supplier_id?: string | null
+          table_index?: number | null
+          updated_at?: string | null
+          workspace_id: string
+          zone_type?: string | null
+        }
+        Update: {
+          bounding_box?: Json | null
+          column_index?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          document_type?: string | null
+          extraction_id?: string | null
+          field_label?: string
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          layout_signature?: string | null
+          mapped_to?: string
+          playbook_id?: string | null
+          source?: string | null
+          supplier_id?: string | null
+          table_index?: number | null
+          updated_at?: string | null
+          workspace_id?: string
+          zone_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extraction_mapping_rules_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_extractions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extraction_mapping_rules_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extraction_mapping_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       extraction_memory_patterns: {
         Row: {
           confidence: number
@@ -7729,6 +7817,8 @@ export type Database = {
           archived_at: string | null
           completed_at: string | null
           created_at: string
+          detected_products: Json | null
+          engine_recommendation: Json | null
           estimated_cost: number | null
           extraction_method:
             | Database["public"]["Enums"]["pdf_extraction_method"]
@@ -7738,10 +7828,13 @@ export type Database = {
           fallback_used: boolean | null
           file_id: string
           id: string
+          ingestion_job_id: string | null
+          layout_analysis: Json | null
           model_used: string | null
           processed_pages: number | null
           provider_model: string | null
           provider_used: string | null
+          sent_to_ingestion: boolean | null
           status: Database["public"]["Enums"]["pdf_extraction_status"]
           total_pages: number | null
           workspace_id: string
@@ -7751,6 +7844,8 @@ export type Database = {
           archived_at?: string | null
           completed_at?: string | null
           created_at?: string
+          detected_products?: Json | null
+          engine_recommendation?: Json | null
           estimated_cost?: number | null
           extraction_method?:
             | Database["public"]["Enums"]["pdf_extraction_method"]
@@ -7760,10 +7855,13 @@ export type Database = {
           fallback_used?: boolean | null
           file_id: string
           id?: string
+          ingestion_job_id?: string | null
+          layout_analysis?: Json | null
           model_used?: string | null
           processed_pages?: number | null
           provider_model?: string | null
           provider_used?: string | null
+          sent_to_ingestion?: boolean | null
           status?: Database["public"]["Enums"]["pdf_extraction_status"]
           total_pages?: number | null
           workspace_id: string
@@ -7773,6 +7871,8 @@ export type Database = {
           archived_at?: string | null
           completed_at?: string | null
           created_at?: string
+          detected_products?: Json | null
+          engine_recommendation?: Json | null
           estimated_cost?: number | null
           extraction_method?:
             | Database["public"]["Enums"]["pdf_extraction_method"]
@@ -7782,10 +7882,13 @@ export type Database = {
           fallback_used?: boolean | null
           file_id?: string
           id?: string
+          ingestion_job_id?: string | null
+          layout_analysis?: Json | null
           model_used?: string | null
           processed_pages?: number | null
           provider_model?: string | null
           provider_used?: string | null
+          sent_to_ingestion?: boolean | null
           status?: Database["public"]["Enums"]["pdf_extraction_status"]
           total_pages?: number | null
           workspace_id?: string
