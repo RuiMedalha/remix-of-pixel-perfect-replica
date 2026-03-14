@@ -142,6 +142,7 @@ Return ONLY valid JSON.`,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
           },
+          signedUrl: signedPdfUrl,
         })
       ));
       results.push(...batchResults);
