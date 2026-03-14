@@ -257,3 +257,27 @@ verify_jwt = false
 
 [functions.update-model-capability-matrix]
 verify_jwt = false
+
+[functions.record-usage-cost]
+verify_jwt = false
+
+[functions.forecast-operation-cost]
+verify_jwt = false
+
+[functions.evaluate-workspace-budget]
+verify_jwt = false
+
+[functions.apply-cost-optimization-rules]
+verify_jwt = false
+
+[functions.generate-cost-alerts]
+verify_jwt = false
+
+[functions.calculate-supplier-cost-profile]
+verify_jwt = false
+
+[functions.calculate-channel-cost-profile]
+verify_jwt = false
+
+[functions.summarize-workspace-usage]
+verify_jwt = false
