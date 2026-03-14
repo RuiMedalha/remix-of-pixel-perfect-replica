@@ -20,7 +20,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { extractionId, chunkMode, chunkStart, chunkEnd, storagePath, overviewData } = body;
+    const { extractionId, chunkMode, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = body;
 
     if (!extractionId) throw new Error("extractionId required");
 
