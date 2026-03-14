@@ -228,6 +228,40 @@ Return ONLY valid JSON.`,
   }
 });
 
+async function invokeChunkExtraction(opts: {
+  supabaseUrl: string;
+  serviceKey: string;
+  extractionId: string;
+  chunk: { start: number; end: number };
+  storagePath: string;
+  overviewData: any;
+}) {
+  const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData } = opts;
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/extract-pdf-pages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        extractionId,
+        chunkMode: true,
+        chunkStart: chunk.start,
+        chunkEnd: chunk.end,
+        storagePath,
+        overviewData,
+      }),
+    });
+
+    const result = await response.json();
+    return { chunk, ok: response.ok, result };
+  } catch (e) {
+    return { chunk, ok: false, result: { error: e instanceof Error ? e.message : String(e) } };
+  }
+}
+
 // ==========================================
 // CHUNK PROCESSOR — runs in its own worker
 // ==========================================
