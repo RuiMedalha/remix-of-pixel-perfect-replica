@@ -49,7 +49,7 @@ export function useProductIdentity() {
   const groupings = useQuery({
     queryKey: ["product-groupings", wsId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("product_groupings").select("*").eq("workspace_id", wsId!).order("created_at", { ascending: false }).limit(100);
+      const { data, error } = await (supabase.from("product_groupings") as any).select("*").eq("workspace_id", wsId!).order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
       return data;
     },
