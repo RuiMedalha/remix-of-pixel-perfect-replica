@@ -36,6 +36,7 @@ import {
   Layers,
   Scale,
   Send,
+  BookOpen,
   Route,
   TowerControl,
   type LucideIcon,
