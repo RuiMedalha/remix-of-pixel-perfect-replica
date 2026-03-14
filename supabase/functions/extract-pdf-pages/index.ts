@@ -30,7 +30,7 @@ serve(async (req) => {
     if (chunkMode) {
       return await processChunk({
         supabase, supabaseUrl, serviceKey, lovableKey,
-        extractionId, chunkStart, chunkEnd, storagePath, overviewData,
+        extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64,
       });
     }
 
