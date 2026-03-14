@@ -49,6 +49,7 @@ import ChannelPayloadBuilderPage from "./pages/ChannelPayloadBuilderPage";
 import ExecutionPlannerPage from "./pages/ExecutionPlannerPage";
 import CostDashboardPage from "./pages/CostDashboardPage";
 import CatalogOperationsControlTowerPage from "./pages/CatalogOperationsControlTowerPage";
+import SupplierPlaybooksPage from "./pages/SupplierPlaybooksPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
