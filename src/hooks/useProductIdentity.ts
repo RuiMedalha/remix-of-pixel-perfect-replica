@@ -73,8 +73,8 @@ export function useProductIdentity() {
         { workspace_id: wsId!, policy_name: "Tensão", attribute_keys: ["tensao", "voltage"], variation_strategy: "auto" },
         { workspace_id: wsId!, policy_name: "Comprimento", attribute_keys: ["comprimento", "length", "metros"], variation_strategy: "auto" },
       ];
-      await supabase.from("product_identity_rules").insert(rules);
-      await supabase.from("variation_policies").insert(policies);
+      await (supabase.from("product_identity_rules") as any).insert(rules);
+      await (supabase.from("variation_policies") as any).insert(policies);
     },
     onSuccess: () => {
       toast.success("Regras e políticas default criadas");
