@@ -353,3 +353,6 @@ verify_jwt = false
 
 [functions.detect-product-variations]
 verify_jwt = false
+
+[functions.extract-product-attributes]
+verify_jwt = false
