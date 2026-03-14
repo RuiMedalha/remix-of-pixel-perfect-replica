@@ -34,7 +34,49 @@ serve(async (req) => {
       .eq("extraction_id", extractionId)
       .order("page_number");
 
-    if (!pages?.length) throw new Error("No pages found");
+    if (!pages?.length) {
+      const fallbackAnalysis = {
+        layout_complexity: "simple",
+        text_quality: "medium",
+        has_complex_tables: false,
+        needs_ocr: false,
+        recommended_engine: "lovable_gateway",
+        engine_confidence: 50,
+        estimated_accuracy: 50,
+        estimated_cost_usd: 0,
+        detected_products_estimate: 0,
+        document_language: extraction.layout_analysis?.language || "unknown",
+        supplier_hint: extraction.layout_analysis?.supplier_name || null,
+        document_type: extraction.layout_analysis?.document_type || "product_catalog",
+        totalPages: extraction.total_pages || 0,
+        pagesWithProducts: 0,
+        avgConfidence: 0,
+      };
+
+      const fallbackRecommendation = {
+        recommended: "lovable_gateway",
+        confidence: 50,
+        estimated_accuracy: 50,
+        estimated_cost_usd: 0,
+        alternatives: [
+          { engine: "lovable_gateway", label: "Lovable AI Gateway", pros: "Sem configuração extra, visão AI nativa", cost: "Incluído" },
+        ],
+      };
+
+      await supabase.from("pdf_extractions").update({
+        layout_analysis: { ...(extraction.layout_analysis || {}), ...fallbackAnalysis },
+        engine_recommendation: fallbackRecommendation,
+      }).eq("id", extractionId);
+
+      return new Response(JSON.stringify({
+        success: true,
+        analysis: fallbackAnalysis,
+        engineRecommendation: fallbackRecommendation,
+        totalPages: extraction.total_pages || 0,
+        pagesWithProducts: 0,
+        totalProducts: 0,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const totalPages = pages.length;
     const pagesWithProducts = pages.filter((p: any) => p.page_context?.product_count > 0).length;

@@ -219,7 +219,23 @@ Return ONLY valid JSON.`,
 
   } catch (e) {
     console.error("extract-pdf-pages error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+
+    try {
+      const body = await req.clone().json();
+      if (body?.extractionId && !body?.chunkMode) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, serviceKey);
+        await supabase
+          .from("pdf_extractions")
+          .update({ status: "error" })
+          .eq("id", body.extractionId);
+      }
+    } catch {
+      // ignore update failures in error path
+    }
+
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -255,7 +271,14 @@ async function invokeChunkExtraction(opts: {
       }),
     });
 
-    const result = await response.json();
+    const raw = await response.text();
+    let result: any = {};
+    try {
+      result = raw ? JSON.parse(raw) : {};
+    } catch {
+      result = { error: raw || "Invalid JSON response from chunk" };
+    }
+
     return { chunk, ok: response.ok, result };
   } catch (e) {
     return { chunk, ok: false, result: { error: e instanceof Error ? e.message : String(e) } };
@@ -325,8 +348,16 @@ Return ONLY valid JSON.`,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  const respData = await extractionResp.json();
-  const content = respData.choices?.[0]?.message?.content || "{}";
+  const rawAiBody = await extractionResp.text();
+  let aiPayload: any = {};
+  try {
+    aiPayload = rawAiBody ? JSON.parse(rawAiBody) : {};
+  } catch {
+    console.error(`Chunk ${chunkStart}-${chunkEnd} returned non-JSON AI payload`);
+    aiPayload = {};
+  }
+
+  const content = aiPayload?.choices?.[0]?.message?.content || "{}";
   let result: any = { pages: [] };
   try {
     result = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
@@ -334,7 +365,10 @@ Return ONLY valid JSON.`,
     try {
       const m = content.match(/\{[\s\S]*\}/);
       if (m) result = JSON.parse(m[0]);
-    } catch { /* skip */ }
+    } catch {
+      console.warn(`Chunk ${chunkStart}-${chunkEnd} returned unparsable content`);
+      result = { pages: [] };
+    }
   }
 
   const pages = result.pages || [];
