@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 
 export function useControlTower() {
-  const { currentWorkspace } = useWorkspaces();
-  const wsId = currentWorkspace?.id;
+  const { activeWorkspace } = useWorkspaceContext();
+  const wsId = activeWorkspace?.id;
   const qc = useQueryClient();
 
   const alerts = useQuery({
