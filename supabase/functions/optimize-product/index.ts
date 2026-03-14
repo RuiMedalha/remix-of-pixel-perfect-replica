@@ -1237,7 +1237,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           return { id: product.id, status: "error" as const, error: errText };
         }
 
-        const aiData = await aiResponse.json();
+        const aiWrapper = await aiResponse.json();
+        const aiData = aiWrapper.result || aiWrapper;
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
         if (!toolCall) {
           await supabase.from("products").update({ status: "error" }).eq("id", product.id);
