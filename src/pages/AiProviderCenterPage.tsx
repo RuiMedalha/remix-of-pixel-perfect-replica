@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import {
   Server, Plus, Trash2, TestTube, CheckCircle, XCircle, Loader2,
-  Cpu, Route, Activity, Zap, Shield, Brain, Settings2,
+  Cpu, Route, Activity, Zap, Shield, Brain, Settings2, Info, BookOpen,
 } from "lucide-react";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import {
