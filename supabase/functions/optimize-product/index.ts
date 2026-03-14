@@ -1188,37 +1188,36 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           requiredFields.push("focus_keywords");
         }
 
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
           },
           body: JSON.stringify({
-            model: chosenModel,
-            messages: [
-              {
-                role: "system",
-                content: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.",
-              },
-              { role: "user", content: finalPrompt },
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "optimize_product",
-                  description: "Devolve os campos otimizados do produto",
-                  parameters: {
-                    type: "object",
-                    properties: toolProperties,
-                    required: requiredFields,
-                    additionalProperties: false,
+            taskType: "product_optimization",
+            workspaceId: workspaceId,
+            modelOverride: chosenModel,
+            systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.",
+            messages: [{ role: "user", content: finalPrompt }],
+            options: {
+              tools: [
+                {
+                  type: "function",
+                  function: {
+                    name: "optimize_product",
+                    description: "Devolve os campos otimizados do produto",
+                    parameters: {
+                      type: "object",
+                      properties: toolProperties,
+                      required: requiredFields,
+                      additionalProperties: false,
+                    },
                   },
                 },
-              },
-            ],
-            tool_choice: { type: "function", function: { name: "optimize_product" } },
+              ],
+              tool_choice: { type: "function", function: { name: "optimize_product" } },
+            },
           }),
         });
 
