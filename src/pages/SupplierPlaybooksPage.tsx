@@ -8,8 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { BookOpen, Play, CheckCircle, Loader2, Plug, FlaskConical, Rocket, Zap, FileText, Trash2 } from "lucide-react";
+import { BookOpen, CheckCircle, Loader2, FlaskConical, Rocket, Zap, FileText, MoreHorizontal, Edit, Archive, Trash2, Copy } from "lucide-react";
 import { AutoPlaybookDraftPanel } from "@/components/playbook-engine/AutoPlaybookDraftPanel";
 import { PlaybookCorrectionsPanel } from "@/components/playbook-engine/PlaybookCorrectionsPanel";
 
@@ -26,9 +31,17 @@ const PLAYBOOK_TYPES = [
 
 export default function SupplierPlaybooksPage() {
   const { playbooks, connectorSetups, createPlaybook, testConnector, activatePlaybook } = useSupplierPlaybooks();
-  const { playbookDrafts, overrides, applyCorrections, promoteDraft, deleteDraft } = usePlaybookEngine();
+  const {
+    playbookDrafts, overrides, applyCorrections, promoteDraft, deleteDraft,
+    updateDraft, archiveDraft, updatePlaybook, archivePlaybook, deletePlaybook, duplicatePlaybook,
+  } = usePlaybookEngine();
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("excel_only");
+
+  // Edit/Rename dialog state
+  const [editPlaybook, setEditPlaybook] = useState<any>(null);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState("");
 
   const handleCreate = () => {
     if (!newName.trim()) return toast.error("Nome obrigatório");
@@ -61,10 +74,35 @@ export default function SupplierPlaybooksPage() {
     );
   };
 
-  const handleApplyInstruction = (instruction: string) => {
-    applyCorrections.mutate({ instruction }, {
-      onError: (e) => toast.error(e.message),
+  const handlePlaybookAction = (action: string, playbook: any) => {
+    switch (action) {
+      case "edit":
+        setEditPlaybook(playbook);
+        setEditName(playbook.playbook_name);
+        setEditType(playbook.playbook_type);
+        break;
+      case "activate":
+        handleActivate(playbook.id, playbook.supplier_id);
+        break;
+      case "duplicate":
+        duplicatePlaybook.mutate(playbook.id);
+        break;
+      case "archive":
+        archivePlaybook.mutate(playbook.id);
+        break;
+      case "delete":
+        deletePlaybook.mutate(playbook.id);
+        break;
+    }
+  };
+
+  const handleSaveEdit = () => {
+    if (!editPlaybook) return;
+    updatePlaybook.mutate({
+      id: editPlaybook.id,
+      updates: { playbook_name: editName, playbook_type: editType },
     });
+    setEditPlaybook(null);
   };
 
   const drafts = playbookDrafts.data || [];
@@ -125,6 +163,8 @@ export default function SupplierPlaybooksPage() {
                 draft={d}
                 onPromote={(id) => promoteDraft.mutate(id)}
                 onDelete={(id) => deleteDraft.mutate(id)}
+                onUpdate={(id, updates) => updateDraft.mutate({ id, updates })}
+                onArchive={(id) => archiveDraft.mutate(id)}
                 isPromoting={promoteDraft.isPending}
               />
             ))
@@ -148,6 +188,7 @@ export default function SupplierPlaybooksPage() {
                       <TableHead>Template</TableHead>
                       <TableHead>Versão</TableHead>
                       <TableHead>Ativo</TableHead>
+                      <TableHead>Origem</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -159,10 +200,35 @@ export default function SupplierPlaybooksPage() {
                         <TableCell>{p.is_template ? <Badge>Template</Badge> : "-"}</TableCell>
                         <TableCell>v{p.version_number}</TableCell>
                         <TableCell>{p.is_active ? <CheckCircle className="w-4 h-4 text-primary" /> : "-"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {(p as any).origin_draft_id ? "Auto-Draft" : "Manual"}
+                        </TableCell>
                         <TableCell>
-                          <Button size="sm" variant="ghost" onClick={() => handleActivate(p.id, p.supplier_id)}>
-                            <Rocket className="w-3 h-3 mr-1" /> Ativar
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem onClick={() => handlePlaybookAction("edit", p)}>
+                                <Edit className="w-3 h-3 mr-2" /> Editar / Renomear
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePlaybookAction("activate", p)}>
+                                <Rocket className="w-3 h-3 mr-2" /> {p.is_active ? "Reativar" : "Ativar"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePlaybookAction("duplicate", p)}>
+                                <Copy className="w-3 h-3 mr-2" /> Duplicar
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handlePlaybookAction("archive", p)}>
+                                <Archive className="w-3 h-3 mr-2" /> Arquivar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePlaybookAction("delete", p)} className="text-destructive">
+                                <Trash2 className="w-3 h-3 mr-2" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -176,7 +242,7 @@ export default function SupplierPlaybooksPage() {
         <TabsContent value="corrections" className="mt-4">
           <PlaybookCorrectionsPanel
             overrides={supplierOverrides}
-            onApplyInstruction={handleApplyInstruction}
+            onApplyInstruction={(instruction) => applyCorrections.mutate({ instruction })}
             onApplyCorrection={(c) => applyCorrections.mutate({ corrections: [c] })}
             isApplying={applyCorrections.isPending}
           />
@@ -228,6 +294,28 @@ export default function SupplierPlaybooksPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Playbook Dialog */}
+      <Dialog open={!!editPlaybook} onOpenChange={(open) => !open && setEditPlaybook(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Editar Playbook</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
+            <Select value={editType} onValueChange={setEditType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PLAYBOOK_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPlaybook(null)}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={updatePlaybook.isPending}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6316,6 +6316,7 @@ export type Database = {
       }
       ingestion_jobs: {
         Row: {
+          archived_at: string | null
           completed_at: string | null
           created_at: string
           duplicate_rows: number
@@ -6342,6 +6343,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          archived_at?: string | null
           completed_at?: string | null
           created_at?: string
           duplicate_rows?: number
@@ -6368,6 +6370,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          archived_at?: string | null
           completed_at?: string | null
           created_at?: string
           duplicate_rows?: number
@@ -11212,6 +11215,7 @@ export type Database = {
       }
       supplier_playbook_drafts: {
         Row: {
+          archived_at: string | null
           auto_generated: boolean | null
           column_mapping: Json | null
           confidence_score: number | null
@@ -11220,6 +11224,7 @@ export type Database = {
           grouping_rules: Json | null
           id: string
           image_strategy: Json | null
+          ingestion_job_id: string | null
           matching_rules: Json | null
           needs_review_fields: string[] | null
           playbook_config: Json | null
@@ -11229,10 +11234,13 @@ export type Database = {
           supplier_id: string | null
           taxonomy_suggestion: Json | null
           updated_at: string
+          uploaded_file_id: string | null
           validation_profile: Json | null
+          version_number: number | null
           workspace_id: string
         }
         Insert: {
+          archived_at?: string | null
           auto_generated?: boolean | null
           column_mapping?: Json | null
           confidence_score?: number | null
@@ -11241,6 +11249,7 @@ export type Database = {
           grouping_rules?: Json | null
           id?: string
           image_strategy?: Json | null
+          ingestion_job_id?: string | null
           matching_rules?: Json | null
           needs_review_fields?: string[] | null
           playbook_config?: Json | null
@@ -11250,10 +11259,13 @@ export type Database = {
           supplier_id?: string | null
           taxonomy_suggestion?: Json | null
           updated_at?: string
+          uploaded_file_id?: string | null
           validation_profile?: Json | null
+          version_number?: number | null
           workspace_id: string
         }
         Update: {
+          archived_at?: string | null
           auto_generated?: boolean | null
           column_mapping?: Json | null
           confidence_score?: number | null
@@ -11262,6 +11274,7 @@ export type Database = {
           grouping_rules?: Json | null
           id?: string
           image_strategy?: Json | null
+          ingestion_job_id?: string | null
           matching_rules?: Json | null
           needs_review_fields?: string[] | null
           playbook_config?: Json | null
@@ -11271,7 +11284,9 @@ export type Database = {
           supplier_id?: string | null
           taxonomy_suggestion?: Json | null
           updated_at?: string
+          uploaded_file_id?: string | null
           validation_profile?: Json | null
+          version_number?: number | null
           workspace_id?: string
         }
         Relationships: [
@@ -11307,12 +11322,15 @@ export type Database = {
       }
       supplier_playbooks: {
         Row: {
+          archived_at: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
           id: string
           is_active: boolean | null
           is_template: boolean | null
+          origin_draft_id: string | null
+          origin_ingestion_job_id: string | null
           playbook_config: Json | null
           playbook_name: string
           playbook_type: Database["public"]["Enums"]["playbook_type_enum"]
@@ -11322,12 +11340,15 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           is_template?: boolean | null
+          origin_draft_id?: string | null
+          origin_ingestion_job_id?: string | null
           playbook_config?: Json | null
           playbook_name: string
           playbook_type?: Database["public"]["Enums"]["playbook_type_enum"]
@@ -11337,12 +11358,15 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           is_template?: boolean | null
+          origin_draft_id?: string | null
+          origin_ingestion_job_id?: string | null
           playbook_config?: Json | null
           playbook_name?: string
           playbook_type?: Database["public"]["Enums"]["playbook_type_enum"]
