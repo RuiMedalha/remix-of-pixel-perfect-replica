@@ -147,23 +147,28 @@ export default function PDFExtractionPage() {
     return count;
   })();
 
-  // Step 1: Start extraction
+  // Step 1: Start extraction — goes straight to extracting
   const handleStartWizard = async () => {
     if (!selectedFileId) { toast.error("Seleciona um ficheiro PDF"); return; }
     try {
       const result = await startExtraction.mutateAsync(selectedFileId);
       setWizardExtractionId(result.extractionId);
-      setWizardStep("analysis");
-      // Auto-trigger layout analysis
-      setTimeout(() => {
-        analyzeLayout.mutate(result.extractionId);
-      }, 2000); // Wait for extraction to complete
+      setWizardStep("extracting");
     } catch {}
   };
 
   const handleFileUploaded = (fileId: string) => {
     setSelectedFileId(fileId);
   };
+
+  // Auto-advance: when extraction finishes (status=reviewing) and detected_products is populated, go to review
+  const extractionStatus = wizardExtraction?.status;
+  const hasDetectedProducts = ((wizardExtraction?.detected_products as any[])?.length || 0) > 0;
+  
+  // Auto-advance to review when extraction is done
+  if (wizardStep === "extracting" && extractionStatus === "reviewing" && hasDetectedProducts) {
+    setWizardStep("review");
+  }
 
   // Step 2: Analysis done, move to engine recommendation
   const handleAnalysisComplete = () => {
