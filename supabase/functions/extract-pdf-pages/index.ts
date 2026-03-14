@@ -343,7 +343,7 @@ async function processChunk(opts: {
       messages: [
         {
           role: "system",
-          content: "You are a product data extraction expert. Extract ALL products from the specified pages with maximum precision.",
+          content: "You are a product data extraction expert. Extract ALL products from the specified pages with maximum precision. Pay special attention to product images — describe each image in detail for SEO alt-text generation.",
         },
         {
           role: "user",
@@ -355,10 +355,19 @@ async function processChunk(opts: {
 Language: ${overviewData?.language || "auto-detect"}
 Supplier: ${overviewData?.supplier_name || "unknown"}
 
-For each product return: sku, title, description, price (number), currency, category, dimensions, weight, material, color_options (array), technical_specs (object), image_description, confidence (0-100).
+For each product return:
+- sku, title, description, price (number), currency, category, dimensions, weight, material, color_options (array), technical_specs (object), confidence (0-100)
+- images (array of objects): For EACH product image visible on the page, provide:
+  - image_description: detailed description of what the image shows (product angle, context, styling)
+  - alt_text: SEO-optimized alt text (max 125 chars)
+  - image_type: "product_photo"|"technical_drawing"|"lifestyle"|"packaging"|"detail_closeup"|"color_swatch"|"dimension_diagram"
+  - position_on_page: "top"|"middle"|"bottom"|"left"|"right"|"center"
+  - estimated_size: "small"|"medium"|"large"|"full_width"
+  - contains_text: boolean (if the image has overlaid text)
+  - background: "white"|"transparent"|"lifestyle"|"colored"|"studio"
 
 JSON format:
-{"pages":[{"page_number":N,"page_type":"product_listing","zones":["header","table"],"section_title":"...","products":[{...}]}]}
+{"pages":[{"page_number":N,"page_type":"product_listing","zones":["header","table","images"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
 Return ONLY valid JSON.`,
             },
           ],
@@ -424,16 +433,52 @@ Return ONLY valid JSON.`,
       if (prod.category) parts.push(`Category: ${prod.category}`);
       if (prod.dimensions) parts.push(`Dimensions: ${prod.dimensions}`);
       if (prod.material) parts.push(`Material: ${prod.material}`);
-      if (prod.image_description) parts.push(`Image: ${prod.image_description}`);
+      // Include image details
+      const images = prod.images || [];
+      if (images.length > 0) {
+        parts.push(`Images (${images.length}):`);
+        images.forEach((img: any, idx: number) => {
+          parts.push(`  [Image ${idx + 1}] ${img.image_type || "photo"}: ${img.image_description || "N/A"}`);
+          if (img.alt_text) parts.push(`    Alt: ${img.alt_text}`);
+        });
+      } else if (prod.image_description) {
+        parts.push(`Image: ${prod.image_description}`);
+      }
       return parts.join("\n");
     }).join("\n\n");
+
+    // Collect all image metadata for the page
+    const pageImages = products.flatMap((prod: any, pi: number) => {
+      const images = prod.images || [];
+      if (images.length > 0) {
+        return images.map((img: any, ii: number) => ({
+          product_index: pi,
+          product_sku: prod.sku,
+          product_title: prod.title,
+          image_index: ii,
+          ...img,
+        }));
+      }
+      if (prod.image_description) {
+        return [{
+          product_index: pi,
+          product_sku: prod.sku,
+          product_title: prod.title,
+          image_index: 0,
+          image_description: prod.image_description,
+          alt_text: prod.image_description?.substring(0, 125),
+          image_type: "product_photo",
+        }];
+      }
+      return [];
+    });
 
     const { data: pageRecord } = await supabase.from("pdf_pages").insert({
       extraction_id: extractionId,
       page_number: p,
       raw_text: readableText || `[Page ${p} - no products]`,
       has_tables: products.length > 0,
-      has_images: zones.some((z: any) => z.type === "images"),
+      has_images: pageImages.length > 0,
       confidence_score: pageConfidence,
       status: "extracted" as any,
       zones, layout_zones: zones,
@@ -441,27 +486,35 @@ Return ONLY valid JSON.`,
         page_type: pageData?.page_type,
         section_title: pageData?.section_title,
         product_count: products.length,
+        image_count: pageImages.length,
         language: overviewData?.language,
         supplier: overviewData?.supplier_name,
       },
-      vision_result: { products, page_type: pageData?.page_type },
+      vision_result: { products, page_type: pageData?.page_type, images: pageImages },
       text_result: { extraction_method: "ai_vision", language: overviewData?.language },
     }).select("id").single();
 
     if (pageRecord && products.length > 0) {
-      const headers = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_description"];
-      const colTypes = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_url"];
+      const headers = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_description", "image_alt_text", "image_type", "image_count"];
+      const colTypes = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_url", "alt_text", "image_type", "count"];
 
-      const tableRows = products.map((prod: any, ri: number) => ({
-        row_index: ri,
-        cells: headers.map((h, ci) => {
-          let value = "";
-          if (h === "price") value = prod.price ? `${prod.currency || "€"}${prod.price}` : "";
-          else if (h === "image_description") value = prod.image_description || "";
-          else value = (prod[h] ?? "").toString();
-          return { value, confidence: prod.confidence || 70, source: "ai_vision", header: h, semantic_type: colTypes[ci], validation_passed: !!value };
-        }),
-      }));
+      const tableRows = products.map((prod: any, ri: number) => {
+        const images = prod.images || [];
+        const primaryImage = images[0] || {};
+        return {
+          row_index: ri,
+          cells: headers.map((h, ci) => {
+            let value = "";
+            if (h === "price") value = prod.price ? `${prod.currency || "€"}${prod.price}` : "";
+            else if (h === "image_description") value = primaryImage.image_description || prod.image_description || "";
+            else if (h === "image_alt_text") value = primaryImage.alt_text || prod.image_description?.substring(0, 125) || "";
+            else if (h === "image_type") value = primaryImage.image_type || "";
+            else if (h === "image_count") value = images.length.toString();
+            else value = (prod[h] ?? "").toString();
+            return { value, confidence: prod.confidence || 70, source: "ai_vision", header: h, semantic_type: colTypes[ci], validation_passed: !!value };
+          }),
+        };
+      });
 
       const columnClassifications = headers.map((h, i) => ({
         index: i, header: h, semantic_type: colTypes[i], confidence: 85, source: "ai_vision",
@@ -476,7 +529,7 @@ Return ONLY valid JSON.`,
         col_count: headers.length,
         table_type: "product_table",
         column_classifications: columnClassifications,
-        vision_source_data: { products },
+        vision_source_data: { products, images: pageImages },
       }).select("id").single();
 
       if (tableRec) {
