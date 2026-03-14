@@ -104,31 +104,23 @@ Deno.serve(async (req) => {
         };
       } else {
         // Use AI to refine weak matches
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
-          },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              {
-                role: "system",
-                content: `You are a product matching agent. Given a new product and candidate matches from the catalog, determine if any candidate is truly the same product. Consider title, brand, dimensions, specs. Respond with valid JSON only:
+            taskType: "supplier_matching",
+            workspaceId: workspace_id,
+            systemPrompt: `You are a product matching agent. Given a new product and candidate matches from the catalog, determine if any candidate is truly the same product. Consider title, brand, dimensions, specs. Respond with valid JSON only:
 {
   "best_match_index": number or null,
   "confidence_score": 0.0-1.0,
   "reasoning": "string"
 }`,
-              },
-              {
-                role: "user",
-                content: `New product:\n${JSON.stringify(product, null, 2)}\n\nCandidates:\n${JSON.stringify(candidates.slice(0, 5), null, 2)}`,
-              },
-            ],
-            temperature: 0.1,
-            max_tokens: 512,
+            messages: [{
+              role: "user",
+              content: `New product:\n${JSON.stringify(product, null, 2)}\n\nCandidates:\n${JSON.stringify(candidates.slice(0, 5), null, 2)}`,
+            }],
+            options: { max_tokens: 512 },
           }),
         });
 
