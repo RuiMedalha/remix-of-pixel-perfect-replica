@@ -585,74 +585,7 @@ const IngestionHubPage = () => {
       </Tabs>
 
       {/* Job Detail Dialog */}
-      <Dialog open={!!detailJob} onOpenChange={(open) => !open && setDetailJob(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {detailJob?.file_name || `Job ${detailJob?.id.slice(0, 8)}`}
-              {detailJob && (
-                <Badge className={cn("text-[10px]", (statusLabels[detailJob.status] || statusLabels.queued).color)}>
-                  {(statusLabels[detailJob.status] || statusLabels.queued).label}
-                </Badge>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          {detailJob && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                {[
-                  { l: "Total", v: detailJob.total_rows },
-                  { l: "Importados", v: detailJob.imported_rows },
-                  { l: "Atualizados", v: detailJob.updated_rows },
-                  { l: "Ignorados", v: detailJob.skipped_rows },
-                  { l: "Duplicados", v: detailJob.duplicate_rows },
-                  { l: "Erros", v: detailJob.failed_rows },
-                ].map(s => (
-                  <div key={s.l} className="text-center">
-                    <p className="text-xl font-bold">{s.v}</p>
-                    <p className="text-[10px] text-muted-foreground">{s.l}</p>
-                  </div>
-                ))}
-              </div>
-
-              {detailItems && detailItems.length > 0 && (
-                <ScrollArea className="max-h-96">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">#</TableHead>
-                        <TableHead className="text-xs">Status</TableHead>
-                        <TableHead className="text-xs">Ação</TableHead>
-                        <TableHead className="text-xs">SKU</TableHead>
-                        <TableHead className="text-xs">Título</TableHead>
-                        <TableHead className="text-xs">Erro</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detailItems.map(item => (
-                        <TableRow key={item.id}>
-                          <TableCell className="text-xs">{item.source_row_index + 1}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={cn("text-[10px]",
-                              item.status === "processed" ? "border-green-500 text-green-600" :
-                              item.status === "error" ? "border-destructive text-destructive" :
-                              item.status === "skipped" ? "border-muted text-muted-foreground" : ""
-                            )}>{item.status}</Badge>
-                          </TableCell>
-                          <TableCell className="text-xs">{item.action || "—"}</TableCell>
-                          <TableCell className="text-xs font-mono">{item.mapped_data?.sku || item.source_data?.sku || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
-                          <TableCell className="text-xs text-destructive max-w-[200px] truncate">{item.error_message || "—"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <JobDetailDialog job={detailJob} items={detailItems || []} onClose={() => setDetailJob(null)} />
     </div>
   );
 };
