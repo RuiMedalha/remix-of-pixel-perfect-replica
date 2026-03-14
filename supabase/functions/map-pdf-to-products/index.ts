@@ -186,7 +186,7 @@ serve(async (req) => {
         file_name: `pdf_extraction_${extractionId}`,
         status: "mapping",
         mode: "dry_run",
-        merge_strategy: "merge",
+        merge_strategy: mergeStrategy || "merge",
         total_rows: structuredRows.length,
         parsed_rows: structuredRows.length,
       }).select("id").single();
