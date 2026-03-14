@@ -112,6 +112,7 @@ function ProtectedRoutes() {
           <Route path="/conflict-center" element={<ConflictCenterPage />} />
           <Route path="/channel-payloads" element={<ChannelPayloadBuilderPage />} />
           <Route path="/execution-planner" element={<ExecutionPlannerPage />} />
+          <Route path="/cost-intelligence" element={<CostDashboardPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

@@ -136,6 +136,7 @@ export const navGroups: NavGroup[] = [
       { title: "Conflict Center", icon: Scale, route: "/conflict-center" },
       { title: "Channel Payloads", icon: Send, route: "/channel-payloads" },
       { title: "Execution Planner", icon: Route, route: "/execution-planner" },
+      { title: "Cost Intelligence", icon: DollarSign, route: "/cost-intelligence" },
     ],
   },
   {
