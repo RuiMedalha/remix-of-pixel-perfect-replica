@@ -106,69 +106,75 @@ INSTRUCTIONS:
 Page text:
 ${rawText}`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const routeResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceKey}`,
+      },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are a PDF data extraction expert for technical/commercial catalogs. Extract tables with semantic column classification, table type, and confidence scores." },
-          { role: "user", content: aiPrompt },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "extract_document_intelligence",
-            description: "Extract tables with Document Intelligence including table type classification and image detection",
-            parameters: {
-              type: "object",
-              properties: {
-                zones: { type: "array", items: { type: "object", properties: { type: { type: "string" }, content_summary: { type: "string" } }, required: ["type", "content_summary"] } },
-                tables: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      headers: { type: "array", items: { type: "string" } },
-                      column_types: { type: "array", items: { type: "string" } },
-                      rows: { type: "array", items: { type: "array", items: { type: "string" } } },
-                      confidence: { type: "number" },
-                      context: { type: "string" },
-                      table_type: { type: "string", enum: [...TABLE_TYPES] },
-                    },
-                    required: ["headers", "column_types", "rows", "confidence"],
-                  },
-                },
-                detected_images: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      description: { type: "string" },
-                      image_type: { type: "string", enum: ["product", "lifestyle", "technical", "icon", "logo", "unknown"] },
-                      associated_product_hint: { type: "string" },
+        taskType: "pdf_vision_parse",
+        workspaceId: workspaceId,
+        systemPrompt: "You are a PDF data extraction expert for technical/commercial catalogs. Extract tables with semantic column classification, table type, and confidence scores.",
+        messages: [{ role: "user", content: aiPrompt }],
+        options: {
+          tools: [{
+            type: "function",
+            function: {
+              name: "extract_document_intelligence",
+              description: "Extract tables with Document Intelligence including table type classification and image detection",
+              parameters: {
+                type: "object",
+                properties: {
+                  zones: { type: "array", items: { type: "object", properties: { type: { type: "string" }, content_summary: { type: "string" } }, required: ["type", "content_summary"] } },
+                  tables: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        headers: { type: "array", items: { type: "string" } },
+                        column_types: { type: "array", items: { type: "string" } },
+                        rows: { type: "array", items: { type: "array", items: { type: "string" } } },
+                        confidence: { type: "number" },
+                        context: { type: "string" },
+                        table_type: { type: "string", enum: [...TABLE_TYPES] },
+                      },
+                      required: ["headers", "column_types", "rows", "confidence"],
                     },
                   },
-                },
-                page_context: {
-                  type: "object",
-                  properties: {
-                    supplier_name: { type: "string" },
-                    section_title: { type: "string" },
-                    category_hint: { type: "string" },
-                    notes: { type: "string" },
-                    language: { type: "string" },
+                  detected_images: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        description: { type: "string" },
+                        image_type: { type: "string", enum: ["product", "lifestyle", "technical", "icon", "logo", "unknown"] },
+                        associated_product_hint: { type: "string" },
+                      },
+                    },
                   },
+                  page_context: {
+                    type: "object",
+                    properties: {
+                      supplier_name: { type: "string" },
+                      section_title: { type: "string" },
+                      category_hint: { type: "string" },
+                      notes: { type: "string" },
+                      language: { type: "string" },
+                    },
+                  },
+                  summary: { type: "string" },
                 },
-                summary: { type: "string" },
+                required: ["tables", "summary"],
               },
-              required: ["tables", "summary"],
             },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "extract_document_intelligence" } },
+          }],
+          tool_choice: { type: "function", function: { name: "extract_document_intelligence" } },
+        },
       }),
     });
+
+    const aiResponse = routeResp;
 
     let visionResult: any = { tables: [], summary: "", zones: [], page_context: {}, detected_images: [] };
 
