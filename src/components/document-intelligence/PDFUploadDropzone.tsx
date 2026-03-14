@@ -23,8 +23,9 @@ export function PDFUploadDropzone({ onFileUploaded }: PDFUploadDropzoneProps) {
 
     setIsUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Não autenticado");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user) throw new Error("Sessão expirada. Faça login novamente.");
 
       const storagePath = `${user.id}/${Date.now()}_${file.name}`;
       const { error: uploadErr } = await supabase.storage
