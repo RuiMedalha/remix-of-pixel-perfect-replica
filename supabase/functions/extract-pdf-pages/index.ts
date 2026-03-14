@@ -428,6 +428,19 @@ Return ONLY valid JSON.`,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  return encodeBase64(new Uint8Array(buffer));
+async function buildSignedPdfUrl(
+  supabase: any,
+  supabaseUrl: string,
+  storagePath: string,
+): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from("catalogs")
+    .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+
+  if (error || !data?.signedUrl) {
+    throw new Error("Cannot create signed URL for PDF: " + (error?.message || "unknown"));
+  }
+
+  if (data.signedUrl.startsWith("http")) return data.signedUrl;
+  return `${supabaseUrl}${data.signedUrl}`;
 }
