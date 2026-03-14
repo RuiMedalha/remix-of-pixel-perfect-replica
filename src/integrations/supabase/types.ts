@@ -1175,6 +1175,411 @@ export type Database = {
           },
         ]
       }
+      canonical_assembly_logs: {
+        Row: {
+          assembly_step: string
+          canonical_product_id: string
+          confidence_after: number | null
+          confidence_before: number | null
+          created_at: string | null
+          error_payload: Json | null
+          id: string
+          input_summary: Json | null
+          output_summary: Json | null
+          run_id: string | null
+          status: string | null
+        }
+        Insert: {
+          assembly_step: string
+          canonical_product_id: string
+          confidence_after?: number | null
+          confidence_before?: number | null
+          created_at?: string | null
+          error_payload?: Json | null
+          id?: string
+          input_summary?: Json | null
+          output_summary?: Json | null
+          run_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          assembly_step?: string
+          canonical_product_id?: string
+          confidence_after?: number | null
+          confidence_before?: number | null
+          created_at?: string | null
+          error_payload?: Json | null
+          id?: string
+          input_summary?: Json | null
+          output_summary?: Json | null
+          run_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_assembly_logs_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canonical_product_assets: {
+        Row: {
+          asset_id: string | null
+          canonical_product_id: string
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          is_primary: boolean | null
+          sort_order: number | null
+          source_type: string | null
+          usage_context: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          canonical_product_id: string
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          sort_order?: number | null
+          source_type?: string | null
+          usage_context?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          canonical_product_id?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          sort_order?: number | null
+          source_type?: string | null
+          usage_context?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_product_assets_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canonical_product_candidates: {
+        Row: {
+          candidate_group_key: string | null
+          candidate_payload: Json | null
+          canonical_product_id: string | null
+          created_at: string | null
+          id: string
+          match_confidence: number | null
+          match_status: string | null
+          source_record_id: string | null
+          source_type: string
+          supplier_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          candidate_group_key?: string | null
+          candidate_payload?: Json | null
+          canonical_product_id?: string | null
+          created_at?: string | null
+          id?: string
+          match_confidence?: number | null
+          match_status?: string | null
+          source_record_id?: string | null
+          source_type: string
+          supplier_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          candidate_group_key?: string | null
+          candidate_payload?: Json | null
+          canonical_product_id?: string | null
+          created_at?: string | null
+          id?: string
+          match_confidence?: number | null
+          match_status?: string | null
+          source_record_id?: string | null
+          source_type?: string
+          supplier_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_product_candidates_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canonical_product_candidates_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canonical_product_candidates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canonical_product_fields: {
+        Row: {
+          canonical_product_id: string
+          confidence_score: number | null
+          created_at: string | null
+          field_name: string
+          field_type:
+            | Database["public"]["Enums"]["canonical_field_type_enum"]
+            | null
+          field_value: Json | null
+          id: string
+          normalized_value: Json | null
+          selected_source_record_id: string | null
+          selected_source_type: string | null
+          selection_reason:
+            | Database["public"]["Enums"]["selection_reason_enum"]
+            | null
+          updated_at: string | null
+          validation_status:
+            | Database["public"]["Enums"]["quality_status_enum"]
+            | null
+        }
+        Insert: {
+          canonical_product_id: string
+          confidence_score?: number | null
+          created_at?: string | null
+          field_name: string
+          field_type?:
+            | Database["public"]["Enums"]["canonical_field_type_enum"]
+            | null
+          field_value?: Json | null
+          id?: string
+          normalized_value?: Json | null
+          selected_source_record_id?: string | null
+          selected_source_type?: string | null
+          selection_reason?:
+            | Database["public"]["Enums"]["selection_reason_enum"]
+            | null
+          updated_at?: string | null
+          validation_status?:
+            | Database["public"]["Enums"]["quality_status_enum"]
+            | null
+        }
+        Update: {
+          canonical_product_id?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          field_name?: string
+          field_type?:
+            | Database["public"]["Enums"]["canonical_field_type_enum"]
+            | null
+          field_value?: Json | null
+          id?: string
+          normalized_value?: Json | null
+          selected_source_record_id?: string | null
+          selected_source_type?: string | null
+          selection_reason?:
+            | Database["public"]["Enums"]["selection_reason_enum"]
+            | null
+          updated_at?: string | null
+          validation_status?:
+            | Database["public"]["Enums"]["quality_status_enum"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_product_fields_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canonical_product_relationships: {
+        Row: {
+          canonical_product_id: string
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          related_canonical_product_id: string
+          relationship_reason: string | null
+          relationship_type: Database["public"]["Enums"]["canonical_relationship_type_enum"]
+        }
+        Insert: {
+          canonical_product_id: string
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          related_canonical_product_id: string
+          relationship_reason?: string | null
+          relationship_type: Database["public"]["Enums"]["canonical_relationship_type_enum"]
+        }
+        Update: {
+          canonical_product_id?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          related_canonical_product_id?: string
+          relationship_reason?: string | null
+          relationship_type?: Database["public"]["Enums"]["canonical_relationship_type_enum"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_product_relationshi_related_canonical_product_id_fkey"
+            columns: ["related_canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canonical_product_relationships_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canonical_product_sources: {
+        Row: {
+          canonical_product_id: string
+          created_at: string | null
+          id: string
+          is_primary: boolean | null
+          source_confidence: number | null
+          source_name: string | null
+          source_priority: number | null
+          source_record_id: string | null
+          source_type: string
+        }
+        Insert: {
+          canonical_product_id: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          source_confidence?: number | null
+          source_name?: string | null
+          source_priority?: number | null
+          source_record_id?: string | null
+          source_type: string
+        }
+        Update: {
+          canonical_product_id?: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          source_confidence?: number | null
+          source_name?: string | null
+          source_priority?: number | null
+          source_record_id?: string | null
+          source_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_product_sources_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canonical_products: {
+        Row: {
+          assembly_confidence_score: number | null
+          assembly_status:
+            | Database["public"]["Enums"]["assembly_status_enum"]
+            | null
+          canonical_key: string | null
+          created_at: string | null
+          id: string
+          product_identity_status:
+            | Database["public"]["Enums"]["product_identity_status_enum"]
+            | null
+          product_type: string | null
+          quality_status:
+            | Database["public"]["Enums"]["quality_status_enum"]
+            | null
+          review_status:
+            | Database["public"]["Enums"]["canonical_review_status_enum"]
+            | null
+          supplier_id: string | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          assembly_confidence_score?: number | null
+          assembly_status?:
+            | Database["public"]["Enums"]["assembly_status_enum"]
+            | null
+          canonical_key?: string | null
+          created_at?: string | null
+          id?: string
+          product_identity_status?:
+            | Database["public"]["Enums"]["product_identity_status_enum"]
+            | null
+          product_type?: string | null
+          quality_status?:
+            | Database["public"]["Enums"]["quality_status_enum"]
+            | null
+          review_status?:
+            | Database["public"]["Enums"]["canonical_review_status_enum"]
+            | null
+          supplier_id?: string | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          assembly_confidence_score?: number | null
+          assembly_status?:
+            | Database["public"]["Enums"]["assembly_status_enum"]
+            | null
+          canonical_key?: string | null
+          created_at?: string | null
+          id?: string
+          product_identity_status?:
+            | Database["public"]["Enums"]["product_identity_status_enum"]
+            | null
+          product_type?: string | null
+          quality_status?:
+            | Database["public"]["Enums"]["quality_status_enum"]
+            | null
+          review_status?:
+            | Database["public"]["Enums"]["canonical_review_status_enum"]
+            | null
+          supplier_id?: string | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canonical_products_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_action_simulations: {
         Row: {
           created_at: string | null
@@ -6817,6 +7222,7 @@ export type Database = {
       products: {
         Row: {
           attributes: Json | null
+          canonical_product_id: string | null
           canonical_supplier_family: string | null
           canonical_supplier_model: string | null
           category: string | null
@@ -6868,6 +7274,7 @@ export type Database = {
         }
         Insert: {
           attributes?: Json | null
+          canonical_product_id?: string | null
           canonical_supplier_family?: string | null
           canonical_supplier_model?: string | null
           category?: string | null
@@ -6921,6 +7328,7 @@ export type Database = {
         }
         Update: {
           attributes?: Json | null
+          canonical_product_id?: string | null
           canonical_supplier_family?: string | null
           canonical_supplier_model?: string | null
           category?: string | null
@@ -6973,6 +7381,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_category_id_fkey"
             columns: ["category_id"]
@@ -8998,6 +9413,7 @@ export type Database = {
       }
       uploaded_files: {
         Row: {
+          canonicalization_status: string | null
           created_at: string
           extracted_text: string | null
           file_hash: string | null
@@ -9020,6 +9436,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          canonicalization_status?: string | null
           created_at?: string
           extracted_text?: string | null
           file_hash?: string | null
@@ -9042,6 +9459,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          canonicalization_status?: string | null
           created_at?: string
           extracted_text?: string | null
           file_hash?: string | null
@@ -9953,6 +10371,12 @@ export type Database = {
         | "pricing_analyzer"
         | "channel_performance_agent"
       app_role: "admin" | "user"
+      assembly_status_enum:
+        | "queued"
+        | "assembling"
+        | "assembled"
+        | "partially_assembled"
+        | "error"
       asset_review_status_enum: "unreviewed" | "approved" | "rejected"
       asset_source_enum: "upload" | "scrape" | "ai_generated" | "api" | "ocr"
       asset_status_enum:
@@ -10143,6 +10567,31 @@ export type Database = {
         | "starter_kit"
         | "professional_bundle"
         | "upsell_bundle"
+      canonical_field_type_enum:
+        | "text"
+        | "number"
+        | "boolean"
+        | "date"
+        | "array"
+        | "object"
+        | "asset_reference"
+        | "relationship_reference"
+      canonical_relationship_type_enum:
+        | "variation_parent"
+        | "variation_child"
+        | "accessory"
+        | "bundle_component"
+        | "bundle_parent"
+        | "compatible_with"
+        | "alternative"
+        | "upsell_candidate"
+        | "crosssell_candidate"
+      canonical_review_status_enum:
+        | "not_required"
+        | "suggested"
+        | "required"
+        | "approved"
+        | "rejected"
       channel_job_status_enum: "queued" | "running" | "completed" | "failed"
       channel_rule_type_enum:
         | "title_template"
@@ -10463,6 +10912,12 @@ export type Database = {
         | "accessories"
         | "compatibility"
         | "spare_parts"
+      product_identity_status_enum:
+        | "unresolved"
+        | "matched"
+        | "merged"
+        | "split_required"
+        | "review_required"
       product_relationship_type:
         | "complementary"
         | "accessory"
@@ -10498,6 +10953,7 @@ export type Database = {
         | "manual"
         | "validation"
         | "missing_data"
+      quality_status_enum: "unvalidated" | "valid" | "warning" | "invalid"
       revenue_action_type:
         | "create_bundle"
         | "add_cross_sell"
@@ -10514,6 +10970,14 @@ export type Database = {
         | "human_requested"
       review_status: "pending" | "in_review" | "approved" | "rejected"
       risk_level: "low" | "medium" | "high"
+      selection_reason_enum:
+        | "source_priority"
+        | "confidence_win"
+        | "human_override"
+        | "schema_rule"
+        | "supplier_rule"
+        | "fallback_rule"
+        | "merge_rule"
       simulation_result_type:
         | "expected_improvement"
         | "expected_decline"
@@ -10799,6 +11263,13 @@ export const Constants = {
         "channel_performance_agent",
       ],
       app_role: ["admin", "user"],
+      assembly_status_enum: [
+        "queued",
+        "assembling",
+        "assembled",
+        "partially_assembled",
+        "error",
+      ],
       asset_review_status_enum: ["unreviewed", "approved", "rejected"],
       asset_source_enum: ["upload", "scrape", "ai_generated", "api", "ocr"],
       asset_status_enum: [
@@ -11007,6 +11478,34 @@ export const Constants = {
         "starter_kit",
         "professional_bundle",
         "upsell_bundle",
+      ],
+      canonical_field_type_enum: [
+        "text",
+        "number",
+        "boolean",
+        "date",
+        "array",
+        "object",
+        "asset_reference",
+        "relationship_reference",
+      ],
+      canonical_relationship_type_enum: [
+        "variation_parent",
+        "variation_child",
+        "accessory",
+        "bundle_component",
+        "bundle_parent",
+        "compatible_with",
+        "alternative",
+        "upsell_candidate",
+        "crosssell_candidate",
+      ],
+      canonical_review_status_enum: [
+        "not_required",
+        "suggested",
+        "required",
+        "approved",
+        "rejected",
       ],
       channel_job_status_enum: ["queued", "running", "completed", "failed"],
       channel_rule_type_enum: [
@@ -11361,6 +11860,13 @@ export const Constants = {
         "compatibility",
         "spare_parts",
       ],
+      product_identity_status_enum: [
+        "unresolved",
+        "matched",
+        "merged",
+        "split_required",
+        "review_required",
+      ],
       product_relationship_type: [
         "complementary",
         "accessory",
@@ -11401,6 +11907,7 @@ export const Constants = {
         "validation",
         "missing_data",
       ],
+      quality_status_enum: ["unvalidated", "valid", "warning", "invalid"],
       revenue_action_type: [
         "create_bundle",
         "add_cross_sell",
@@ -11419,6 +11926,15 @@ export const Constants = {
       ],
       review_status: ["pending", "in_review", "approved", "rejected"],
       risk_level: ["low", "medium", "high"],
+      selection_reason_enum: [
+        "source_priority",
+        "confidence_win",
+        "human_override",
+        "schema_rule",
+        "supplier_rule",
+        "fallback_rule",
+        "merge_rule",
+      ],
       simulation_result_type: [
         "expected_improvement",
         "expected_decline",
