@@ -633,28 +633,37 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
                   ) : (
                     <div className="space-y-4">
-                      {(pages || []).map((page: any) => (
+                      {(pages || []).filter((p: any) => {
+                        const productCount = (p.page_context as any)?.product_count || 0;
+                        const hasContent = (p.raw_text || "").length > 10;
+                        return productCount > 0 || hasContent;
+                      }).map((page: any) => {
+                        const products = (page.vision_result as any)?.products || [];
+                        const pageCtx = page.page_context as any;
+                        const productCount = pageCtx?.product_count || products.length || 0;
+                        return (
                         <Card key={page.id}>
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
-                              <CardTitle className="text-sm">Página {page.page_number}</CardTitle>
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                Página {page.page_number}
+                                {productCount > 0 && (
+                                  <Badge variant="default" className="text-xs">{productCount} produto{productCount !== 1 ? "s" : ""}</Badge>
+                                )}
+                              </CardTitle>
                               <div className="flex items-center gap-2">
-                                {page.has_tables && <Badge>Tabelas</Badge>}
-                                {(page.page_context as any)?.language && (
+                                {pageCtx?.page_type && (
+                                  <Badge variant="outline" className="text-xs">{pageCtx.page_type}</Badge>
+                                )}
+                                {pageCtx?.section_title && (
+                                  <Badge variant="secondary" className="text-xs">{pageCtx.section_title}</Badge>
+                                )}
+                                {pageCtx?.language && (
                                   <Badge variant="outline" className="text-xs flex items-center gap-1">
-                                    <Languages className="h-3 w-3" /> {(page.page_context as any).language?.language || (page.page_context as any).language}
+                                    <Languages className="h-3 w-3" /> {typeof pageCtx.language === "string" ? pageCtx.language : pageCtx.language?.language}
                                   </Badge>
                                 )}
-                                {(page.page_context as any)?.provider && (
-                                  <Badge variant="secondary" className="text-[10px]">{(page.page_context as any).provider}</Badge>
-                                )}
                                 <Badge variant="outline">Confiança: {page.confidence_score}%</Badge>
-                                <Button size="sm" variant="outline" onClick={() => visionParse.mutate(page.id)} disabled={visionParse.isPending}>
-                                  <Brain className="h-3 w-3 mr-1" /> AI Parse
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => { setReconcilePageId(page.id); setActiveTab("reconcile"); }}>
-                                  <GitCompare className="h-3 w-3 mr-1" /> Reconciliar
-                                </Button>
                               </div>
                             </div>
                           </CardHeader>
@@ -662,16 +671,66 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             {(page.zones || []).length > 0 && (
                               <div className="mb-3 flex flex-wrap gap-1">
                                 {(page.zones || []).map((z: any, i: number) => (
-                                  <Badge key={i} variant="outline" className={`text-xs ${zoneColors[z.type] || ""}`}>{z.type}</Badge>
+                                  <Badge key={i} variant="outline" className={`text-xs ${zoneColors[z.type] || ""}`}>
+                                    {z.type || z.content_summary}
+                                  </Badge>
                                 ))}
                               </div>
                             )}
-                            <pre className="text-xs bg-muted p-3 rounded-md max-h-32 overflow-auto whitespace-pre-wrap font-mono">
-                              {(page.raw_text || "").substring(0, 400)}{(page.raw_text || "").length > 400 ? "..." : ""}
-                            </pre>
+                            {/* Show extracted products in a clean table format */}
+                            {products.length > 0 ? (
+                              <div className="overflow-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="text-xs">SKU</TableHead>
+                                      <TableHead className="text-xs">Produto</TableHead>
+                                      <TableHead className="text-xs">Preço</TableHead>
+                                      <TableHead className="text-xs">Categoria</TableHead>
+                                      <TableHead className="text-xs">Confiança</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {products.slice(0, 10).map((prod: any, pi: number) => (
+                                      <TableRow key={pi}>
+                                        <TableCell className="text-xs font-mono">{prod.sku || "—"}</TableCell>
+                                        <TableCell className="text-xs">
+                                          <div className="font-medium">{prod.title || "—"}</div>
+                                          {prod.description && (
+                                            <div className="text-muted-foreground text-[10px] mt-0.5 truncate max-w-xs">{prod.description}</div>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="text-xs">{prod.price ? `${prod.currency || "€"}${prod.price}` : "—"}</TableCell>
+                                        <TableCell className="text-xs">{prod.category || pageCtx?.section_title || "—"}</TableCell>
+                                        <TableCell>
+                                          <div className="flex items-center gap-1">
+                                            {(prod.confidence || 0) >= 80 && <CheckCircle className="h-3 w-3 text-primary" />}
+                                            {(prod.confidence || 0) >= 50 && (prod.confidence || 0) < 80 && <AlertTriangle className="h-3 w-3 text-accent-foreground" />}
+                                            {(prod.confidence || 0) < 50 && <XCircle className="h-3 w-3 text-destructive" />}
+                                            <span className="text-xs">{prod.confidence || 0}%</span>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                                {products.length > 10 && (
+                                  <p className="text-xs text-muted-foreground mt-1">A mostrar 10 de {products.length} produtos</p>
+                                )}
+                              </div>
+                            ) : (
+                              <pre className="text-xs bg-muted p-3 rounded-md max-h-24 overflow-auto whitespace-pre-wrap font-mono">
+                                {(page.raw_text || "Sem conteúdo extraído").substring(0, 300)}
+                              </pre>
+                            )}
                           </CardContent>
                         </Card>
-                      ))}
+                      )})}
+                      {(pages || []).filter((p: any) => ((p.page_context as any)?.product_count || 0) === 0 && (p.raw_text || "").length <= 10).length > 0 && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          {(pages || []).filter((p: any) => ((p.page_context as any)?.product_count || 0) === 0).length} páginas sem produtos (capas, índices, etc.)
+                        </p>
+                      )}
                     </div>
                   )}
                 </ScrollArea>
