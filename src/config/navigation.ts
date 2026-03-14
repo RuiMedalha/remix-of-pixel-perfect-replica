@@ -34,6 +34,7 @@ import {
   Gauge,
   Building2,
   Layers,
+  Scale,
   type LucideIcon,
 } from "lucide-react";
 
