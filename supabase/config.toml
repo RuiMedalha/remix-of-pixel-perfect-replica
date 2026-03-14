@@ -293,3 +293,21 @@ verify_jwt = false
 
 [functions.get-operational-queues]
 verify_jwt = false
+
+[functions.create-supplier-playbook]
+verify_jwt = false
+
+[functions.run-supplier-setup-wizard]
+verify_jwt = false
+
+[functions.test-supplier-connector]
+verify_jwt = false
+
+[functions.validate-supplier-playbook]
+verify_jwt = false
+
+[functions.activate-supplier-playbook]
+verify_jwt = false
+
+[functions.suggest-playbook-template]
+verify_jwt = false
