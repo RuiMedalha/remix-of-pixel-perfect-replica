@@ -87,7 +87,6 @@ export function DataPreviewTable({ products, columns: columnsProp }: Props) {
                       </TableCell>
                     );
                   })}
-                  ))}
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {(product._confidence || 100) >= 80 ? (
