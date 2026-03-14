@@ -3987,6 +3987,183 @@ export type Database = {
           },
         ]
       }
+      conflict_case_items: {
+        Row: {
+          candidate_value: Json | null
+          confidence_score: number | null
+          conflict_case_id: string
+          created_at: string
+          field_name: string | null
+          id: string
+          selection_status: Database["public"]["Enums"]["selection_status_enum"]
+          source_record_id: string | null
+          source_type: string | null
+          validation_status: string | null
+        }
+        Insert: {
+          candidate_value?: Json | null
+          confidence_score?: number | null
+          conflict_case_id: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          selection_status?: Database["public"]["Enums"]["selection_status_enum"]
+          source_record_id?: string | null
+          source_type?: string | null
+          validation_status?: string | null
+        }
+        Update: {
+          candidate_value?: Json | null
+          confidence_score?: number | null
+          conflict_case_id?: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          selection_status?: Database["public"]["Enums"]["selection_status_enum"]
+          source_record_id?: string | null
+          source_type?: string | null
+          validation_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conflict_case_items_conflict_case_id_fkey"
+            columns: ["conflict_case_id"]
+            isOneToOne: false
+            referencedRelation: "conflict_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conflict_cases: {
+        Row: {
+          auto_resolution_status: Database["public"]["Enums"]["auto_resolution_status_enum"]
+          canonical_product_id: string | null
+          conflict_scope: Database["public"]["Enums"]["conflict_scope_enum"]
+          conflict_type: Database["public"]["Enums"]["conflict_type_enum"]
+          created_at: string
+          id: string
+          opened_at: string
+          product_id: string | null
+          requires_human_review: boolean
+          resolved_at: string | null
+          severity: Database["public"]["Enums"]["severity_enum"]
+          status: Database["public"]["Enums"]["conflict_status_enum"]
+          supplier_id: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          auto_resolution_status?: Database["public"]["Enums"]["auto_resolution_status_enum"]
+          canonical_product_id?: string | null
+          conflict_scope?: Database["public"]["Enums"]["conflict_scope_enum"]
+          conflict_type: Database["public"]["Enums"]["conflict_type_enum"]
+          created_at?: string
+          id?: string
+          opened_at?: string
+          product_id?: string | null
+          requires_human_review?: boolean
+          resolved_at?: string | null
+          severity?: Database["public"]["Enums"]["severity_enum"]
+          status?: Database["public"]["Enums"]["conflict_status_enum"]
+          supplier_id?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          auto_resolution_status?: Database["public"]["Enums"]["auto_resolution_status_enum"]
+          canonical_product_id?: string | null
+          conflict_scope?: Database["public"]["Enums"]["conflict_scope_enum"]
+          conflict_type?: Database["public"]["Enums"]["conflict_type_enum"]
+          created_at?: string
+          id?: string
+          opened_at?: string
+          product_id?: string | null
+          requires_human_review?: boolean
+          resolved_at?: string | null
+          severity?: Database["public"]["Enums"]["severity_enum"]
+          status?: Database["public"]["Enums"]["conflict_status_enum"]
+          supplier_id?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conflict_cases_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conflict_cases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conflict_cases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conflict_cases_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conflict_resolution_rules: {
+        Row: {
+          conflict_type: Database["public"]["Enums"]["conflict_type_enum"]
+          created_at: string
+          id: string
+          is_active: boolean
+          resolution_mode: Database["public"]["Enums"]["resolution_mode_enum"]
+          rule_config: Json | null
+          rule_name: string
+          rule_priority: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          conflict_type: Database["public"]["Enums"]["conflict_type_enum"]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          resolution_mode?: Database["public"]["Enums"]["resolution_mode_enum"]
+          rule_config?: Json | null
+          rule_name: string
+          rule_priority?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          conflict_type?: Database["public"]["Enums"]["conflict_type_enum"]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          resolution_mode?: Database["public"]["Enums"]["resolution_mode_enum"]
+          rule_config?: Json | null
+          rule_name?: string
+          rule_priority?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conflict_resolution_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       decision_explanations: {
         Row: {
           confidence: number | null
@@ -4525,6 +4702,95 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "extraction_memory_patterns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      human_review_tasks: {
+        Row: {
+          assigned_to: string | null
+          canonical_product_id: string | null
+          conflict_case_id: string | null
+          created_at: string
+          decision_payload: Json | null
+          due_at: string | null
+          id: string
+          priority: number
+          product_id: string | null
+          resolved_at: string | null
+          review_payload: Json | null
+          review_queue_id: string | null
+          review_reason: string | null
+          status: Database["public"]["Enums"]["review_task_status_enum"]
+          task_type: Database["public"]["Enums"]["task_type_enum"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          canonical_product_id?: string | null
+          conflict_case_id?: string | null
+          created_at?: string
+          decision_payload?: Json | null
+          due_at?: string | null
+          id?: string
+          priority?: number
+          product_id?: string | null
+          resolved_at?: string | null
+          review_payload?: Json | null
+          review_queue_id?: string | null
+          review_reason?: string | null
+          status?: Database["public"]["Enums"]["review_task_status_enum"]
+          task_type: Database["public"]["Enums"]["task_type_enum"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          canonical_product_id?: string | null
+          conflict_case_id?: string | null
+          created_at?: string
+          decision_payload?: Json | null
+          due_at?: string | null
+          id?: string
+          priority?: number
+          product_id?: string | null
+          resolved_at?: string | null
+          review_payload?: Json | null
+          review_queue_id?: string | null
+          review_reason?: string | null
+          status?: Database["public"]["Enums"]["review_task_status_enum"]
+          task_type?: Database["public"]["Enums"]["task_type_enum"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "human_review_tasks_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "human_review_tasks_conflict_case_id_fkey"
+            columns: ["conflict_case_id"]
+            isOneToOne: false
+            referencedRelation: "conflict_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "human_review_tasks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "human_review_tasks_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -7649,6 +7915,62 @@ export type Database = {
           },
         ]
       }
+      publish_approval_rules: {
+        Row: {
+          applies_to_category: string | null
+          applies_to_channel: string | null
+          approval_mode: Database["public"]["Enums"]["approval_mode_enum"]
+          block_on_conflict: boolean
+          created_at: string
+          id: string
+          is_active: boolean
+          min_confidence_score: number | null
+          min_quality_score: number | null
+          require_human_approval: boolean
+          rule_config: Json | null
+          rule_name: string
+          workspace_id: string
+        }
+        Insert: {
+          applies_to_category?: string | null
+          applies_to_channel?: string | null
+          approval_mode?: Database["public"]["Enums"]["approval_mode_enum"]
+          block_on_conflict?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_confidence_score?: number | null
+          min_quality_score?: number | null
+          require_human_approval?: boolean
+          rule_config?: Json | null
+          rule_name: string
+          workspace_id: string
+        }
+        Update: {
+          applies_to_category?: string | null
+          applies_to_channel?: string | null
+          approval_mode?: Database["public"]["Enums"]["approval_mode_enum"]
+          block_on_conflict?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_confidence_score?: number | null
+          min_quality_score?: number | null
+          require_human_approval?: boolean
+          rule_config?: Json | null
+          rule_name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publish_approval_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       publish_job_items: {
         Row: {
           completed_at: string | null
@@ -7929,6 +8251,47 @@ export type Database = {
           },
         ]
       }
+      resolution_history: {
+        Row: {
+          after_state: Json | null
+          before_state: Json | null
+          confidence_delta: number | null
+          conflict_case_id: string
+          created_at: string
+          id: string
+          resolution_action: string | null
+          resolution_source: Database["public"]["Enums"]["resolution_source_enum"]
+        }
+        Insert: {
+          after_state?: Json | null
+          before_state?: Json | null
+          confidence_delta?: number | null
+          conflict_case_id: string
+          created_at?: string
+          id?: string
+          resolution_action?: string | null
+          resolution_source?: Database["public"]["Enums"]["resolution_source_enum"]
+        }
+        Update: {
+          after_state?: Json | null
+          before_state?: Json | null
+          confidence_delta?: number | null
+          conflict_case_id?: string
+          created_at?: string
+          id?: string
+          resolution_action?: string | null
+          resolution_source?: Database["public"]["Enums"]["resolution_source_enum"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resolution_history_conflict_case_id_fkey"
+            columns: ["conflict_case_id"]
+            isOneToOne: false
+            referencedRelation: "conflict_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenue_actions: {
         Row: {
           action_payload: Json | null
@@ -7970,6 +8333,79 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_assignments: {
+        Row: {
+          assigned_by: string | null
+          assigned_user_id: string
+          assignment_reason: string | null
+          created_at: string
+          id: string
+          review_task_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_user_id: string
+          assignment_reason?: string | null
+          created_at?: string
+          id?: string
+          review_task_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_user_id?: string
+          assignment_reason?: string | null
+          created_at?: string
+          id?: string
+          review_task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_assignments_review_task_id_fkey"
+            columns: ["review_task_id"]
+            isOneToOne: false
+            referencedRelation: "human_review_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_decisions: {
+        Row: {
+          approved_by: string
+          created_at: string
+          decision_reason: string | null
+          decision_type: Database["public"]["Enums"]["decision_type_enum"]
+          field_overrides: Json | null
+          id: string
+          review_task_id: string
+        }
+        Insert: {
+          approved_by: string
+          created_at?: string
+          decision_reason?: string | null
+          decision_type: Database["public"]["Enums"]["decision_type_enum"]
+          field_overrides?: Json | null
+          id?: string
+          review_task_id: string
+        }
+        Update: {
+          approved_by?: string
+          created_at?: string
+          decision_reason?: string | null
+          decision_type?: Database["public"]["Enums"]["decision_type_enum"]
+          field_overrides?: Json | null
+          id?: string
+          review_task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_decisions_review_task_id_fkey"
+            columns: ["review_task_id"]
+            isOneToOne: false
+            referencedRelation: "human_review_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -10371,6 +10807,11 @@ export type Database = {
         | "pricing_analyzer"
         | "channel_performance_agent"
       app_role: "admin" | "user"
+      approval_mode_enum:
+        | "auto"
+        | "human_optional"
+        | "human_required"
+        | "blocked"
       assembly_status_enum:
         | "queued"
         | "assembling"
@@ -10425,6 +10866,11 @@ export type Database = {
         | "workspace"
         | "asset"
         | "job"
+      auto_resolution_status_enum:
+        | "not_attempted"
+        | "resolved"
+        | "failed"
+        | "escalated"
       autonomous_action_status:
         | "pending"
         | "approved"
@@ -10616,6 +11062,30 @@ export type Database = {
         | "api_endpoint"
         | "marketplace"
       confidence_source: "ai" | "human" | "import" | "scrape" | "ocr" | "api"
+      conflict_scope_enum:
+        | "field"
+        | "product"
+        | "group"
+        | "category"
+        | "asset_set"
+        | "channel_payload"
+      conflict_status_enum:
+        | "open"
+        | "in_review"
+        | "auto_resolved"
+        | "human_resolved"
+        | "rejected"
+        | "closed"
+      conflict_type_enum:
+        | "source_value_conflict"
+        | "identity_conflict"
+        | "grouping_conflict"
+        | "taxonomy_conflict"
+        | "schema_conflict"
+        | "pricing_conflict"
+        | "asset_conflict"
+        | "publish_conflict"
+        | "channel_conflict"
       correction_type:
         | "value_fix"
         | "column_reassignment"
@@ -10646,6 +11116,16 @@ export type Database = {
         | "rejected"
         | "executed"
         | "expired"
+      decision_type_enum:
+        | "approve"
+        | "reject"
+        | "override"
+        | "defer"
+        | "split"
+        | "merge"
+        | "rebuild"
+        | "block_publish"
+        | "unlock_publish"
       demand_signal_type:
         | "search_volume"
         | "keyword_trend"
@@ -10954,6 +11434,20 @@ export type Database = {
         | "validation"
         | "missing_data"
       quality_status_enum: "unvalidated" | "valid" | "warning" | "invalid"
+      resolution_mode_enum:
+        | "highest_confidence"
+        | "source_priority"
+        | "manual_only"
+        | "schema_first"
+        | "price_rule_first"
+        | "asset_rule_first"
+        | "hybrid"
+      resolution_source_enum:
+        | "system"
+        | "human"
+        | "policy"
+        | "supplier_memory"
+        | "schema_engine"
       revenue_action_type:
         | "create_bundle"
         | "add_cross_sell"
@@ -10969,6 +11463,14 @@ export type Database = {
         | "validation_fail"
         | "human_requested"
       review_status: "pending" | "in_review" | "approved" | "rejected"
+      review_task_status_enum:
+        | "pending"
+        | "assigned"
+        | "in_review"
+        | "approved"
+        | "rejected"
+        | "cancelled"
+        | "done"
       risk_level: "low" | "medium" | "high"
       selection_reason_enum:
         | "source_priority"
@@ -10978,6 +11480,12 @@ export type Database = {
         | "supplier_rule"
         | "fallback_rule"
         | "merge_rule"
+      selection_status_enum:
+        | "candidate"
+        | "selected"
+        | "rejected"
+        | "needs_review"
+      severity_enum: "low" | "medium" | "high" | "critical"
       simulation_result_type:
         | "expected_improvement"
         | "expected_decline"
@@ -11045,6 +11553,15 @@ export type Database = {
         | "api"
         | "woo_export"
         | "image_pack"
+      task_type_enum:
+        | "field_review"
+        | "identity_review"
+        | "grouping_review"
+        | "taxonomy_review"
+        | "pricing_review"
+        | "asset_review"
+        | "publish_approval"
+        | "manual_override"
       taxonomy_mode_enum: "strict" | "mapped" | "inferred" | "hybrid"
       twin_entity_type:
         | "product"
@@ -11263,6 +11780,12 @@ export const Constants = {
         "channel_performance_agent",
       ],
       app_role: ["admin", "user"],
+      approval_mode_enum: [
+        "auto",
+        "human_optional",
+        "human_required",
+        "blocked",
+      ],
       assembly_status_enum: [
         "queued",
         "assembling",
@@ -11323,6 +11846,12 @@ export const Constants = {
         "workspace",
         "asset",
         "job",
+      ],
+      auto_resolution_status_enum: [
+        "not_attempted",
+        "resolved",
+        "failed",
+        "escalated",
       ],
       autonomous_action_status: [
         "pending",
@@ -11533,6 +12062,33 @@ export const Constants = {
         "marketplace",
       ],
       confidence_source: ["ai", "human", "import", "scrape", "ocr", "api"],
+      conflict_scope_enum: [
+        "field",
+        "product",
+        "group",
+        "category",
+        "asset_set",
+        "channel_payload",
+      ],
+      conflict_status_enum: [
+        "open",
+        "in_review",
+        "auto_resolved",
+        "human_resolved",
+        "rejected",
+        "closed",
+      ],
+      conflict_type_enum: [
+        "source_value_conflict",
+        "identity_conflict",
+        "grouping_conflict",
+        "taxonomy_conflict",
+        "schema_conflict",
+        "pricing_conflict",
+        "asset_conflict",
+        "publish_conflict",
+        "channel_conflict",
+      ],
       correction_type: [
         "value_fix",
         "column_reassignment",
@@ -11565,6 +12121,17 @@ export const Constants = {
         "rejected",
         "executed",
         "expired",
+      ],
+      decision_type_enum: [
+        "approve",
+        "reject",
+        "override",
+        "defer",
+        "split",
+        "merge",
+        "rebuild",
+        "block_publish",
+        "unlock_publish",
       ],
       demand_signal_type: [
         "search_volume",
@@ -11908,6 +12475,22 @@ export const Constants = {
         "missing_data",
       ],
       quality_status_enum: ["unvalidated", "valid", "warning", "invalid"],
+      resolution_mode_enum: [
+        "highest_confidence",
+        "source_priority",
+        "manual_only",
+        "schema_first",
+        "price_rule_first",
+        "asset_rule_first",
+        "hybrid",
+      ],
+      resolution_source_enum: [
+        "system",
+        "human",
+        "policy",
+        "supplier_memory",
+        "schema_engine",
+      ],
       revenue_action_type: [
         "create_bundle",
         "add_cross_sell",
@@ -11925,6 +12508,15 @@ export const Constants = {
         "human_requested",
       ],
       review_status: ["pending", "in_review", "approved", "rejected"],
+      review_task_status_enum: [
+        "pending",
+        "assigned",
+        "in_review",
+        "approved",
+        "rejected",
+        "cancelled",
+        "done",
+      ],
       risk_level: ["low", "medium", "high"],
       selection_reason_enum: [
         "source_priority",
@@ -11935,6 +12527,13 @@ export const Constants = {
         "fallback_rule",
         "merge_rule",
       ],
+      selection_status_enum: [
+        "candidate",
+        "selected",
+        "rejected",
+        "needs_review",
+      ],
+      severity_enum: ["low", "medium", "high", "critical"],
       simulation_result_type: [
         "expected_improvement",
         "expected_decline",
@@ -12010,6 +12609,16 @@ export const Constants = {
         "api",
         "woo_export",
         "image_pack",
+      ],
+      task_type_enum: [
+        "field_review",
+        "identity_review",
+        "grouping_review",
+        "taxonomy_review",
+        "pricing_review",
+        "asset_review",
+        "publish_approval",
+        "manual_override",
       ],
       taxonomy_mode_enum: ["strict", "mapped", "inferred", "hybrid"],
       twin_entity_type: [
