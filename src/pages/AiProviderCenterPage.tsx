@@ -111,7 +111,7 @@ export default function AiProviderCenterPage() {
             <Card key={p.id} className={!p.is_active ? "opacity-60" : ""}>
               <CardContent className="flex items-center justify-between p-4 gap-4 flex-wrap">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-2.5 h-2.5 rounded-full ${p.last_health_status === "success" ? "bg-green-500" : p.last_health_status === "error" ? "bg-destructive" : "bg-muted-foreground"}`} />
+                  <div className={`w-2.5 h-2.5 rounded-full ${p.last_health_status === "success" ? "bg-primary" : p.last_health_status === "error" ? "bg-destructive" : "bg-muted-foreground"}`} />
                   <div className="min-w-0">
                     <p className="font-medium text-foreground truncate">{p.provider_name}</p>
                     <p className="text-xs text-muted-foreground">{PROVIDER_TYPES.find(t => t.value === p.provider_type)?.label || p.provider_type} • {p.default_model || "sem modelo"}</p>
