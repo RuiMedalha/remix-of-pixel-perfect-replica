@@ -266,7 +266,9 @@ export default function PDFExtractionPage() {
     return fromPages;
   }, [wizardExtraction?.detected_products, latestWizardPages]);
 
-  const wizardProductCount = reviewProducts.length > 0 ? reviewProducts.length : realProgress.productCount;
+  const productsForReview = reviewDraftProducts ?? reviewProducts;
+  const hasReviewDraftChanges = !!reviewDraftProducts;
+  const wizardProductCount = productsForReview.length > 0 ? productsForReview.length : realProgress.productCount;
 
   const extractionStatus = wizardExtraction?.status;
 
