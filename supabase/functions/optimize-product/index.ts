@@ -745,7 +745,8 @@ Devolve os índices dos 6 excertos mais relevantes, priorizando:
             });
 
             if (rerankResponse.ok) {
-              const rerankData = await rerankResponse.json();
+              const rerankWrapper = await rerankResponse.json();
+              const rerankData = rerankWrapper.result || rerankWrapper;
               const rerankCall = rerankData.choices?.[0]?.message?.tool_calls?.[0];
               if (rerankCall) {
                 const { selected_indices, reasoning } = JSON.parse(rerankCall.function.arguments);
