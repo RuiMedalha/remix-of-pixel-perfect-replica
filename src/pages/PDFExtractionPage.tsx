@@ -595,7 +595,11 @@ export default function PDFExtractionPage() {
                         )}
 
                         {canProceedToReview && (
-                          <div className="flex justify-center mt-1">
+                          <div className="flex justify-center gap-2 mt-1">
+                            <Button size="sm" variant="default" onClick={handleFinalizeExtraction} disabled={isFinishing}>
+                              {isFinishing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Square className="h-3 w-3 mr-1" />}
+                              Terminar extração
+                            </Button>
                             <Button size="sm" variant="secondary" onClick={() => setWizardStep("review")}>
                               <ArrowRight className="h-3 w-3 mr-1" />
                               Continuar para revisão
@@ -605,6 +609,7 @@ export default function PDFExtractionPage() {
 
                         <p className="text-[10px] text-muted-foreground text-center mt-2">
                           Podes sair desta página — a extração continua em segundo plano.
+                        </p>
                         </p>
                       </div>
                     </>
