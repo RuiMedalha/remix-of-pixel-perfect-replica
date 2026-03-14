@@ -169,7 +169,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
                     <TableCell><Badge variant="outline">{m.suggested_field}</Badge></TableCell>
                     <TableCell>{Math.round(m.confidence * 100)}%</TableCell>
                     <TableCell>
-                      {m.accepted === true && <Badge className="bg-green-500/10 text-green-600">Aceite</Badge>}
+                      {m.accepted === true && <Badge variant="default">Aceite</Badge>}
                       {m.accepted === false && <Badge variant="destructive">Rejeitado</Badge>}
                       {m.accepted === null && <Badge variant="secondary">Pendente</Badge>}
                     </TableCell>
