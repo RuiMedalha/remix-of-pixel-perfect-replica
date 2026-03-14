@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -129,19 +129,17 @@ Also translate these if present:
 - tags: ${JSON.stringify(product.tags || [])}
 - faq: ${JSON.stringify(product.faq || [])}`;
 
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.3,
+          taskType: "content_translation",
+          workspaceId: workspace_id,
+          systemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
         }),
       });
 
@@ -151,8 +149,8 @@ Also translate these if present:
         throw new Error(`AI error ${status}: ${errText}`);
       }
 
-      const aiData = await aiResp.json();
-      const content = aiData.choices?.[0]?.message?.content || "";
+      const routeData = await aiResp.json();
+      const content = routeData.result?.choices?.[0]?.message?.content || "";
       
       // Parse JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);

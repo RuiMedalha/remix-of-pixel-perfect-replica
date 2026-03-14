@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import {
   Server, Plus, Trash2, TestTube, CheckCircle, XCircle, Loader2,
-  Cpu, Route, Activity, Zap, Shield, Brain, Settings2,
+  Cpu, Route, Activity, Zap, Shield, Brain, Settings2, Info, BookOpen,
 } from "lucide-react";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import {
@@ -84,6 +84,35 @@ export default function AiProviderCenterPage() {
         <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground"><Server className="w-6 h-6" /> AI Provider Center</h1>
         <p className="text-muted-foreground">Centro unificado de gestão de providers, modelos e routing de IA</p>
       </div>
+
+      {/* Setup Guide */}
+      {(providers.data || []).length === 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" /> Guia de Configuração Rápida</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">1. Provider (esta página)</p>
+                <p>Adicione um provider de IA. O <strong>Lovable AI Gateway</strong> funciona sem API key — já está integrado.</p>
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">2. Routing (tab AI Routing)</p>
+                <p>Mapeie cada tarefa (categorização, SEO, PDFs…) ao provider e modelo ideal. Já foram criadas {totalRoutes} regras automáticas.</p>
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">3. Prompts (Prompt Governance)</p>
+                <p>Crie e versione os prompts no menu <strong>Prompt Governance</strong>. Associe-os às regras de routing.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 bg-muted/50 p-3 rounded-lg mt-2">
+              <Info className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+              <p>Para providers externos (OpenAI, Gemini, Anthropic), a API key é guardada no campo de configuração do provider. O Lovable Gateway não precisa de chave.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
