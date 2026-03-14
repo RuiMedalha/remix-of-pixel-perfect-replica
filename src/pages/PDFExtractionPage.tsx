@@ -116,6 +116,12 @@ export default function PDFExtractionPage() {
   const { data: wizardExtraction } = useQuery({
     queryKey: ["wizard-extraction", wizardExtractionId],
     enabled: !!wizardExtractionId,
+    refetchInterval: (query) => {
+      const ext = query.state.data as any;
+      // Keep polling if extraction is in progress or detected_products not yet populated
+      if (ext && ["queued", "extracting", "processing"].includes(ext.status)) return 3000;
+      return false;
+    },
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pdf_extractions")
@@ -126,6 +132,22 @@ export default function PDFExtractionPage() {
       return data as any;
     },
   });
+
+  // Get pages to count products from vision_result as fallback
+  const { data: wizardPages } = usePdfPages(wizardExtractionId);
+  
+  // Compute product count: prefer detected_products, fallback to counting from pages
+  const wizardProductCount = (() => {
+    const dp = wizardExtraction?.detected_products as any[];
+    if (dp?.length) return dp.length;
+    if (!wizardPages) return 0;
+    let count = 0;
+    wizardPages.forEach((p: any) => {
+      const products = (p.vision_result as any)?.products || [];
+      count += products.filter((prod: any) => prod.title || prod.sku).length;
+    });
+    return count;
+  })();
 
   // Step 1: Start extraction
   const handleStartWizard = async () => {
