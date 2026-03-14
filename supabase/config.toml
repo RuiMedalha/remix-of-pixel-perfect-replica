@@ -356,3 +356,6 @@ verify_jwt = false
 
 [functions.extract-product-attributes]
 verify_jwt = false
+
+[functions.generate-product-description]
+verify_jwt = false
