@@ -325,35 +325,79 @@ export default function PDFExtractionPage() {
           {/* Step: Extracting (auto, shows progress) */}
           {wizardStep === "extracting" && (
             <Card>
-              <CardContent className="py-12">
-                <div className="flex flex-col items-center gap-4">
+              <CardContent className="py-8">
+                <div className="flex flex-col items-center gap-5 max-w-md mx-auto">
                   {extractionStatus === "error" ? (
                     <>
                       <XCircle className="h-10 w-10 text-destructive" />
                       <p className="text-sm font-medium">Erro na extração</p>
-                      <Button variant="outline" onClick={resetWizard}>
-                        <Upload className="h-4 w-4 mr-2" /> Tentar novamente
-                      </Button>
+                      {realProgress.extractedPages > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {realProgress.extractedPages} páginas foram extraídas antes do erro ({realProgress.productCount} produtos encontrados)
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <Button variant="default" onClick={handleResumeExtraction}>
+                          <ArrowRight className="h-4 w-4 mr-2" /> Retomar extração
+                        </Button>
+                        <Button variant="outline" onClick={resetWizard}>
+                          <Upload className="h-4 w-4 mr-2" /> Recomeçar
+                        </Button>
+                      </div>
                     </>
                   ) : (
                     <>
                       <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                      <div className="text-center space-y-1">
-                        <p className="text-sm font-medium">A extrair produtos do PDF com AI Vision...</p>
-                        <p className="text-xs text-muted-foreground">
-                          {wizardExtraction?.processed_pages || 0} / {wizardExtraction?.total_pages || "?"} páginas processadas
-                        </p>
-                        {wizardExtraction?.total_pages > 0 && (
-                          <div className="w-64 mx-auto mt-2">
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary rounded-full transition-all duration-500"
-                                style={{ width: `${Math.round(((wizardExtraction?.processed_pages || 0) / wizardExtraction.total_pages) * 100)}%` }}
-                              />
+                      <div className="w-full space-y-3">
+                        <div className="text-center">
+                          <p className="text-sm font-medium">A extrair produtos do PDF com AI Vision...</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {(wizardExtraction as any)?.uploaded_files?.file_name || "PDF"}
+                          </p>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="space-y-1.5">
+                          <Progress value={realProgress.pct} className="h-2.5" />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{realProgress.extractedPages} de {realProgress.totalPages || "?"} páginas</span>
+                            <span>{realProgress.pct}%</span>
+                          </div>
+                        </div>
+
+                        {/* Stats cards */}
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          <div className="bg-muted rounded-lg p-2.5 text-center">
+                            <p className="text-lg font-bold text-foreground">{realProgress.productCount}</p>
+                            <p className="text-[10px] text-muted-foreground">Produtos</p>
+                          </div>
+                          <div className="bg-muted rounded-lg p-2.5 text-center">
+                            <p className="text-lg font-bold text-foreground">{realProgress.extractedPages}</p>
+                            <p className="text-[10px] text-muted-foreground">Páginas OK</p>
+                          </div>
+                          <div className="bg-muted rounded-lg p-2.5 text-center">
+                            <p className="text-lg font-bold text-foreground">{realProgress.errorPages}</p>
+                            <p className="text-[10px] text-muted-foreground">Erros</p>
+                          </div>
+                        </div>
+
+                        {/* Stalled warning */}
+                        {isStalled && (
+                          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center space-y-2">
+                            <div className="flex items-center justify-center gap-2">
+                              <AlertTriangle className="h-4 w-4 text-destructive" />
+                              <p className="text-xs font-medium text-destructive">Extração parece ter parado</p>
                             </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              Processadas {realProgress.extractedPages} de {realProgress.totalPages} páginas. A função pode ter expirado.
+                            </p>
+                            <Button size="sm" onClick={handleResumeExtraction}>
+                              <ArrowRight className="h-3 w-3 mr-1" /> Retomar de onde parou
+                            </Button>
                           </div>
                         )}
-                        <p className="text-[10px] text-muted-foreground mt-2">
+
+                        <p className="text-[10px] text-muted-foreground text-center mt-2">
                           Podes sair desta página — a extração continua em segundo plano.
                         </p>
                       </div>
