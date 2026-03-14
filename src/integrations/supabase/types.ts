@@ -5355,6 +5355,71 @@ export type Database = {
           },
         ]
       }
+      document_ai_providers: {
+        Row: {
+          config: Json | null
+          created_at: string
+          default_model: string | null
+          estimated_cost_per_page: number | null
+          id: string
+          is_active: boolean
+          max_pages: number | null
+          priority_order: number
+          provider_name: string
+          provider_type: string
+          supports_json_schema: boolean
+          supports_tables: boolean
+          supports_vision: boolean
+          timeout_seconds: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          default_model?: string | null
+          estimated_cost_per_page?: number | null
+          id?: string
+          is_active?: boolean
+          max_pages?: number | null
+          priority_order?: number
+          provider_name: string
+          provider_type?: string
+          supports_json_schema?: boolean
+          supports_tables?: boolean
+          supports_vision?: boolean
+          timeout_seconds?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          default_model?: string | null
+          estimated_cost_per_page?: number | null
+          id?: string
+          is_active?: boolean
+          max_pages?: number | null
+          priority_order?: number
+          provider_name?: string
+          provider_type?: string
+          supports_json_schema?: boolean
+          supports_tables?: boolean
+          supports_vision?: boolean
+          timeout_seconds?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_ai_providers_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           context: Json | null
@@ -7660,43 +7725,67 @@ export type Database = {
       }
       pdf_extractions: {
         Row: {
+          actual_cost: number | null
+          archived_at: string | null
           completed_at: string | null
           created_at: string
+          estimated_cost: number | null
           extraction_method:
             | Database["public"]["Enums"]["pdf_extraction_method"]
             | null
+          extraction_mode: string | null
+          fallback_provider: string | null
+          fallback_used: boolean | null
           file_id: string
           id: string
           model_used: string | null
           processed_pages: number | null
+          provider_model: string | null
+          provider_used: string | null
           status: Database["public"]["Enums"]["pdf_extraction_status"]
           total_pages: number | null
           workspace_id: string
         }
         Insert: {
+          actual_cost?: number | null
+          archived_at?: string | null
           completed_at?: string | null
           created_at?: string
+          estimated_cost?: number | null
           extraction_method?:
             | Database["public"]["Enums"]["pdf_extraction_method"]
             | null
+          extraction_mode?: string | null
+          fallback_provider?: string | null
+          fallback_used?: boolean | null
           file_id: string
           id?: string
           model_used?: string | null
           processed_pages?: number | null
+          provider_model?: string | null
+          provider_used?: string | null
           status?: Database["public"]["Enums"]["pdf_extraction_status"]
           total_pages?: number | null
           workspace_id: string
         }
         Update: {
+          actual_cost?: number | null
+          archived_at?: string | null
           completed_at?: string | null
           created_at?: string
+          estimated_cost?: number | null
           extraction_method?:
             | Database["public"]["Enums"]["pdf_extraction_method"]
             | null
+          extraction_mode?: string | null
+          fallback_provider?: string | null
+          fallback_used?: boolean | null
           file_id?: string
           id?: string
           model_used?: string | null
           processed_pages?: number | null
+          provider_model?: string | null
+          provider_used?: string | null
           status?: Database["public"]["Enums"]["pdf_extraction_status"]
           total_pages?: number | null
           workspace_id?: string
