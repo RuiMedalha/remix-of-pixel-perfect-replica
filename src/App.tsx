@@ -102,6 +102,7 @@ function ProtectedRoutes() {
           <Route path="/agent-registry" element={<AgentRegistryPage />} />
           <Route path="/product-identity" element={<ProductIdentityPage />} />
           <Route path="/ai-governance" element={<AiGovernancePage />} />
+          <Route path="/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
