@@ -347,3 +347,6 @@ verify_jwt = false
 
 [functions.classify-product]
 verify_jwt = false
+
+[functions.match-supplier-product]
+verify_jwt = false
