@@ -129,19 +129,17 @@ Also translate these if present:
 - tags: ${JSON.stringify(product.tags || [])}
 - faq: ${JSON.stringify(product.faq || [])}`;
 
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.3,
+          taskType: "content_translation",
+          workspaceId: workspace_id,
+          systemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
         }),
       });
 
