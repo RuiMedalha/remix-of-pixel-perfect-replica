@@ -37,7 +37,7 @@ export function PDFUploadDropzone({ onFileUploaded }: PDFUploadDropzoneProps) {
         .from("uploaded_files")
         .insert({
           file_name: file.name,
-          file_type: "application/pdf",
+          file_type: "products",
           file_size: file.size,
           storage_path: storagePath,
           user_id: user.id,
