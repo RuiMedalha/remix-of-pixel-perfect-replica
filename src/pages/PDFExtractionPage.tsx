@@ -459,7 +459,7 @@ export default function PDFExtractionPage() {
             <div className="space-y-4">
               <DataPreviewTable
                 products={(wizardExtraction?.detected_products as any[]) || []}
-                columns={columnMappings.map((c) => c.header)}
+                columns={columnMappings.length > 0 ? columnMappings.map((c) => c.header) : undefined}
               />
               <div className="flex gap-3">
                 <Button onClick={() => setWizardStep("ingestion")}>
