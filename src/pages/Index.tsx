@@ -92,6 +92,9 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {/* Intelligence Dashboard */}
+      <IntelligenceDashboardPanel />
+
       {/* Credits Card */}
       <Card>
         <CardHeader>
