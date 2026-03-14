@@ -167,20 +167,42 @@ export default function PDFExtractionPage() {
     return realProgress.productCount;
   })();
 
-  // Detect stalled extraction (no progress for 60s while status is still extracting)
-  const [extractionStartedAt] = useState(() => Date.now());
+  // Detect stalled extraction and auto-resume
+  const [autoResumeAttempts, setAutoResumeAttempts] = useState(0);
+  const [lastResumeTime, setLastResumeTime] = useState(0);
+  const MAX_AUTO_RESUMES = 5;
+
   const isStalled = useMemo(() => {
     if (!wizardExtraction) return false;
     const status = wizardExtraction.status;
     if (!["extracting", "processing"].includes(status)) return false;
-    // If created_at is > 2 min ago and processed_pages hasn't changed from what pdf_pages shows
     const createdAt = new Date(wizardExtraction.created_at).getTime();
     const elapsed = Date.now() - createdAt;
     const totalPages = wizardExtraction.total_pages || 0;
     const extracted = realProgress.extractedPages;
-    // Consider stalled if: has been running > 3 min AND not all pages done AND < totalPages
     return elapsed > 180000 && extracted > 0 && extracted < totalPages;
   }, [wizardExtraction, realProgress.extractedPages]);
+
+  // Auto-resume: when stalled is detected, automatically trigger resume (up to MAX attempts)
+  useEffect(() => {
+    if (!isStalled || !wizardExtractionId) return;
+    if (autoResumeAttempts >= MAX_AUTO_RESUMES) return;
+    // Don't resume more than once per 90s
+    if (Date.now() - lastResumeTime < 90000) return;
+
+    console.log(`Auto-resuming extraction (attempt ${autoResumeAttempts + 1}/${MAX_AUTO_RESUMES})`);
+    toast.info(`A retomar extração automaticamente (tentativa ${autoResumeAttempts + 1})...`);
+    setAutoResumeAttempts(prev => prev + 1);
+    setLastResumeTime(Date.now());
+
+    supabase.functions.invoke("extract-pdf-pages", {
+      body: { extractionId: wizardExtractionId },
+    }).then(() => {
+      toast.success("Extração retomada com sucesso");
+    }).catch((err) => {
+      console.error("Auto-resume error:", err);
+    });
+  }, [isStalled, wizardExtractionId, autoResumeAttempts, lastResumeTime]);
 
   // Step 1: Start extraction — goes straight to extracting
   const handleStartWizard = async () => {
@@ -189,6 +211,8 @@ export default function PDFExtractionPage() {
       const result = await startExtraction.mutateAsync(selectedFileId);
       setWizardExtractionId(result.extractionId);
       setWizardStep("extracting");
+      setAutoResumeAttempts(0);
+      setLastResumeTime(0);
     } catch {}
   };
 
@@ -205,10 +229,12 @@ export default function PDFExtractionPage() {
     setWizardStep("review");
   }
 
-  // Resume a stalled extraction
+  // Resume a stalled extraction (manual)
   const handleResumeExtraction = async () => {
     if (!wizardExtractionId) return;
     toast.info("A retomar extração...");
+    setAutoResumeAttempts(0);
+    setLastResumeTime(Date.now());
     supabase.functions.invoke("extract-pdf-pages", {
       body: { extractionId: wizardExtractionId },
     }).then(() => {
@@ -381,18 +407,31 @@ export default function PDFExtractionPage() {
                           </div>
                         </div>
 
-                        {/* Stalled warning */}
+                        {/* Stalled warning — auto-resume active */}
                         {isStalled && (
-                          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center space-y-2">
+                          <div className={`border rounded-lg p-3 text-center space-y-2 ${
+                            autoResumeAttempts >= MAX_AUTO_RESUMES 
+                              ? "bg-destructive/10 border-destructive/20" 
+                              : "bg-primary/5 border-primary/20"
+                          }`}>
                             <div className="flex items-center justify-center gap-2">
-                              <AlertTriangle className="h-4 w-4 text-destructive" />
-                              <p className="text-xs font-medium text-destructive">Extração parece ter parado</p>
+                              {autoResumeAttempts >= MAX_AUTO_RESUMES ? (
+                                <>
+                                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                                  <p className="text-xs font-medium text-destructive">Auto-retoma esgotada ({MAX_AUTO_RESUMES} tentativas)</p>
+                                </>
+                              ) : (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                  <p className="text-xs font-medium text-primary">A retomar automaticamente (tentativa {autoResumeAttempts}/{MAX_AUTO_RESUMES})</p>
+                                </>
+                              )}
                             </div>
                             <p className="text-[10px] text-muted-foreground">
-                              Processadas {realProgress.extractedPages} de {realProgress.totalPages} páginas. A função pode ter expirado.
+                              {realProgress.extractedPages} de {realProgress.totalPages} páginas processadas — {realProgress.totalPages - realProgress.extractedPages} restantes
                             </p>
-                            <Button size="sm" onClick={handleResumeExtraction}>
-                              <ArrowRight className="h-3 w-3 mr-1" /> Retomar de onde parou
+                            <Button size="sm" variant={autoResumeAttempts >= MAX_AUTO_RESUMES ? "default" : "outline"} onClick={handleResumeExtraction}>
+                              <ArrowRight className="h-3 w-3 mr-1" /> Retomar manualmente
                             </Button>
                           </div>
                         )}
