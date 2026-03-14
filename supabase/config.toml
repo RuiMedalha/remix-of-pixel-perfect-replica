@@ -368,3 +368,6 @@ verify_jwt = false
 
 [functions.optimize-product-seo]
 verify_jwt = false
+
+[functions.transform-for-channel]
+verify_jwt = false
