@@ -781,7 +781,8 @@ ${truncatedMd}${variationHtml}`;
     }
 
     const aiData = await response.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const responseData = aiData.result || aiData;
+    const toolCall = responseData.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall?.function?.arguments) {
       console.error("No tool call in AI response");
