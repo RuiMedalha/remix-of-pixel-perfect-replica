@@ -59,8 +59,8 @@ Deno.serve(async (req) => {
         });
 
         if (aiResp.ok) {
-          const aiData = await aiResp.json();
-          const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+          const routeData = await aiResp.json();
+          const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall) {
             const parsed = JSON.parse(toolCall.function.arguments);
             for (const i of parsed.insights || []) {
