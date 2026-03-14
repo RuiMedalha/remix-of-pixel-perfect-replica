@@ -33,6 +33,23 @@ import { MappingEditor } from "@/components/document-intelligence/MappingEditor"
 import { DataPreviewTable } from "@/components/document-intelligence/DataPreviewTable";
 import { SendToIngestionPanel } from "@/components/document-intelligence/SendToIngestionPanel";
 
+// Flatten nested product structures like [{products: [...], section_title: "..."}] into flat product arrays
+function flattenProducts(items: any[]): any[] {
+  if (!Array.isArray(items)) return [];
+  const flat: any[] = [];
+  for (const item of items) {
+    if (item && Array.isArray(item.products)) {
+      // This is a section object — flatten its products and carry section_title as category
+      for (const p of item.products) {
+        flat.push({ ...p, category: p.category || item.section_title });
+      }
+    } else if (item && typeof item === "object" && !Array.isArray(item)) {
+      flat.push(item);
+    }
+  }
+  return flat;
+}
+
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   queued: { label: "Na fila", variant: "secondary" },
   extracting: { label: "A extrair", variant: "default" },
