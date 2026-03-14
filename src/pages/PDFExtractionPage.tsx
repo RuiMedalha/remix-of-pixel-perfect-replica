@@ -801,14 +801,14 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                               </CardTitle>
                               <div className="flex items-center gap-2">
                                 {pageCtx?.page_type && (
-                                  <Badge variant="outline" className="text-xs">{pageCtx.page_type}</Badge>
+                                  <Badge variant="outline" className="text-xs">{toDisplayText(pageCtx.page_type, "N/A")}</Badge>
                                 )}
                                 {pageCtx?.section_title && (
-                                  <Badge variant="secondary" className="text-xs">{pageCtx.section_title}</Badge>
+                                  <Badge variant="secondary" className="text-xs">{toDisplayText(pageCtx.section_title, "Secção")}</Badge>
                                 )}
                                 {pageCtx?.language && (
                                   <Badge variant="outline" className="text-xs flex items-center gap-1">
-                                    <Languages className="h-3 w-3" /> {typeof pageCtx.language === "string" ? pageCtx.language : pageCtx.language?.language}
+                                    <Languages className="h-3 w-3" /> {toDisplayText(typeof pageCtx.language === "string" ? pageCtx.language : pageCtx.language?.language, "—")}
                                   </Badge>
                                 )}
                                 <Badge variant="outline">Confiança: {page.confidence_score}%</Badge>
