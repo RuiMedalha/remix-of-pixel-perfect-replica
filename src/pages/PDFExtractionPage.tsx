@@ -17,7 +17,6 @@ import {
 import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts, useDeletePdfExtraction } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
 import {
-  useRunDocumentIntelligence, useAnalyzePdfLayout, useSaveExtractionMappingRules,
   useSendExtractionToIngestion,
 } from "@/hooks/useDocumentIntelligence";
 import { useQuery } from "@tanstack/react-query";
