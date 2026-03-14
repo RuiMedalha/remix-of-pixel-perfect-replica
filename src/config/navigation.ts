@@ -30,6 +30,7 @@ import {
   ArrowDownUp,
   FileCode,
   Cpu,
+  Fingerprint,
   type LucideIcon,
 } from "lucide-react";
 
