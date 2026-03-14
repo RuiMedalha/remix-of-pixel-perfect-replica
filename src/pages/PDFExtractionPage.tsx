@@ -795,11 +795,17 @@ export default function PDFExtractionPage() {
                   <TableBody>
                     {activeExtractions.map((ext: any) => {
                       const sc = statusConfig[ext.status] || statusConfig.queued;
+                      const canOpenWizard = ["queued", "extracting", "processing", "reviewing", "done", "error"].includes(ext.status);
+                      const canSendFromHistory = ["reviewing", "done"].includes(ext.status) && !ext.sent_to_ingestion;
+                      const processedPages = Number(ext.processed_pages || 0) > 0
+                        ? Number(ext.processed_pages)
+                        : (["reviewing", "done"].includes(ext.status) ? Number(ext.total_pages || 0) : 0);
+
                       return (
                         <TableRow key={ext.id}>
                           <TableCell className="font-medium text-sm">{ext.uploaded_files?.file_name || "—"}</TableCell>
                           <TableCell><Badge variant={sc.variant}>{sc.label}</Badge></TableCell>
-                          <TableCell className="text-sm">{ext.processed_pages}/{ext.total_pages}</TableCell>
+                          <TableCell className="text-sm">{processedPages}/{ext.total_pages || 0}</TableCell>
                           <TableCell className="text-xs">{ext.provider_used || "—"}</TableCell>
                           <TableCell className="text-xs">{ext.provider_model || ext.model_used || "—"}</TableCell>
                           <TableCell><Badge variant="outline" className="text-[10px]">{ext.extraction_mode || "auto"}</Badge></TableCell>
@@ -819,15 +825,20 @@ export default function PDFExtractionPage() {
                               <Button size="sm" variant="outline" onClick={() => setSelectedExtraction(ext.id)}>
                                 <Eye className="h-3 w-3" />
                               </Button>
-                              {["extracting", "processing"].includes(ext.status) && (
-                                <Button size="sm" variant="outline" className="text-primary" onClick={() => {
-                                  setWizardExtractionId(ext.id);
-                                  setWizardStep("extracting");
-                                  setActiveTab("wizard");
-                                }}>
-                                  <ArrowRight className="h-3 w-3" />
-                                </Button>
+
+                              {canOpenWizard && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="outline" className="text-primary" onClick={() => openExtractionInWizard(ext)}>
+                                      <ArrowRight className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {ext.sent_to_ingestion ? "Abrir estado de ingestão" : "Abrir revisão/ingestão no fluxo"}
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
+
                               {["extracting", "processing"].includes(ext.status) && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -843,16 +854,28 @@ export default function PDFExtractionPage() {
                                   <TooltipContent>Retomar extração</TooltipContent>
                                 </Tooltip>
                               )}
-                              {ext.status === "reviewing" && (
+
+                              {canSendFromHistory && (
                                 <>
-                                  <Button size="sm" variant="outline" onClick={() => mapToProducts.mutate({ extractionId: ext.id })}>
-                                    <Table2 className="h-3 w-3" />
-                                  </Button>
-                                  <Button size="sm" onClick={() => mapToProducts.mutate({ extractionId: ext.id, sendToIngestion: true })}>
-                                    <Send className="h-3 w-3" />
-                                  </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="sm" variant="outline" onClick={() => mapToProducts.mutate({ extractionId: ext.id })}>
+                                        <Table2 className="h-3 w-3" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Recompilar produtos</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="sm" onClick={() => mapToProducts.mutate({ extractionId: ext.id, sendToIngestion: true })}>
+                                        <Send className="h-3 w-3" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Enviar para ingestão</TooltipContent>
+                                  </Tooltip>
                                 </>
                               )}
+
                               <ExtractionActionsDropdown extraction={ext} onViewDetails={setSelectedExtraction} />
                               <Button
                                 size="sm"
