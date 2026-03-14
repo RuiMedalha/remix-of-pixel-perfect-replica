@@ -178,7 +178,7 @@ export default function PDFExtractionPage() {
     setWizardStep("upload");
     setWizardExtractionId(null);
     setSelectedFileId("");
-    setColumnMappings([]);
+    
   };
 
   // Quick extraction from history table
