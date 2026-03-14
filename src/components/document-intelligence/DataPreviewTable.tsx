@@ -12,10 +12,36 @@ interface DetectedProduct {
 
 interface Props {
   products: DetectedProduct[];
-  columns: string[];
+  columns?: string[];
 }
 
-export function DataPreviewTable({ products, columns }: Props) {
+const DISPLAY_LABELS: Record<string, string> = {
+  sku: "SKU", original_title: "Título", original_description: "Descrição",
+  original_price: "Preço", category: "Categoria", dimensions: "Dimensões",
+  weight: "Peso", material: "Material", title: "Título", description: "Descrição",
+  price: "Preço", color_options: "Cores", technical_specs: "Especificações",
+};
+
+export function DataPreviewTable({ products, columns: columnsProp }: Props) {
+  if (!products?.length) return null;
+
+  // Auto-detect columns from product keys, excluding internal fields
+  const columns = columnsProp || (() => {
+    const keys = new Set<string>();
+    products.slice(0, 10).forEach((p) => {
+      Object.keys(p).forEach((k) => {
+        if (!k.startsWith("_") && k !== "confidence" && k !== "images" && k !== "currency") keys.add(k);
+      });
+    });
+    // Prioritize common fields
+    const priority = ["sku", "title", "original_title", "description", "original_description", "original_price", "price", "category", "material", "dimensions", "weight"];
+    const sorted = [...keys].sort((a, b) => {
+      const ai = priority.indexOf(a);
+      const bi = priority.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    return sorted;
+  })();
   if (!products?.length) return null;
 
   const lowConfidence = products.filter((p) => (p._confidence || 0) < 60);
