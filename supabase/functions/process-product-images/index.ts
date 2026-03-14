@@ -113,15 +113,17 @@ Deno.serve(async (req) => {
                 const prompt = `Place this product in a realistic, professional commercial environment. The product should be the main focus, centered and prominent. The environment should match the product category - for example, kitchen equipment in a modern professional kitchen, furniture in an elegant room. Professional lighting, high quality commercial photography style. Product: ${productName}`;
 
                 const aiResp = await fetch(
-                  "https://ai.gateway.lovable.dev/v1/chat/completions",
+                  `${supabaseUrl}/functions/v1/resolve-ai-route`,
                   {
                     method: "POST",
                     headers: {
-                      Authorization: `Bearer ${lovableKey}`,
                       "Content-Type": "application/json",
+                      "Authorization": `Bearer ${serviceKey}`,
                     },
                     body: JSON.stringify({
-                      model: "google/gemini-3.1-flash-image-preview",
+                      taskType: "image_lifestyle_generation",
+                      workspaceId,
+                      modelOverride: "google/gemini-3.1-flash-image-preview",
                       messages: [
                         {
                           role: "user",
@@ -134,7 +136,9 @@ Deno.serve(async (req) => {
                           ],
                         },
                       ],
-                      modalities: ["image", "text"],
+                      options: {
+                        modalities: ["image", "text"],
+                      },
                     }),
                   }
                 );
