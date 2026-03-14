@@ -750,7 +750,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                         const hasContent = (p.raw_text || "").length > 10;
                         return productCount > 0 || hasContent;
                       }).map((page: any) => {
-                        const products = (page.vision_result as any)?.products || [];
+                        const products = flattenProducts((page.vision_result as any)?.products || []);
                         const pageCtx = page.page_context as any;
                         const productCount = pageCtx?.product_count || products.length || 0;
                         return (
