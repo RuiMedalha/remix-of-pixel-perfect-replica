@@ -7,8 +7,7 @@ const corsHeaders = {
 };
 
 const CHUNK_SIZE = 3;
-const MAX_CHUNK_CONCURRENCY = 2;
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
+const MAX_CHUNK_CONCURRENCY = 1;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
