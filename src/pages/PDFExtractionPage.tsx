@@ -15,7 +15,7 @@ import {
   Table2, Layers, GitCompare, Shield, BarChart3, Languages, Settings2, ArrowRight,
   Scan, MapPin, Database, Package, Trash2,
 } from "lucide-react";
-import { usePdfExtractions, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts, useDeletePdfExtraction } from "@/hooks/usePdfExtraction";
+import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts, useDeletePdfExtraction } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
 import {
   useSendExtractionToIngestion,
