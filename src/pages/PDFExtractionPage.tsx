@@ -223,21 +223,40 @@ export default function PDFExtractionPage() {
     return realProgress.productCount;
   })();
 
+  const extractionStatus = wizardExtraction?.status;
+
   // Detect stalled extraction and auto-resume
   const [autoResumeAttempts, setAutoResumeAttempts] = useState(0);
   const [lastResumeTime, setLastResumeTime] = useState(0);
+  const [lastProgressAt, setLastProgressAt] = useState(Date.now());
+  const [lastExtractedCount, setLastExtractedCount] = useState(0);
   const MAX_AUTO_RESUMES = 5;
+
+  const extractionCompletedByProgress =
+    realProgress.totalPages > 0 && realProgress.extractedPages >= realProgress.totalPages;
+  const canProceedToReview = wizardProductCount > 0 || realProgress.extractedPages > 0;
+
+  useEffect(() => {
+    setLastProgressAt(Date.now());
+    setLastExtractedCount(0);
+  }, [wizardExtractionId]);
+
+  useEffect(() => {
+    if (realProgress.extractedPages > lastExtractedCount) {
+      setLastExtractedCount(realProgress.extractedPages);
+      setLastProgressAt(Date.now());
+    }
+  }, [realProgress.extractedPages, lastExtractedCount]);
 
   const isStalled = useMemo(() => {
     if (!wizardExtraction) return false;
     const status = wizardExtraction.status;
     if (!["extracting", "processing"].includes(status)) return false;
-    const createdAt = new Date(wizardExtraction.created_at).getTime();
-    const elapsed = Date.now() - createdAt;
     const totalPages = wizardExtraction.total_pages || 0;
     const extracted = realProgress.extractedPages;
-    return elapsed > 180000 && extracted > 0 && extracted < totalPages;
-  }, [wizardExtraction, realProgress.extractedPages]);
+    const elapsedSinceProgress = Date.now() - lastProgressAt;
+    return elapsedSinceProgress > 180000 && extracted > 0 && extracted < totalPages;
+  }, [wizardExtraction, realProgress.extractedPages, lastProgressAt]);
 
   // Auto-resume: when stalled is detected, automatically trigger resume (up to MAX attempts)
   useEffect(() => {
@@ -276,14 +295,17 @@ export default function PDFExtractionPage() {
     setSelectedFileId(fileId);
   };
 
-  // Auto-advance: when extraction finishes (status=reviewing) and detected_products is populated, go to review
-  const extractionStatus = wizardExtraction?.status;
-  const hasDetectedProducts = ((wizardExtraction?.detected_products as any[])?.length || 0) > 0;
-  
-  // Auto-advance to review when extraction is done
-  if (wizardStep === "extracting" && extractionStatus === "reviewing" && (hasDetectedProducts || realProgress.productCount > 0)) {
-    setWizardStep("review");
-  }
+  // Auto-advance to review when extraction is done or when all pages are already available
+  useEffect(() => {
+    if (wizardStep !== "extracting") return;
+
+    const backendReady = extractionStatus === "reviewing" && canProceedToReview;
+    const progressReady = extractionCompletedByProgress;
+
+    if (backendReady || progressReady) {
+      setWizardStep("review");
+    }
+  }, [wizardStep, extractionStatus, canProceedToReview, extractionCompletedByProgress]);
 
   // Resume a stalled extraction (manual)
   const handleResumeExtraction = async () => {
@@ -488,6 +510,15 @@ export default function PDFExtractionPage() {
                             </p>
                             <Button size="sm" variant={autoResumeAttempts >= MAX_AUTO_RESUMES ? "default" : "outline"} onClick={handleResumeExtraction}>
                               <ArrowRight className="h-3 w-3 mr-1" /> Retomar manualmente
+                            </Button>
+                          </div>
+                        )}
+
+                        {canProceedToReview && (
+                          <div className="flex justify-center mt-1">
+                            <Button size="sm" variant="secondary" onClick={() => setWizardStep("review")}>
+                              <ArrowRight className="h-3 w-3 mr-1" />
+                              Continuar para revisão
                             </Button>
                           </div>
                         )}
