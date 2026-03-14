@@ -129,8 +129,8 @@ Return a JSON array of detected bundles.`;
       throw new Error(`AI error ${status}: ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const routeData = await aiResponse.json();
+    const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
     let bundles: any[] = [];
 
     if (toolCall?.function?.arguments) {
