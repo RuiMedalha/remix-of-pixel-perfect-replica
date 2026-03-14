@@ -278,6 +278,7 @@ export default function PDFExtractionPage() {
   const extractionCompletedByProgress =
     realProgress.totalPages > 0 && realProgress.extractedPages >= realProgress.totalPages;
   const canProceedToReview = wizardProductCount > 0 || realProgress.extractedPages > 0;
+  const [isFinishing, setIsFinishing] = useState(false);
 
   useEffect(() => {
     setLastProgressAt(Date.now());
@@ -295,17 +296,18 @@ export default function PDFExtractionPage() {
     if (!wizardExtraction) return false;
     const status = wizardExtraction.status;
     if (!["extracting", "processing"].includes(status)) return false;
+    if (extractionCompletedByProgress) return false; // not stalled if complete
     const totalPages = wizardExtraction.total_pages || 0;
     const extracted = realProgress.extractedPages;
     const elapsedSinceProgress = Date.now() - lastProgressAt;
     return elapsedSinceProgress > 180000 && extracted > 0 && extracted < totalPages;
-  }, [wizardExtraction, realProgress.extractedPages, lastProgressAt]);
+  }, [wizardExtraction, realProgress.extractedPages, lastProgressAt, extractionCompletedByProgress]);
 
   // Auto-resume: when stalled is detected, automatically trigger resume (up to MAX attempts)
   useEffect(() => {
     if (!isStalled || !wizardExtractionId) return;
+    if (extractionCompletedByProgress) return; // don't resume if already done
     if (autoResumeAttempts >= MAX_AUTO_RESUMES) return;
-    // Don't resume more than once per 90s
     if (Date.now() - lastResumeTime < 90000) return;
 
     console.log(`Auto-resuming extraction (attempt ${autoResumeAttempts + 1}/${MAX_AUTO_RESUMES})`);
@@ -320,7 +322,37 @@ export default function PDFExtractionPage() {
     }).catch((err) => {
       console.error("Auto-resume error:", err);
     });
-  }, [isStalled, wizardExtractionId, autoResumeAttempts, lastResumeTime]);
+  }, [isStalled, wizardExtractionId, autoResumeAttempts, lastResumeTime, extractionCompletedByProgress]);
+
+  // Auto-finalize: when all pages are extracted but status is still extracting/processing, finalize
+  useEffect(() => {
+    if (!wizardExtractionId || !extractionCompletedByProgress || isFinishing) return;
+    const status = wizardExtraction?.status;
+    if (!status || !["extracting", "processing"].includes(status)) return;
+
+    console.log("All pages extracted — auto-finalizing extraction");
+    handleFinalizeExtraction();
+  }, [extractionCompletedByProgress, wizardExtraction?.status, wizardExtractionId, isFinishing]);
+
+  // Finalize: update status to reviewing and compile products
+  const handleFinalizeExtraction = async () => {
+    if (!wizardExtractionId || isFinishing) return;
+    setIsFinishing(true);
+    try {
+      // Mark as reviewing
+      await supabase.from("pdf_extractions").update({ status: "reviewing" }).eq("id", wizardExtractionId);
+      // Compile products
+      await supabase.functions.invoke("map-pdf-to-products", {
+        body: { extractionId: wizardExtractionId },
+      });
+      toast.success("Extração finalizada — produtos compilados");
+    } catch (err) {
+      console.error("Finalize error:", err);
+      toast.error("Erro ao finalizar extração");
+    } finally {
+      setIsFinishing(false);
+    }
+  };
 
   // Step 1: Start extraction — goes straight to extracting
   const handleStartWizard = async () => {
@@ -338,21 +370,26 @@ export default function PDFExtractionPage() {
     setSelectedFileId(fileId);
   };
 
-  // Auto-advance to review when extraction is done or when all pages are already available
+  // Auto-advance to review when extraction is done
   useEffect(() => {
     if (wizardStep !== "extracting") return;
 
     const backendReady = extractionStatus === "reviewing" && canProceedToReview;
-    const progressReady = extractionCompletedByProgress;
+    const progressReady = extractionCompletedByProgress && canProceedToReview;
 
     if (backendReady || progressReady) {
       setWizardStep("review");
     }
   }, [wizardStep, extractionStatus, canProceedToReview, extractionCompletedByProgress]);
 
-  // Resume a stalled extraction (manual)
+  // Resume a stalled extraction (manual) — only if not already complete
   const handleResumeExtraction = async () => {
     if (!wizardExtractionId) return;
+    if (extractionCompletedByProgress) {
+      toast.info("Todas as páginas já foram extraídas — a finalizar...");
+      handleFinalizeExtraction();
+      return;
+    }
     toast.info("A retomar extração...");
     setAutoResumeAttempts(0);
     setLastResumeTime(Date.now());
