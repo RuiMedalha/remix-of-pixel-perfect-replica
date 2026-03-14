@@ -207,9 +207,23 @@ Return ONLY valid JSON.`,
     }
 
     const processingTime = Date.now() - startTime;
+    // Compute totals from results
+    let totalPagesProcessed = 0;
+    let totalTablesCreated = 0;
+    let totalRowsExtracted = 0;
+    let confidenceSum = 0;
+    for (const r of results) {
+      if (r.ok && r.result) {
+        totalPagesProcessed += r.result.pagesProcessed || 0;
+        totalTablesCreated += r.result.tablesCreated || 0;
+        totalRowsExtracted += r.result.rowsExtracted || 0;
+        confidenceSum += r.result.confidenceSum || 0;
+      }
+    }
+
     await supabase.from("pdf_extractions").update({
-      status: "reviewing",
-      processed_pages: totalPagesProcessed,
+      status: "processing",
+      processed_pages: cumulativeProcessed,
       extraction_mode: "ai_vision_chunked",
       provider_used: "Lovable AI Gateway",
       provider_model: "google/gemini-2.5-flash",
@@ -226,9 +240,33 @@ Return ONLY valid JSON.`,
       processing_time: processingTime,
     });
 
+    // Auto-compile: run map-pdf-to-products to populate detected_products
+    console.log("Auto-compiling products from extraction...");
+    try {
+      const mapResp = await fetch(`${supabaseUrl}/functions/v1/map-pdf-to-products`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          extractionId,
+          workspaceId: extraction.workspace_id,
+        }),
+      });
+      const mapResult = mapResp.ok ? await mapResp.json() : null;
+      console.log(`Auto-compile result: ${mapResult?.rowsMapped || 0} products compiled`);
+    } catch (mapErr) {
+      console.error("Auto-compile failed:", mapErr);
+      // Still mark as reviewing even if compile fails
+    }
+
+    // Final status update
+    await supabase.from("pdf_extractions").update({ status: "reviewing" }).eq("id", extractionId);
+
     return new Response(JSON.stringify({
       success: true, extractionId, totalPages,
-      pagesProcessed: totalPagesProcessed + alreadyDone.size,
+      pagesProcessed: cumulativeProcessed,
       pagesResumed: alreadyDone.size,
       pagesNewlyExtracted: totalPagesProcessed,
       tablesDetected: totalTablesCreated,
