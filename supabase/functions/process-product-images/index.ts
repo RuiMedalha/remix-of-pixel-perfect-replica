@@ -232,7 +232,8 @@ Deno.serve(async (req) => {
                 }
               );
 
-              const aiData = await aiResp.json();
+              const aiWrapper = await aiResp.json();
+              const aiData = aiWrapper.result || aiWrapper;
               const optimizedImage =
                 aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
