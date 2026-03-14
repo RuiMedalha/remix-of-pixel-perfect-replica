@@ -29,6 +29,7 @@ import {
   Workflow,
   ArrowDownUp,
   FileCode,
+  Cpu,
   type LucideIcon,
 } from "lucide-react";
 
@@ -120,6 +121,7 @@ export const navGroups: NavGroup[] = [
       { title: "Orquestração AI", icon: Workflow, route: "/orquestracao" },
       { title: "Source Priority", icon: ArrowDownUp, route: "/source-priority" },
       { title: "Prompt Governance", icon: FileCode, route: "/prompt-governance" },
+      { title: "Agent Registry", icon: Cpu, route: "/agent-registry" },
     ],
   },
   {

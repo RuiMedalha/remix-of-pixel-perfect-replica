@@ -39,6 +39,7 @@ import AutonomousCommercePage from "./pages/AutonomousCommercePage";
 import OrchestrationPage from "./pages/OrchestrationPage";
 import SourcePriorityPage from "./pages/SourcePriorityPage";
 import PromptGovernancePage from "./pages/PromptGovernancePage";
+import AgentRegistryPage from "./pages/AgentRegistryPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -95,6 +96,7 @@ function ProtectedRoutes() {
           <Route path="/orquestracao" element={<OrchestrationPage />} />
           <Route path="/source-priority" element={<SourcePriorityPage />} />
           <Route path="/prompt-governance" element={<PromptGovernancePage />} />
+          <Route path="/agent-registry" element={<AgentRegistryPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

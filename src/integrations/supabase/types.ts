@@ -110,6 +110,38 @@ export type Database = {
           },
         ]
       }
+      agent_capabilities: {
+        Row: {
+          agent_id: string
+          capability_description: string | null
+          capability_name: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          agent_id: string
+          capability_description?: string | null
+          capability_name: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          agent_id?: string
+          capability_description?: string | null
+          capability_name?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_capabilities_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_decision_memory: {
         Row: {
           agent_type: Database["public"]["Enums"]["agent_type_enum"]
@@ -151,6 +183,57 @@ export type Database = {
           },
         ]
       }
+      agent_execution_logs: {
+        Row: {
+          agent_id: string
+          confidence_score: number | null
+          cost_estimate: number | null
+          created_at: string
+          execution_time: number | null
+          id: string
+          input_payload: Json | null
+          output_payload: Json | null
+          run_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          confidence_score?: number | null
+          cost_estimate?: number | null
+          created_at?: string
+          execution_time?: number | null
+          id?: string
+          input_payload?: Json | null
+          output_payload?: Json | null
+          run_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          confidence_score?: number | null
+          cost_estimate?: number | null
+          created_at?: string
+          execution_time?: number | null
+          id?: string
+          input_payload?: Json | null
+          output_payload?: Json | null
+          run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_execution_logs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_execution_logs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "orchestration_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_policies: {
         Row: {
           actions: Json | null
@@ -188,6 +271,54 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "agent_policies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_profiles: {
+        Row: {
+          agent_name: string
+          agent_type: string
+          created_at: string
+          default_prompt_template: string | null
+          description: string | null
+          id: string
+          model_preference: string | null
+          workspace_id: string
+        }
+        Insert: {
+          agent_name: string
+          agent_type?: string
+          created_at?: string
+          default_prompt_template?: string | null
+          description?: string | null
+          id?: string
+          model_preference?: string | null
+          workspace_id: string
+        }
+        Update: {
+          agent_name?: string
+          agent_type?: string
+          created_at?: string
+          default_prompt_template?: string | null
+          description?: string | null
+          id?: string
+          model_preference?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_profiles_default_prompt_template_fkey"
+            columns: ["default_prompt_template"]
+            isOneToOne: false
+            referencedRelation: "prompt_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_profiles_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
