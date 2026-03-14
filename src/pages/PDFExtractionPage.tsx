@@ -8,10 +8,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Upload, Eye, Brain, Send, Loader2, CheckCircle, AlertTriangle, XCircle, Table2, Layers, GitCompare, Shield, BarChart3, Languages, ImageIcon, Settings2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  FileText, Upload, Eye, Brain, Send, Loader2, CheckCircle, AlertTriangle, XCircle,
+  Table2, Layers, GitCompare, Shield, BarChart3, Languages, Settings2, ArrowRight,
+  Scan, MapPin, Database, Package,
+} from "lucide-react";
 import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
-import { useRunDocumentIntelligence } from "@/hooks/useDocumentIntelligence";
+import {
+  useRunDocumentIntelligence, useAnalyzePdfLayout, useSaveExtractionMappingRules,
+  useSendExtractionToIngestion,
+} from "@/hooks/useDocumentIntelligence";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,6 +27,11 @@ import { PDFUploadDropzone } from "@/components/document-intelligence/PDFUploadD
 import { ExtractionPipelineViewer } from "@/components/document-intelligence/ExtractionPipelineViewer";
 import { ExtractionActionsDropdown, ProviderModeSelector } from "@/components/document-intelligence/ExtractionActions";
 import { DocumentIntelligenceProviderPanel } from "@/components/document-intelligence/DocumentIntelligenceProviderPanel";
+import { DocumentPreviewPanel } from "@/components/document-intelligence/DocumentPreviewPanel";
+import { EngineRecommendationCard } from "@/components/document-intelligence/EngineRecommendationCard";
+import { MappingEditor } from "@/components/document-intelligence/MappingEditor";
+import { DataPreviewTable } from "@/components/document-intelligence/DataPreviewTable";
+import { SendToIngestionPanel } from "@/components/document-intelligence/SendToIngestionPanel";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   queued: { label: "Na fila", variant: "secondary" },
@@ -61,29 +74,190 @@ const tableTypeLabels: Record<string, string> = {
   spare_parts: "Peças",
 };
 
+// Wizard steps
+type WizardStep = "upload" | "analysis" | "engine" | "mapping" | "preview" | "ingestion";
+
+const WIZARD_STEPS: { key: WizardStep; label: string; icon: React.ElementType }[] = [
+  { key: "upload", label: "Upload", icon: Upload },
+  { key: "analysis", label: "Análise", icon: Scan },
+  { key: "engine", label: "Motor AI", icon: Brain },
+  { key: "mapping", label: "Mapeamento", icon: MapPin },
+  { key: "preview", label: "Preview", icon: Package },
+  { key: "ingestion", label: "Ingestão", icon: Database },
+];
+
 export default function PDFExtractionPage() {
   const { data: extractions, isLoading } = usePdfExtractions();
   const { data: files } = useUploadedFiles();
   const startExtraction = useStartPdfExtraction();
   const mapToProducts = useMapPdfToProducts();
   const runDocIntel = useRunDocumentIntelligence();
+  const analyzeLayout = useAnalyzePdfLayout();
+  const saveMappingRules = useSaveExtractionMappingRules();
+  const sendToIngestion = useSendExtractionToIngestion();
+
   const [selectedExtraction, setSelectedExtraction] = useState<string | null>(null);
   const [selectedFileId, setSelectedFileId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState("extractions");
+  const [activeTab, setActiveTab] = useState("wizard");
   const [executionMode, setExecutionMode] = useState("auto");
   const [manualProvider, setManualProvider] = useState("");
+
+  // Wizard state
+  const [wizardStep, setWizardStep] = useState<WizardStep>("upload");
+  const [wizardExtractionId, setWizardExtractionId] = useState<string | null>(null);
+  const [selectedEngine, setSelectedEngine] = useState("lovable_gateway");
+  const [columnMappings, setColumnMappings] = useState<Array<{ header: string; mappedTo: string; confidence: number; sampleValues: string[] }>>([]);
 
   const pdfFiles = (files || []).filter(f => f.file_type === "application/pdf" || f.file_name?.endsWith(".pdf"));
   const activeExtractions = (extractions || []).filter((e: any) => !e.archived_at);
 
-  const handleStartExtraction = () => {
+  // Get current wizard extraction details
+  const { data: wizardExtraction } = useQuery({
+    queryKey: ["wizard-extraction", wizardExtractionId],
+    enabled: !!wizardExtractionId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pdf_extractions")
+        .select("*, uploaded_files:file_id(file_name)")
+        .eq("id", wizardExtractionId!)
+        .single();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  // Step 1: Start extraction
+  const handleStartWizard = async () => {
     if (!selectedFileId) { toast.error("Seleciona um ficheiro PDF"); return; }
-    startExtraction.mutate(selectedFileId);
-    setSelectedFileId("");
+    try {
+      const result = await startExtraction.mutateAsync(selectedFileId);
+      setWizardExtractionId(result.extractionId);
+      setWizardStep("analysis");
+      // Auto-trigger layout analysis
+      setTimeout(() => {
+        analyzeLayout.mutate(result.extractionId);
+      }, 2000); // Wait for extraction to complete
+    } catch {}
   };
 
   const handleFileUploaded = (fileId: string) => {
     setSelectedFileId(fileId);
+  };
+
+  // Step 2: Analysis done, move to engine recommendation
+  const handleAnalysisComplete = () => {
+    if (wizardExtraction?.engine_recommendation) {
+      setSelectedEngine(wizardExtraction.engine_recommendation.recommended || "lovable_gateway");
+    }
+    setWizardStep("engine");
+  };
+
+  // Step 3: Run extraction with selected engine
+  const handleRunExtraction = async () => {
+    if (!wizardExtractionId) return;
+    try {
+      await runDocIntel.mutateAsync({
+        extractionId: wizardExtractionId,
+        mode: selectedEngine === "lovable_gateway" ? "auto" : "manual",
+        manualProvider: selectedEngine,
+      });
+      // Build mapping columns from extraction results
+      buildMappingFromExtraction();
+      setWizardStep("mapping");
+    } catch {}
+  };
+
+  // Build column mappings from extracted tables
+  const buildMappingFromExtraction = async () => {
+    if (!wizardExtractionId) return;
+    const { data: pages } = await supabase
+      .from("pdf_pages")
+      .select("vision_result")
+      .eq("extraction_id", wizardExtractionId);
+
+    const allHeaders = new Set<string>();
+    const sampleData: Record<string, string[]> = {};
+
+    (pages || []).forEach((p: any) => {
+      const tables = (p.vision_result as any)?.tables || [];
+      tables.forEach((t: any) => {
+        (t.headers || []).forEach((h: string) => {
+          allHeaders.add(h);
+          if (!sampleData[h]) sampleData[h] = [];
+          (t.rows || []).slice(0, 3).forEach((r: any) => {
+            const idx = (t.headers || []).indexOf(h);
+            if (idx >= 0 && r[idx]) sampleData[h].push(String(r[idx]));
+          });
+        });
+      });
+    });
+
+    const autoMap: Record<string, string> = {};
+    allHeaders.forEach((h) => {
+      const lower = h.toLowerCase();
+      if (lower.includes("sku") || lower === "ref") autoMap[h] = "sku";
+      else if (lower.includes("nome") || lower.includes("title") || lower.includes("designação")) autoMap[h] = "product_name";
+      else if (lower.includes("preço") || lower.includes("price") || lower === "pvp") autoMap[h] = "price";
+      else if (lower.includes("desc")) autoMap[h] = "description";
+      else if (lower.includes("potência") || lower.includes("power")) autoMap[h] = "power";
+      else if (lower.includes("peso") || lower.includes("weight")) autoMap[h] = "weight";
+      else if (lower.includes("dim")) autoMap[h] = "dimension";
+      else if (lower.includes("categ")) autoMap[h] = "category";
+      else autoMap[h] = "attribute";
+    });
+
+    setColumnMappings(
+      Array.from(allHeaders).map((h) => ({
+        header: h,
+        mappedTo: autoMap[h] || "attribute",
+        confidence: autoMap[h] && autoMap[h] !== "attribute" ? 85 : 50,
+        sampleValues: sampleData[h] || [],
+      }))
+    );
+  };
+
+  const handleMappingChange = (header: string, mappedTo: string) => {
+    setColumnMappings((prev) =>
+      prev.map((c) => c.header === header ? { ...c, mappedTo, confidence: 100 } : c)
+    );
+  };
+
+  const handleSaveMappings = async () => {
+    if (!wizardExtractionId) return;
+    await saveMappingRules.mutateAsync({
+      extractionId: wizardExtractionId,
+      rules: columnMappings.map((c, i) => ({
+        field_label: c.header,
+        mapped_to: c.mappedTo,
+        confidence: c.confidence,
+        column_index: i,
+      })),
+    });
+    setWizardStep("preview");
+  };
+
+  const handleSendToIngestion = async (config: { mergeStrategy: string; dupFields: string }) => {
+    if (!wizardExtractionId) return;
+    await sendToIngestion.mutateAsync({
+      extractionId: wizardExtractionId,
+      mergeStrategy: config.mergeStrategy,
+      dupFields: config.dupFields,
+    });
+    setWizardStep("ingestion");
+  };
+
+  const resetWizard = () => {
+    setWizardStep("upload");
+    setWizardExtractionId(null);
+    setSelectedFileId("");
+    setColumnMappings([]);
+  };
+
+  // Quick extraction from history table
+  const handleQuickExtraction = () => {
+    if (!selectedFileId) { toast.error("Seleciona um ficheiro PDF"); return; }
+    startExtraction.mutate(selectedFileId);
+    setSelectedFileId("");
   };
 
   return (
@@ -91,64 +265,216 @@ export default function PDFExtractionPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Document Intelligence</h1>
-          <p className="text-muted-foreground">Motor enterprise de extração PDF com provider abstraction, fallback chain e observabilidade completa</p>
+          <p className="text-muted-foreground">Extração enterprise de dados de catálogos PDF com preview, validação e integração com Ingestion Hub</p>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="extractions">Extrações</TabsTrigger>
-          <TabsTrigger value="providers">Providers</TabsTrigger>
+          <TabsTrigger value="wizard" className="gap-2"><Layers className="h-4 w-4" /> Fluxo Assistido</TabsTrigger>
+          <TabsTrigger value="extractions" className="gap-2"><FileText className="h-4 w-4" /> Histórico</TabsTrigger>
+          <TabsTrigger value="providers" className="gap-2"><Settings2 className="h-4 w-4" /> Providers</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="extractions" className="space-y-6">
-          {/* Upload & New Extraction */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base"><Upload className="h-5 w-5" /> Upload Direto de PDF</CardTitle>
-                <CardDescription>Arraste um PDF ou clique para selecionar</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PDFUploadDropzone onFileUploaded={handleFileUploaded} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base"><FileText className="h-5 w-5" /> Nova Extração</CardTitle>
-                <CardDescription>Selecione um PDF já carregado e inicie a extração</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Select value={selectedFileId} onValueChange={setSelectedFileId}>
-                  <SelectTrigger><SelectValue placeholder="Seleciona um PDF..." /></SelectTrigger>
-                  <SelectContent>
-                    {pdfFiles.map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.file_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex items-center gap-2">
-                  <ProviderModeSelector
-                    mode={executionMode}
-                    onModeChange={setExecutionMode}
-                    manualProvider={manualProvider}
-                    onManualProviderChange={setManualProvider}
-                  />
+        {/* ═══════════════ WIZARD TAB ═══════════════ */}
+        <TabsContent value="wizard" className="space-y-6">
+          {/* Step indicator */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-2">
+            {WIZARD_STEPS.map((step, i) => {
+              const StepIcon = step.icon;
+              const isActive = step.key === wizardStep;
+              const stepIdx = WIZARD_STEPS.findIndex((s) => s.key === wizardStep);
+              const isDone = i < stepIdx;
+              return (
+                <div key={step.key} className="flex items-center gap-1">
+                  {i > 0 && <div className={`w-6 h-px ${isDone ? "bg-primary" : "bg-border"}`} />}
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                      isActive ? "bg-primary text-primary-foreground" :
+                      isDone ? "bg-primary/10 text-primary" :
+                      "bg-muted text-muted-foreground"
+                    }`}
+                    onClick={() => { if (isDone) setWizardStep(step.key); }}
+                  >
+                    {isDone ? <CheckCircle className="h-3 w-3" /> : <StepIcon className="h-3 w-3" />}
+                    {step.label}
+                  </div>
                 </div>
-                <Button onClick={handleStartExtraction} disabled={startExtraction.isPending || !selectedFileId} className="w-full">
-                  {startExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-                  Extrair com Document Intelligence
-                </Button>
-              </CardContent>
-            </Card>
+              );
+            })}
           </div>
 
-          {/* Extractions Table with Observability */}
+          {/* Step: Upload */}
+          {wizardStep === "upload" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base"><Upload className="h-5 w-5" /> Upload Direto de PDF</CardTitle>
+                  <CardDescription>Arraste um PDF ou clique para selecionar</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PDFUploadDropzone onFileUploaded={handleFileUploaded} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base"><FileText className="h-5 w-5" /> Selecionar PDF Existente</CardTitle>
+                  <CardDescription>Escolha um PDF já carregado na biblioteca</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Select value={selectedFileId} onValueChange={setSelectedFileId}>
+                    <SelectTrigger><SelectValue placeholder="Seleciona um PDF..." /></SelectTrigger>
+                    <SelectContent>
+                      {pdfFiles.map(f => (
+                        <SelectItem key={f.id} value={f.id}>{f.file_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={handleStartWizard} disabled={startExtraction.isPending || !selectedFileId} className="w-full">
+                    {startExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRight className="h-4 w-4 mr-2" />}
+                    Iniciar Análise do Documento
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Step: Analysis */}
+          {wizardStep === "analysis" && (
+            <div className="space-y-4">
+              <DocumentPreviewPanel analysis={wizardExtraction?.layout_analysis} />
+
+              {analyzeLayout.isPending ? (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-8 gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">A analisar layout do documento...</span>
+                  </CardContent>
+                </Card>
+              ) : wizardExtraction?.layout_analysis ? (
+                <div className="flex gap-3">
+                  <Button onClick={handleAnalysisComplete}>
+                    <ArrowRight className="h-4 w-4 mr-2" /> Escolher Motor de Extração
+                  </Button>
+                  <Button variant="outline" onClick={() => analyzeLayout.mutate(wizardExtractionId!)}>
+                    Reanalisar
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={() => analyzeLayout.mutate(wizardExtractionId!)} disabled={analyzeLayout.isPending}>
+                  <Scan className="h-4 w-4 mr-2" /> Analisar Layout
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Step: Engine selection */}
+          {wizardStep === "engine" && (
+            <EngineRecommendationCard
+              recommendation={wizardExtraction?.engine_recommendation}
+              selectedEngine={selectedEngine}
+              onEngineChange={setSelectedEngine}
+              onAccept={handleRunExtraction}
+              isProcessing={runDocIntel.isPending}
+            />
+          )}
+
+          {/* Step: Mapping */}
+          {wizardStep === "mapping" && (
+            <div className="space-y-4">
+              {columnMappings.length > 0 ? (
+                <MappingEditor
+                  columns={columnMappings}
+                  onMappingChange={handleMappingChange}
+                  onSave={handleSaveMappings}
+                  onReset={buildMappingFromExtraction}
+                  isSaving={saveMappingRules.isPending}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <p className="text-muted-foreground">Nenhuma coluna detetada — a extração poderá não ter encontrado tabelas.</p>
+                    <Button variant="outline" className="mt-3" onClick={() => setWizardStep("preview")}>
+                      Avançar sem mapeamento
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* Step: Preview */}
+          {wizardStep === "preview" && (
+            <div className="space-y-4">
+              <DataPreviewTable
+                products={(wizardExtraction?.detected_products as any[]) || []}
+                columns={columnMappings.map((c) => c.header)}
+              />
+              <div className="flex gap-3">
+                <Button onClick={() => setWizardStep("ingestion")}>
+                  <ArrowRight className="h-4 w-4 mr-2" /> Enviar para Ingestão
+                </Button>
+                <Button variant="outline" onClick={() => setWizardStep("mapping")}>
+                  Voltar ao Mapeamento
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step: Ingestion */}
+          {wizardStep === "ingestion" && (
+            <div className="space-y-4">
+              <SendToIngestionPanel
+                productCount={(wizardExtraction?.detected_products as any[])?.length || 0}
+                onSendToIngestion={handleSendToIngestion}
+                isSending={sendToIngestion.isPending}
+                alreadySent={wizardExtraction?.sent_to_ingestion}
+              />
+              {wizardExtraction?.sent_to_ingestion && (
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={resetWizard}>
+                    <Upload className="h-4 w-4 mr-2" /> Novo Documento
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ═══════════════ HISTORY TAB ═══════════════ */}
+        <TabsContent value="extractions" className="space-y-6">
+          {/* Quick extraction */}
           <Card>
             <CardHeader>
-              <CardTitle>Extrações</CardTitle>
+              <CardTitle className="text-base">Extração Rápida</CardTitle>
+              <CardDescription>Sem fluxo assistido — extrai diretamente</CardDescription>
             </CardHeader>
+            <CardContent className="flex items-center gap-3">
+              <Select value={selectedFileId} onValueChange={setSelectedFileId}>
+                <SelectTrigger className="w-64"><SelectValue placeholder="Seleciona PDF..." /></SelectTrigger>
+                <SelectContent>
+                  {pdfFiles.map(f => (
+                    <SelectItem key={f.id} value={f.id}>{f.file_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <ProviderModeSelector
+                mode={executionMode}
+                onModeChange={setExecutionMode}
+                manualProvider={manualProvider}
+                onManualProviderChange={setManualProvider}
+              />
+              <Button onClick={handleQuickExtraction} disabled={startExtraction.isPending || !selectedFileId}>
+                {startExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+                Extrair
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Extractions Table */}
+          <Card>
+            <CardHeader><CardTitle>Histórico de Extrações</CardTitle></CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -165,6 +491,7 @@ export default function PDFExtractionPage() {
                       <TableHead>Modelo</TableHead>
                       <TableHead>Modo</TableHead>
                       <TableHead>Fallback</TableHead>
+                      <TableHead>Ingestão</TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
@@ -177,17 +504,18 @@ export default function PDFExtractionPage() {
                           <TableCell className="font-medium text-sm">{ext.uploaded_files?.file_name || "—"}</TableCell>
                           <TableCell><Badge variant={sc.variant}>{sc.label}</Badge></TableCell>
                           <TableCell className="text-sm">{ext.processed_pages}/{ext.total_pages}</TableCell>
-                          <TableCell className="text-xs">{ext.provider_used || "Lovable Gateway"}</TableCell>
+                          <TableCell className="text-xs">{ext.provider_used || "—"}</TableCell>
                           <TableCell className="text-xs">{ext.provider_model || ext.model_used || "—"}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-[10px]">{ext.extraction_mode || "auto"}</Badge>
-                          </TableCell>
+                          <TableCell><Badge variant="outline" className="text-[10px]">{ext.extraction_mode || "auto"}</Badge></TableCell>
                           <TableCell>
                             {ext.fallback_used ? (
                               <Badge variant="secondary" className="text-[10px]">{ext.fallback_provider}</Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
+                            ) : <span className="text-xs text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            {ext.sent_to_ingestion ? (
+                              <Badge variant="default" className="text-[10px]">Enviado</Badge>
+                            ) : <span className="text-xs text-muted-foreground">—</span>}
                           </TableCell>
                           <TableCell className="text-xs">{new Date(ext.created_at).toLocaleDateString("pt-PT")}</TableCell>
                           <TableCell>
@@ -205,10 +533,7 @@ export default function PDFExtractionPage() {
                                   </Button>
                                 </>
                               )}
-                              <ExtractionActionsDropdown
-                                extraction={ext}
-                                onViewDetails={setSelectedExtraction}
-                              />
+                              <ExtractionActionsDropdown extraction={ext} onViewDetails={setSelectedExtraction} />
                             </div>
                           </TableCell>
                         </TableRow>
@@ -221,6 +546,7 @@ export default function PDFExtractionPage() {
           </Card>
         </TabsContent>
 
+        {/* ═══════════════ PROVIDERS TAB ═══════════════ */}
         <TabsContent value="providers">
           <DocumentIntelligenceProviderPanel />
         </TabsContent>
@@ -241,15 +567,10 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
   const [activeTab, setActiveTab] = useState("pages");
   const [reconcilePageId, setReconcilePageId] = useState<string | null>(null);
 
-  // Extraction details
   const { data: extraction } = useQuery({
     queryKey: ["pdf-extraction-detail", extractionId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pdf_extractions")
-        .select("*")
-        .eq("id", extractionId)
-        .single();
+      const { data, error } = await supabase.from("pdf_extractions").select("*").eq("id", extractionId).single();
       if (error) throw error;
       return data;
     },
@@ -258,12 +579,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
   const { data: metrics } = useQuery({
     queryKey: ["pdf-extraction-metrics", extractionId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pdf_extraction_metrics" as any)
-        .select("*")
-        .eq("extraction_id", extractionId)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      const { data, error } = await supabase.from("pdf_extraction_metrics" as any).select("*").eq("extraction_id", extractionId).order("created_at", { ascending: false }).limit(1);
       if (error) return null;
       return (data as any[])?.[0] || null;
     },
@@ -273,10 +589,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
     queryKey: ["pdf-sections", pageIds],
     enabled: pageIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pdf_sections" as any)
-        .select("*")
-        .in("page_id", pageIds);
+      const { data, error } = await supabase.from("pdf_sections" as any).select("*").in("page_id", pageIds);
       if (error) return [];
       return data as any[];
     },
@@ -294,7 +607,6 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
         </DialogHeader>
 
         <div className="grid grid-cols-4 gap-4">
-          {/* Pipeline sidebar */}
           <div className="col-span-1">
             <ExtractionPipelineViewer
               providerUsed={(extraction as any)?.provider_used}
@@ -306,7 +618,6 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
             />
           </div>
 
-          {/* Main content */}
           <div className="col-span-3">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
@@ -335,9 +646,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                   </Badge>
                                 )}
                                 {(page.page_context as any)?.provider && (
-                                  <Badge variant="secondary" className="text-[10px]">
-                                    {(page.page_context as any).provider}
-                                  </Badge>
+                                  <Badge variant="secondary" className="text-[10px]">{(page.page_context as any).provider}</Badge>
                                 )}
                                 <Badge variant="outline">Confiança: {page.confidence_score}%</Badge>
                                 <Button size="sm" variant="outline" onClick={() => visionParse.mutate(page.id)} disabled={visionParse.isPending}>
@@ -353,9 +662,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             {(page.zones || []).length > 0 && (
                               <div className="mb-3 flex flex-wrap gap-1">
                                 {(page.zones || []).map((z: any, i: number) => (
-                                  <Badge key={i} variant="outline" className={`text-xs ${zoneColors[z.type] || ""}`}>
-                                    {z.type}
-                                  </Badge>
+                                  <Badge key={i} variant="outline" className={`text-xs ${zoneColors[z.type] || ""}`}>{z.type}</Badge>
                                 ))}
                               </div>
                             )}
@@ -381,15 +688,11 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                               <CardTitle className="text-sm flex items-center gap-2">
                                 Tabela #{table.table_index} — {table.row_count}×{table.col_count}
                                 {table.table_type && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {tableTypeLabels[table.table_type] || table.table_type}
-                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">{tableTypeLabels[table.table_type] || table.table_type}</Badge>
                                 )}
                               </CardTitle>
                               {table.template_id && (
-                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                  <Shield className="h-3 w-3" /> Template aplicado
-                                </p>
+                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Shield className="h-3 w-3" /> Template aplicado</p>
                               )}
                             </div>
                             <Badge variant="outline">Confiança: {table.confidence_score}%</Badge>
@@ -403,9 +706,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                       {col.header}: {col.semantic_type}
                                     </Badge>
                                   </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Fonte: {col.source} | Confiança: {col.confidence}%</p>
-                                  </TooltipContent>
+                                  <TooltipContent><p>Fonte: {col.source} | Confiança: {col.confidence}%</p></TooltipContent>
                                 </Tooltip>
                               ))}
                             </div>
@@ -476,9 +777,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                     </div>
                   ) : (
                     <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm">Reconciliação — Página {selectedPage.page_number}</CardTitle>
-                      </CardHeader>
+                      <CardHeader><CardTitle className="text-sm">Reconciliação — Página {selectedPage.page_number}</CardTitle></CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-3 gap-4">
                           <div>
@@ -532,31 +831,14 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                   <div className="space-y-4">
                     {metrics ? (
                       <Card>
-                        <CardHeader>
-                          <CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Métricas de Qualidade</CardTitle>
-                        </CardHeader>
+                        <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Métricas de Qualidade</CardTitle></CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Confiança Média</p>
-                              <p className="text-2xl font-bold text-foreground">{metrics.avg_confidence}%</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Tabelas Detetadas</p>
-                              <p className="text-2xl font-bold text-foreground">{metrics.tables_detected}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Linhas Extraídas</p>
-                              <p className="text-2xl font-bold text-foreground">{metrics.rows_extracted}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Taxa de Mapeamento</p>
-                              <p className="text-2xl font-bold text-foreground">{metrics.mapping_success_rate}%</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Tempo de Processamento</p>
-                              <p className="text-2xl font-bold text-foreground">{(metrics.processing_time / 1000).toFixed(1)}s</p>
-                            </div>
+                            <div className="space-y-1"><p className="text-xs text-muted-foreground">Confiança Média</p><p className="text-2xl font-bold text-foreground">{metrics.avg_confidence}%</p></div>
+                            <div className="space-y-1"><p className="text-xs text-muted-foreground">Tabelas Detetadas</p><p className="text-2xl font-bold text-foreground">{metrics.tables_detected}</p></div>
+                            <div className="space-y-1"><p className="text-xs text-muted-foreground">Linhas Extraídas</p><p className="text-2xl font-bold text-foreground">{metrics.rows_extracted}</p></div>
+                            <div className="space-y-1"><p className="text-xs text-muted-foreground">Taxa de Mapeamento</p><p className="text-2xl font-bold text-foreground">{metrics.mapping_success_rate}%</p></div>
+                            <div className="space-y-1"><p className="text-xs text-muted-foreground">Tempo de Processamento</p><p className="text-2xl font-bold text-foreground">{(metrics.processing_time / 1000).toFixed(1)}s</p></div>
                           </div>
                         </CardContent>
                       </Card>
