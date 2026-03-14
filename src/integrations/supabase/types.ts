@@ -7221,6 +7221,114 @@ export type Database = {
         }
         Relationships: []
       }
+      source_confidence_logs: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          field_name: string
+          id: string
+          product_id: string | null
+          source_name: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          field_name: string
+          id?: string
+          product_id?: string | null
+          source_name: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          field_name?: string
+          id?: string
+          product_id?: string | null
+          source_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_confidence_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_priority_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          profile_name: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          profile_name: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          profile_name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_priority_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_priority_rules: {
+        Row: {
+          confidence_weight: number | null
+          created_at: string
+          fallback_source: string | null
+          field_name: string
+          id: string
+          primary_source: string | null
+          profile_id: string
+          secondary_source: string | null
+        }
+        Insert: {
+          confidence_weight?: number | null
+          created_at?: string
+          fallback_source?: string | null
+          field_name: string
+          id?: string
+          primary_source?: string | null
+          profile_id: string
+          secondary_source?: string | null
+        }
+        Update: {
+          confidence_weight?: number | null
+          created_at?: string
+          fallback_source?: string | null
+          field_name?: string
+          id?: string
+          primary_source?: string | null
+          profile_id?: string
+          secondary_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_priority_rules_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "source_priority_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategy_actions: {
         Row: {
           action_payload: Json | null

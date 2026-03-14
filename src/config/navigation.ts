@@ -27,6 +27,7 @@ import {
   Map,
   Zap,
   Workflow,
+  ArrowDownUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -116,6 +117,7 @@ export const navGroups: NavGroup[] = [
       { title: "Simulation Engine", icon: FlaskConical, route: "/simulacao" },
       { title: "Digital Twin", icon: Copy, route: "/digital-twin" },
       { title: "Orquestração AI", icon: Workflow, route: "/orquestracao" },
+      { title: "Source Priority", icon: ArrowDownUp, route: "/source-priority" },
     ],
   },
   {
