@@ -85,7 +85,7 @@ Price: ${product.price || product.original_price || "N/A"}`;
     }
 
     const routeData = await aiResponse.json();
-    const content = (aiData.choices?.[0]?.message?.content || "")
+    const content = (routeData.result?.choices?.[0]?.message?.content || "")
       .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
     let result;
