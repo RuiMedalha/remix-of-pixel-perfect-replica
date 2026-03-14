@@ -51,61 +51,43 @@ Deno.serve(async (req) => {
       open_opportunities: (insightsRes.data || []).length,
     };
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are a revenue optimization expert for HORECA e-commerce catalogs. Analyze the catalog data and identify concrete revenue opportunities across 5 dimensions: bundles, cross-sell/upsell, pricing, campaigns, and strategic categories.
+    const revenueTools = [{
+      type: "function",
+      function: {
+        name: "report_revenue_opportunities",
+        description: "Report revenue optimization opportunities",
+        parameters: {
+          type: "object",
+          properties: {
+            revenue_opportunities: { type: "array", items: { type: "object", properties: { opportunity_type: { type: "string", enum: ["bundle", "cross_sell", "upsell", "price_optimization", "campaign", "strategic_category", "seasonal_promotion"] }, title: { type: "string" }, description: { type: "string" }, estimated_revenue_impact: { type: "number" }, confidence: { type: "number" }, priority: { type: "string", enum: ["critical", "high", "medium", "low"] }, affected_products: { type: "array", items: { type: "string" } }, suggested_action: { type: "string" } }, required: ["opportunity_type", "title", "description", "estimated_revenue_impact", "confidence", "priority", "suggested_action"], additionalProperties: false } },
+            estimated_impact: { type: "number" },
+            priority_score: { type: "number" },
+            analysis_summary: { type: "string" },
+          },
+          required: ["revenue_opportunities", "estimated_impact", "priority_score", "analysis_summary"],
+          additionalProperties: false,
+        },
+      },
+    }];
+
+    const systemPrompt = `You are a revenue optimization expert for HORECA e-commerce catalogs. Analyze the catalog data and identify concrete revenue opportunities across 5 dimensions: bundles, cross-sell/upsell, pricing, campaigns, and strategic categories.
 
 Rules:
 - Each opportunity must have a clear estimated revenue impact in EUR
 - Prioritize by impact × confidence
 - Provide Portuguese descriptions
 - Be specific with product references when possible
-- Consider HORECA seasonality and industry patterns`,
-          },
-          { role: "user", content: `Analyze this catalog for revenue opportunities:\n${JSON.stringify(context, null, 1)}` },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "report_revenue_opportunities",
-            description: "Report revenue optimization opportunities",
-            parameters: {
-              type: "object",
-              properties: {
-                revenue_opportunities: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      opportunity_type: { type: "string", enum: ["bundle", "cross_sell", "upsell", "price_optimization", "campaign", "strategic_category", "seasonal_promotion"] },
-                      title: { type: "string" },
-                      description: { type: "string" },
-                      estimated_revenue_impact: { type: "number" },
-                      confidence: { type: "number" },
-                      priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
-                      affected_products: { type: "array", items: { type: "string" } },
-                      suggested_action: { type: "string" },
-                    },
-                    required: ["opportunity_type", "title", "description", "estimated_revenue_impact", "confidence", "priority", "suggested_action"],
-                    additionalProperties: false,
-                  },
-                },
-                estimated_impact: { type: "number" },
-                priority_score: { type: "number" },
-                analysis_summary: { type: "string" },
-              },
-              required: ["revenue_opportunities", "estimated_impact", "priority_score", "analysis_summary"],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "report_revenue_opportunities" } },
+- Consider HORECA seasonality and industry patterns`;
+
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        taskType: "price_optimization",
+        workspaceId: workspace_id,
+        systemPrompt,
+        messages: [{ role: "user", content: `Analyze this catalog for revenue opportunities:\n${JSON.stringify(context, null, 1)}` }],
+        options: { tools: revenueTools, tool_choice: { type: "function", function: { name: "report_revenue_opportunities" } } },
       }),
     });
 
