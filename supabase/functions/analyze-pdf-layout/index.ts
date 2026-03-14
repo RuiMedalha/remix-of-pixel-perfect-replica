@@ -69,26 +69,24 @@ Return a JSON with:
 11. "document_language": string
 12. "supplier_hint": string or null`;
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${lovableKey}`,
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are a document analysis expert. Return only valid JSON." },
-          { role: "user", content: prompt },
-        ],
-        response_format: { type: "json_object" },
+        taskType: "pdf_layout_analysis",
+        workspaceId,
+        systemPrompt: "You are a document analysis expert. Return only valid JSON.",
+        messages: [{ role: "user", content: prompt }],
       }),
     });
 
     let analysis: any = {};
     if (resp.ok) {
-      const data = await resp.json();
-      const content = data.choices?.[0]?.message?.content || "{}";
+      const routeData = await resp.json();
+      const content = routeData.result?.choices?.[0]?.message?.content || "{}";
       try { analysis = JSON.parse(content); } catch { analysis = {}; }
     }
 
