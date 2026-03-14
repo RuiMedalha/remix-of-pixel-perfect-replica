@@ -1,10 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const CHUNK_SIZE = 3;
+const MAX_CHUNK_CONCURRENCY = 2;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -118,8 +122,7 @@ Return ONLY valid JSON.`,
       productRanges.push({ start: 1, end: totalPages, content_type: "products" });
     }
 
-    // Build chunks of max 5 pages each (small enough for edge function memory)
-    const CHUNK_SIZE = 5;
+    // Build chunks with low memory pressure
     const chunks: { start: number; end: number }[] = [];
     for (const range of productRanges) {
       const rs = range.start || 1;
@@ -129,36 +132,29 @@ Return ONLY valid JSON.`,
       }
     }
 
-    console.log(`Dispatching ${chunks.length} chunks for ${totalPages} pages`);
+    console.log(`Dispatching ${chunks.length} chunks for ${totalPages} pages (concurrency=${MAX_CHUNK_CONCURRENCY})`);
 
-    // Fire all chunks in parallel (each is a separate function invocation)
-    const chunkPromises = chunks.map((chunk) =>
-      fetch(`${supabaseUrl}/functions/v1/extract-pdf-pages`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${serviceKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+    // Process chunks with bounded concurrency to prevent worker pressure
+    const results: Array<{ chunk: { start: number; end: number }; ok: boolean; result: any }> = [];
+
+    for (let i = 0; i < chunks.length; i += MAX_CHUNK_CONCURRENCY) {
+      const batch = chunks.slice(i, i + MAX_CHUNK_CONCURRENCY);
+      const batchResults = await Promise.all(batch.map((chunk) =>
+        invokeChunkExtraction({
+          supabaseUrl,
+          serviceKey,
           extractionId,
-          chunkMode: true,
-          chunkStart: chunk.start,
-          chunkEnd: chunk.end,
+          chunk,
           storagePath: storagePth,
           overviewData: {
             language: overview.language,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
           },
-        }),
-      }).then(async (r) => {
-        const result = await r.json();
-        return { chunk, ok: r.ok, result };
-      }).catch((e) => ({ chunk, ok: false, result: { error: e.message } }))
-    );
-
-    // Wait for all chunks — each runs in its own worker
-    const results = await Promise.all(chunkPromises);
+        })
+      ));
+      results.push(...batchResults);
+    }
 
     let totalPagesProcessed = 0;
     let totalTablesCreated = 0;
@@ -231,6 +227,40 @@ Return ONLY valid JSON.`,
     });
   }
 });
+
+async function invokeChunkExtraction(opts: {
+  supabaseUrl: string;
+  serviceKey: string;
+  extractionId: string;
+  chunk: { start: number; end: number };
+  storagePath: string;
+  overviewData: any;
+}) {
+  const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData } = opts;
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/extract-pdf-pages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        extractionId,
+        chunkMode: true,
+        chunkStart: chunk.start,
+        chunkEnd: chunk.end,
+        storagePath,
+        overviewData,
+      }),
+    });
+
+    const result = await response.json();
+    return { chunk, ok: response.ok, result };
+  } catch (e) {
+    return { chunk, ok: false, result: { error: e instanceof Error ? e.message : String(e) } };
+  }
+}
 
 // ==========================================
 // CHUNK PROCESSOR — runs in its own worker
@@ -411,10 +441,5 @@ Return ONLY valid JSON.`,
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+  return encodeBase64(new Uint8Array(buffer));
 }
