@@ -6,6 +6,72 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function hasMeaningfulProduct(candidate: any): boolean {
+  if (!candidate || typeof candidate !== "object") return false;
+  return [candidate.sku, candidate.title, candidate.description, candidate.price].some((value) => {
+    if (value === null || value === undefined) return false;
+    return String(value).trim() !== "";
+  });
+}
+
+function flattenVisionProducts(items: any, parentSection?: string): any[] {
+  const flat: any[] = [];
+
+  const walk = (candidate: any, section?: string) => {
+    if (candidate == null) return;
+
+    if (Array.isArray(candidate)) {
+      candidate.forEach((entry) => walk(entry, section));
+      return;
+    }
+
+    if (typeof candidate !== "object") return;
+
+    if (Array.isArray(candidate.products)) {
+      const sectionTitle =
+        typeof candidate.section_title === "string" && candidate.section_title.trim()
+          ? candidate.section_title.trim()
+          : section;
+      candidate.products.forEach((entry: any) => walk(entry, sectionTitle));
+      return;
+    }
+
+    flat.push({
+      ...candidate,
+      category: candidate.category || section,
+    });
+  };
+
+  walk(items, parentSection);
+  return flat;
+}
+
+function pickBestPageRows(rows: any[]): any[] {
+  const bestByPage = new Map<number, { row: any; productCount: number; confidence: number }>();
+
+  for (const row of rows || []) {
+    const pageNumber = Number(row?.page_number);
+    if (!Number.isFinite(pageNumber)) continue;
+
+    const products = flattenVisionProducts(row?.vision_result?.products || [], row?.page_context?.section_title || "");
+    const productCount = products.filter(hasMeaningfulProduct).length;
+    const confidence = Number(row?.confidence_score || 0);
+
+    const current = bestByPage.get(pageNumber);
+    if (
+      !current ||
+      productCount > current.productCount ||
+      (productCount === current.productCount && confidence > current.confidence)
+    ) {
+      bestByPage.set(pageNumber, { row, productCount, confidence });
+    }
+  }
+
+  return [...bestByPage.values()]
+    .map((entry) => entry.row)
+    .sort((a, b) => (a?.page_number || 0) - (b?.page_number || 0));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
