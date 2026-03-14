@@ -7,7 +7,7 @@ export function usePdfExtractions() {
   const { activeWorkspace } = useWorkspaceContext();
   const workspaceId = activeWorkspace?.id;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["pdf-extractions", workspaceId],
     enabled: !!workspaceId,
     queryFn: async () => {
@@ -19,7 +19,17 @@ export function usePdfExtractions() {
       if (error) throw error;
       return data;
     },
+    // Auto-poll every 5s when any extraction is in progress
+    refetchInterval: (query) => {
+      const data = query.state.data as any[] | undefined;
+      const hasActive = data?.some((e: any) =>
+        ["queued", "extracting", "processing"].includes(e.status)
+      );
+      return hasActive ? 5000 : false;
+    },
   });
+
+  return query;
 }
 
 export function usePdfPages(extractionId: string | null) {
