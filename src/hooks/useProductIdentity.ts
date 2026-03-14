@@ -39,7 +39,7 @@ export function useProductIdentity() {
 
   const createVariationPolicy = useMutation({
     mutationFn: async (p: { policy_name: string; attribute_keys: string[]; variation_strategy: string }) => {
-      const { error } = await supabase.from("variation_policies").insert({ workspace_id: wsId!, ...p });
+      const { error } = await (supabase.from("variation_policies") as any).insert({ workspace_id: wsId!, ...p });
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Política criada"); qc.invalidateQueries({ queryKey: ["variation-policies"] }); },
