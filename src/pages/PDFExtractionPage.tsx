@@ -854,7 +854,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                               <div className="mb-3 flex flex-wrap gap-1">
                                 {(page.zones || []).map((z: any, i: number) => (
                                   <Badge key={i} variant="outline" className={`text-xs ${zoneColors[z.type] || ""}`}>
-                                    {z.type || z.content_summary}
+                                    {toDisplayText(z.type || z.content_summary)}
                                   </Badge>
                                 ))}
                               </div>
@@ -1026,7 +1026,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             <div className="bg-muted rounded-md p-2 max-h-60 overflow-auto">
                               {(((selectedPage.text_result as any)?.zones || (selectedPage.layout_zones as any[]) || []) as any[]).map((z: any, i: number) => (
                                 <div key={i} className={`text-xs p-1 mb-1 rounded ${zoneColors[z.type] || ""}`}>
-                                  <span className="font-medium">[{z.type}]</span> {(z.content || z.content_summary || "").substring(0, 80)}
+                                  <span className="font-medium">[{toDisplayText(z.type)}]</span> {toDisplayText(z.content || z.content_summary, "").toString().substring(0, 80)}
                                 </div>
                               ))}
                             </div>
@@ -1037,9 +1037,9 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                               {((selectedPage.vision_result as any)?.tables?.length > 0) ? (
                                 (((selectedPage.vision_result as any).tables || []) as any[]).map((t: any, i: number) => (
                                   <div key={i} className="text-xs p-1 mb-1 border-b border-border">
-                                    <span className="font-medium">Tabela {i + 1}:</span> {(t.headers || []).join(", ")}
+                                    <span className="font-medium">Tabela {i + 1}:</span> {toDisplayText((t.headers || []).join(", "))}
                                     <br />
-                                    <span className="text-muted-foreground">{(t.rows || []).length} linhas, confiança {t.confidence}%</span>
+                                    <span className="text-muted-foreground">{toDisplayText((t.rows || []).length)} linhas, confiança {toDisplayText(t.confidence)}%</span>
                                   </div>
                                 ))
                               ) : (
@@ -1052,7 +1052,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             <div className="bg-muted rounded-md p-2 max-h-60 overflow-auto">
                               {(((selectedPage.reconciled_result as any)?.zones || []) as any[]).map((z: any, i: number) => (
                                 <div key={i} className={`text-xs p-1 mb-1 rounded ${zoneColors[z.type] || ""}`}>
-                                  <span className="font-medium">[{z.type}]</span> {(z.content_summary || "").substring(0, 80)}
+                                  <span className="font-medium">[{toDisplayText(z.type)}]</span> {toDisplayText(z.content_summary, "").toString().substring(0, 80)}
                                 </div>
                               ))}
                               {!((selectedPage.reconciled_result as any)?.zones?.length) && (

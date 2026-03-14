@@ -93,11 +93,16 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp }
               {products.slice(0, 50).map((product, i) => (
                 <TableRow key={i} className={(product._confidence || 100) < 60 ? "bg-destructive/5" : ""}>
                   {columns.slice(0, 7).map((col) => {
-                    let val = product[col];
-                    if (val != null && typeof val === "object") val = JSON.stringify(val);
+                    let val: any = product[col];
+                    // Defensive: convert ANY non-primitive to string
+                    if (val != null && typeof val === "object") {
+                      try { val = JSON.stringify(val); } catch { val = String(val); }
+                    }
+                    // Ensure val is always a primitive or null
+                    const displayVal = (val === null || val === undefined || val === "") ? null : String(val);
                     return (
                       <TableCell key={col} className="text-xs max-w-40 truncate">
-                        {val || <span className="text-muted-foreground italic">—</span>}
+                        {displayVal ?? <span className="text-muted-foreground italic">—</span>}
                       </TableCell>
                     );
                   })}
