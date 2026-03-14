@@ -389,3 +389,6 @@ verify_jwt = false
 
 [functions.send-intelligence-alert]
 verify_jwt = false
+
+[functions.scheduled-intelligence-run]
+verify_jwt = false
