@@ -255,7 +255,14 @@ async function invokeChunkExtraction(opts: {
       }),
     });
 
-    const result = await response.json();
+    const raw = await response.text();
+    let result: any = {};
+    try {
+      result = raw ? JSON.parse(raw) : {};
+    } catch {
+      result = { error: raw || "Invalid JSON response from chunk" };
+    }
+
     return { chunk, ok: response.ok, result };
   } catch (e) {
     return { chunk, ok: false, result: { error: e instanceof Error ? e.message : String(e) } };
