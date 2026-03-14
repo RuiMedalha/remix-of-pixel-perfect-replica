@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -110,7 +111,6 @@ export default function PDFExtractionPage() {
     enabled: !!wizardExtractionId,
     refetchInterval: (query) => {
       const ext = query.state.data as any;
-      // Keep polling if extraction is in progress or detected_products not yet populated
       if (ext && ["queued", "extracting", "processing"].includes(ext.status)) return 3000;
       return false;
     },
@@ -125,21 +125,62 @@ export default function PDFExtractionPage() {
     },
   });
 
-  // Get pages to count products from vision_result as fallback
-  const { data: wizardPages } = usePdfPages(wizardExtractionId);
-  
+  // Real progress: count pages actually extracted from pdf_pages table
+  const { data: wizardPages } = useQuery({
+    queryKey: ["wizard-pages-progress", wizardExtractionId],
+    enabled: !!wizardExtractionId,
+    refetchInterval: (query) => {
+      const ext = wizardExtraction;
+      if (ext && ["queued", "extracting", "processing"].includes(ext.status)) return 3000;
+      return false;
+    },
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pdf_pages")
+        .select("id, page_number, status, vision_result")
+        .eq("extraction_id", wizardExtractionId!)
+        .order("page_number");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const realProgress = useMemo(() => {
+    const pages = wizardPages || [];
+    const totalPages = wizardExtraction?.total_pages || 0;
+    const extractedPages = pages.filter((p: any) => p.status === "extracted").length;
+    const errorPages = pages.filter((p: any) => p.status === "error").length;
+    const pct = totalPages > 0 ? Math.round((extractedPages / totalPages) * 100) : 0;
+    // Count products from vision_result
+    let productCount = 0;
+    pages.forEach((p: any) => {
+      const products = (p.vision_result as any)?.products || [];
+      productCount += products.filter((prod: any) => prod.title || prod.sku).length;
+    });
+    return { extractedPages, errorPages, totalPages, pct, productCount };
+  }, [wizardPages, wizardExtraction?.total_pages]);
+
   // Compute product count: prefer detected_products, fallback to counting from pages
   const wizardProductCount = (() => {
     const dp = wizardExtraction?.detected_products as any[];
     if (dp?.length) return dp.length;
-    if (!wizardPages) return 0;
-    let count = 0;
-    wizardPages.forEach((p: any) => {
-      const products = (p.vision_result as any)?.products || [];
-      count += products.filter((prod: any) => prod.title || prod.sku).length;
-    });
-    return count;
+    return realProgress.productCount;
   })();
+
+  // Detect stalled extraction (no progress for 60s while status is still extracting)
+  const [extractionStartedAt] = useState(() => Date.now());
+  const isStalled = useMemo(() => {
+    if (!wizardExtraction) return false;
+    const status = wizardExtraction.status;
+    if (!["extracting", "processing"].includes(status)) return false;
+    // If created_at is > 2 min ago and processed_pages hasn't changed from what pdf_pages shows
+    const createdAt = new Date(wizardExtraction.created_at).getTime();
+    const elapsed = Date.now() - createdAt;
+    const totalPages = wizardExtraction.total_pages || 0;
+    const extracted = realProgress.extractedPages;
+    // Consider stalled if: has been running > 3 min AND not all pages done AND < totalPages
+    return elapsed > 180000 && extracted > 0 && extracted < totalPages;
+  }, [wizardExtraction, realProgress.extractedPages]);
 
   // Step 1: Start extraction — goes straight to extracting
   const handleStartWizard = async () => {
@@ -160,9 +201,23 @@ export default function PDFExtractionPage() {
   const hasDetectedProducts = ((wizardExtraction?.detected_products as any[])?.length || 0) > 0;
   
   // Auto-advance to review when extraction is done
-  if (wizardStep === "extracting" && extractionStatus === "reviewing" && hasDetectedProducts) {
+  if (wizardStep === "extracting" && extractionStatus === "reviewing" && (hasDetectedProducts || realProgress.productCount > 0)) {
     setWizardStep("review");
   }
+
+  // Resume a stalled extraction
+  const handleResumeExtraction = async () => {
+    if (!wizardExtractionId) return;
+    toast.info("A retomar extração...");
+    supabase.functions.invoke("extract-pdf-pages", {
+      body: { extractionId: wizardExtractionId },
+    }).then(() => {
+      toast.success("Extração retomada com sucesso");
+    }).catch((err) => {
+      console.error("Resume error:", err);
+      toast.error("Erro ao retomar extração");
+    });
+  };
 
   const handleSendToIngestion = async (config: { mergeStrategy: string; dupFields: string }) => {
     if (!wizardExtractionId) return;
@@ -270,35 +325,79 @@ export default function PDFExtractionPage() {
           {/* Step: Extracting (auto, shows progress) */}
           {wizardStep === "extracting" && (
             <Card>
-              <CardContent className="py-12">
-                <div className="flex flex-col items-center gap-4">
+              <CardContent className="py-8">
+                <div className="flex flex-col items-center gap-5 max-w-md mx-auto">
                   {extractionStatus === "error" ? (
                     <>
                       <XCircle className="h-10 w-10 text-destructive" />
                       <p className="text-sm font-medium">Erro na extração</p>
-                      <Button variant="outline" onClick={resetWizard}>
-                        <Upload className="h-4 w-4 mr-2" /> Tentar novamente
-                      </Button>
+                      {realProgress.extractedPages > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {realProgress.extractedPages} páginas foram extraídas antes do erro ({realProgress.productCount} produtos encontrados)
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <Button variant="default" onClick={handleResumeExtraction}>
+                          <ArrowRight className="h-4 w-4 mr-2" /> Retomar extração
+                        </Button>
+                        <Button variant="outline" onClick={resetWizard}>
+                          <Upload className="h-4 w-4 mr-2" /> Recomeçar
+                        </Button>
+                      </div>
                     </>
                   ) : (
                     <>
                       <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                      <div className="text-center space-y-1">
-                        <p className="text-sm font-medium">A extrair produtos do PDF com AI Vision...</p>
-                        <p className="text-xs text-muted-foreground">
-                          {wizardExtraction?.processed_pages || 0} / {wizardExtraction?.total_pages || "?"} páginas processadas
-                        </p>
-                        {wizardExtraction?.total_pages > 0 && (
-                          <div className="w-64 mx-auto mt-2">
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary rounded-full transition-all duration-500"
-                                style={{ width: `${Math.round(((wizardExtraction?.processed_pages || 0) / wizardExtraction.total_pages) * 100)}%` }}
-                              />
+                      <div className="w-full space-y-3">
+                        <div className="text-center">
+                          <p className="text-sm font-medium">A extrair produtos do PDF com AI Vision...</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {(wizardExtraction as any)?.uploaded_files?.file_name || "PDF"}
+                          </p>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="space-y-1.5">
+                          <Progress value={realProgress.pct} className="h-2.5" />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{realProgress.extractedPages} de {realProgress.totalPages || "?"} páginas</span>
+                            <span>{realProgress.pct}%</span>
+                          </div>
+                        </div>
+
+                        {/* Stats cards */}
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          <div className="bg-muted rounded-lg p-2.5 text-center">
+                            <p className="text-lg font-bold text-foreground">{realProgress.productCount}</p>
+                            <p className="text-[10px] text-muted-foreground">Produtos</p>
+                          </div>
+                          <div className="bg-muted rounded-lg p-2.5 text-center">
+                            <p className="text-lg font-bold text-foreground">{realProgress.extractedPages}</p>
+                            <p className="text-[10px] text-muted-foreground">Páginas OK</p>
+                          </div>
+                          <div className="bg-muted rounded-lg p-2.5 text-center">
+                            <p className="text-lg font-bold text-foreground">{realProgress.errorPages}</p>
+                            <p className="text-[10px] text-muted-foreground">Erros</p>
+                          </div>
+                        </div>
+
+                        {/* Stalled warning */}
+                        {isStalled && (
+                          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center space-y-2">
+                            <div className="flex items-center justify-center gap-2">
+                              <AlertTriangle className="h-4 w-4 text-destructive" />
+                              <p className="text-xs font-medium text-destructive">Extração parece ter parado</p>
                             </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              Processadas {realProgress.extractedPages} de {realProgress.totalPages} páginas. A função pode ter expirado.
+                            </p>
+                            <Button size="sm" onClick={handleResumeExtraction}>
+                              <ArrowRight className="h-3 w-3 mr-1" /> Retomar de onde parou
+                            </Button>
                           </div>
                         )}
-                        <p className="text-[10px] text-muted-foreground mt-2">
+
+                        <p className="text-[10px] text-muted-foreground text-center mt-2">
                           Podes sair desta página — a extração continua em segundo plano.
                         </p>
                       </div>
@@ -443,6 +542,30 @@ export default function PDFExtractionPage() {
                               <Button size="sm" variant="outline" onClick={() => setSelectedExtraction(ext.id)}>
                                 <Eye className="h-3 w-3" />
                               </Button>
+                              {["extracting", "processing"].includes(ext.status) && (
+                                <Button size="sm" variant="outline" className="text-primary" onClick={() => {
+                                  setWizardExtractionId(ext.id);
+                                  setWizardStep("extracting");
+                                  setActiveTab("wizard");
+                                }}>
+                                  <ArrowRight className="h-3 w-3" />
+                                </Button>
+                              )}
+                              {["extracting", "processing"].includes(ext.status) && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="outline" onClick={() => {
+                                      toast.info("A retomar extração...");
+                                      supabase.functions.invoke("extract-pdf-pages", {
+                                        body: { extractionId: ext.id },
+                                      }).then(() => toast.success("Retomada")).catch(() => toast.error("Erro ao retomar"));
+                                    }}>
+                                      <Scan className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Retomar extração</TooltipContent>
+                                </Tooltip>
+                              )}
                               {ext.status === "reviewing" && (
                                 <>
                                   <Button size="sm" variant="outline" onClick={() => mapToProducts.mutate({ extractionId: ext.id })}>
