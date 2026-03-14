@@ -117,8 +117,8 @@ Rules:
       throw new Error(`AI error ${status}: ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const routeData = await aiResponse.json();
+    const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
     let result = { high_demand_products: [] as any[], missing_catalog_opportunities: [] as any[], confidence_score: 0, analysis_summary: "" };
 
     if (toolCall?.function?.arguments) {
