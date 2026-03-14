@@ -281,3 +281,15 @@ verify_jwt = false
 
 [functions.summarize-workspace-usage]
 verify_jwt = false
+
+[functions.build-control-tower-snapshot]
+verify_jwt = false
+
+[functions.generate-control-tower-alerts]
+verify_jwt = false
+
+[functions.summarize-workspace-operations]
+verify_jwt = false
+
+[functions.get-operational-queues]
+verify_jwt = false

@@ -232,7 +232,7 @@ function KPICard({ title, value, icon, variant = "default" }: { title: string; v
         <div className="flex items-center justify-between mb-1">
           <span className="text-muted-foreground">{icon}</span>
           {variant === "destructive" && <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />}
-          {variant === "warning" && <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />}
+          {variant === "warning" && <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />}
         </div>
         <p className="text-2xl font-bold">{value}</p>
         <p className="text-xs text-muted-foreground">{title}</p>
