@@ -10323,6 +10323,136 @@ export type Database = {
           },
         ]
       }
+      supplier_auto_detections: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          detected_brand: string | null
+          detected_domain: string | null
+          detected_supplier_name: string | null
+          detection_signals: Json | null
+          file_name: string | null
+          id: string
+          matched_supplier_id: string | null
+          source_type: string
+          source_url: string | null
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          detected_brand?: string | null
+          detected_domain?: string | null
+          detected_supplier_name?: string | null
+          detection_signals?: Json | null
+          file_name?: string | null
+          id?: string
+          matched_supplier_id?: string | null
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          detected_brand?: string | null
+          detected_domain?: string | null
+          detected_supplier_name?: string | null
+          detection_signals?: Json | null
+          file_name?: string | null
+          id?: string
+          matched_supplier_id?: string | null
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_auto_detections_matched_supplier_id_fkey"
+            columns: ["matched_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_auto_detections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_column_inferences: {
+        Row: {
+          created_at: string
+          detection_id: string | null
+          file_name: string | null
+          headers: string[] | null
+          id: string
+          inferred_mapping: Json | null
+          mapping_confidence: number | null
+          mapping_warnings: string[] | null
+          sample_data: Json | null
+          status: string
+          supplier_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          detection_id?: string | null
+          file_name?: string | null
+          headers?: string[] | null
+          id?: string
+          inferred_mapping?: Json | null
+          mapping_confidence?: number | null
+          mapping_warnings?: string[] | null
+          sample_data?: Json | null
+          status?: string
+          supplier_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          detection_id?: string | null
+          file_name?: string | null
+          headers?: string[] | null
+          id?: string
+          inferred_mapping?: Json | null
+          mapping_confidence?: number | null
+          mapping_warnings?: string[] | null
+          sample_data?: Json | null
+          status?: string
+          supplier_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_column_inferences_detection_id_fkey"
+            columns: ["detection_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_auto_detections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_column_inferences_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_column_inferences_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_connector_setups: {
         Row: {
           created_at: string | null
@@ -10982,6 +11112,60 @@ export type Database = {
           },
         ]
       }
+      supplier_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          instruction: string | null
+          override_key: string
+          override_type: string
+          override_value: Json
+          source: string | null
+          supplier_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instruction?: string | null
+          override_key: string
+          override_type: string
+          override_value?: Json
+          source?: string | null
+          supplier_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instruction?: string | null
+          override_key?: string
+          override_type?: string
+          override_value?: Json
+          source?: string | null
+          supplier_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_overrides_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_overrides_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_patterns: {
         Row: {
           confidence: number | null
@@ -11022,6 +11206,101 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_playbook_drafts: {
+        Row: {
+          auto_generated: boolean | null
+          column_mapping: Json | null
+          confidence_score: number | null
+          created_at: string
+          detection_id: string | null
+          grouping_rules: Json | null
+          id: string
+          image_strategy: Json | null
+          matching_rules: Json | null
+          needs_review_fields: string[] | null
+          playbook_config: Json | null
+          playbook_name: string
+          promoted_playbook_id: string | null
+          status: string
+          supplier_id: string | null
+          taxonomy_suggestion: Json | null
+          updated_at: string
+          validation_profile: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          auto_generated?: boolean | null
+          column_mapping?: Json | null
+          confidence_score?: number | null
+          created_at?: string
+          detection_id?: string | null
+          grouping_rules?: Json | null
+          id?: string
+          image_strategy?: Json | null
+          matching_rules?: Json | null
+          needs_review_fields?: string[] | null
+          playbook_config?: Json | null
+          playbook_name: string
+          promoted_playbook_id?: string | null
+          status?: string
+          supplier_id?: string | null
+          taxonomy_suggestion?: Json | null
+          updated_at?: string
+          validation_profile?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          auto_generated?: boolean | null
+          column_mapping?: Json | null
+          confidence_score?: number | null
+          created_at?: string
+          detection_id?: string | null
+          grouping_rules?: Json | null
+          id?: string
+          image_strategy?: Json | null
+          matching_rules?: Json | null
+          needs_review_fields?: string[] | null
+          playbook_config?: Json | null
+          playbook_name?: string
+          promoted_playbook_id?: string | null
+          status?: string
+          supplier_id?: string | null
+          taxonomy_suggestion?: Json | null
+          updated_at?: string
+          validation_profile?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_playbook_drafts_detection_id_fkey"
+            columns: ["detection_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_auto_detections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_playbook_drafts_promoted_playbook_id_fkey"
+            columns: ["promoted_playbook_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_playbooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_playbook_drafts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_playbook_drafts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
