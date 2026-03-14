@@ -218,7 +218,7 @@ export default function AiProviderCenterPage() {
             <Card key={p.id}>
               <CardContent className="flex items-center justify-between p-4 gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${p.last_health_status === "success" ? "bg-green-500" : p.last_health_status === "error" ? "bg-destructive" : "bg-muted-foreground"}`} />
+                  <div className={`w-3 h-3 rounded-full ${p.last_health_status === "success" ? "bg-primary" : p.last_health_status === "error" ? "bg-destructive" : "bg-muted-foreground"}`} />
                   <div>
                     <p className="font-medium text-foreground">{p.provider_name}</p>
                     <p className="text-xs text-muted-foreground">{p.default_model || "—"}</p>
