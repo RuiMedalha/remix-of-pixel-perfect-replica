@@ -17,7 +17,6 @@ import {
 import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts, useDeletePdfExtraction } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
 import {
-  useRunDocumentIntelligence, useAnalyzePdfLayout, useSaveExtractionMappingRules,
   useSendExtractionToIngestion,
 } from "@/hooks/useDocumentIntelligence";
 import { useQuery } from "@tanstack/react-query";
@@ -74,15 +73,13 @@ const tableTypeLabels: Record<string, string> = {
   spare_parts: "Peças",
 };
 
-// Wizard steps
-type WizardStep = "upload" | "analysis" | "engine" | "mapping" | "preview" | "ingestion";
+// Wizard steps — simplified flow
+type WizardStep = "upload" | "extracting" | "review" | "ingestion";
 
 const WIZARD_STEPS: { key: WizardStep; label: string; icon: React.ElementType }[] = [
   { key: "upload", label: "Upload", icon: Upload },
-  { key: "analysis", label: "Análise", icon: Scan },
-  { key: "engine", label: "Motor AI", icon: Brain },
-  { key: "mapping", label: "Mapeamento", icon: MapPin },
-  { key: "preview", label: "Preview", icon: Package },
+  { key: "extracting", label: "Extração AI", icon: Brain },
+  { key: "review", label: "Revisão", icon: Package },
   { key: "ingestion", label: "Ingestão", icon: Database },
 ];
 
@@ -92,9 +89,6 @@ export default function PDFExtractionPage() {
   const startExtraction = useStartPdfExtraction();
   const mapToProducts = useMapPdfToProducts();
   const deleteExtraction = useDeletePdfExtraction();
-  const runDocIntel = useRunDocumentIntelligence();
-  const analyzeLayout = useAnalyzePdfLayout();
-  const saveMappingRules = useSaveExtractionMappingRules();
   const sendToIngestion = useSendExtractionToIngestion();
 
   const [selectedExtraction, setSelectedExtraction] = useState<string | null>(null);
@@ -106,8 +100,6 @@ export default function PDFExtractionPage() {
   // Wizard state
   const [wizardStep, setWizardStep] = useState<WizardStep>("upload");
   const [wizardExtractionId, setWizardExtractionId] = useState<string | null>(null);
-  const [selectedEngine, setSelectedEngine] = useState("lovable_gateway");
-  const [columnMappings, setColumnMappings] = useState<Array<{ header: string; mappedTo: string; confidence: number; sampleValues: string[] }>>([]);
 
   const pdfFiles = (files || []).filter(f => f.file_type === "application/pdf" || f.file_name?.endsWith(".pdf"));
   const activeExtractions = (extractions || []).filter((e: any) => !e.archived_at);
@@ -149,17 +141,13 @@ export default function PDFExtractionPage() {
     return count;
   })();
 
-  // Step 1: Start extraction
+  // Step 1: Start extraction — goes straight to extracting
   const handleStartWizard = async () => {
     if (!selectedFileId) { toast.error("Seleciona um ficheiro PDF"); return; }
     try {
       const result = await startExtraction.mutateAsync(selectedFileId);
       setWizardExtractionId(result.extractionId);
-      setWizardStep("analysis");
-      // Auto-trigger layout analysis
-      setTimeout(() => {
-        analyzeLayout.mutate(result.extractionId);
-      }, 2000); // Wait for extraction to complete
+      setWizardStep("extracting");
     } catch {}
   };
 
@@ -167,124 +155,14 @@ export default function PDFExtractionPage() {
     setSelectedFileId(fileId);
   };
 
-  // Step 2: Analysis done, move to engine recommendation
-  const handleAnalysisComplete = () => {
-    if (wizardExtraction?.engine_recommendation) {
-      setSelectedEngine(wizardExtraction.engine_recommendation.recommended || "lovable_gateway");
-    }
-    setWizardStep("engine");
-  };
-
-  // Step 3: Run extraction with selected engine
-  const handleRunExtraction = async () => {
-    if (!wizardExtractionId) return;
-    try {
-      await runDocIntel.mutateAsync({
-        extractionId: wizardExtractionId,
-        mode: selectedEngine === "lovable_gateway" ? "auto" : "manual",
-        manualProvider: selectedEngine,
-      });
-      // Build mapping columns from extraction results
-      buildMappingFromExtraction();
-      setWizardStep("mapping");
-    } catch {}
-  };
-
-  // Build column mappings from extracted products (vision_result.products)
-  const buildMappingFromExtraction = async () => {
-    if (!wizardExtractionId) return;
-    const { data: pages } = await supabase
-      .from("pdf_pages")
-      .select("vision_result")
-      .eq("extraction_id", wizardExtractionId);
-
-    const allHeaders = new Set<string>();
-    const sampleData: Record<string, string[]> = {};
-
-    // Extract from vision_result.products (AI vision output)
-    (pages || []).forEach((p: any) => {
-      const products = (p.vision_result as any)?.products || [];
-      products.forEach((prod: any) => {
-        Object.keys(prod).forEach((key) => {
-          if (key === "confidence" || key === "images") return;
-          allHeaders.add(key);
-          if (!sampleData[key]) sampleData[key] = [];
-          if (prod[key] != null && sampleData[key].length < 3) {
-            const val = typeof prod[key] === "object" ? JSON.stringify(prod[key]) : String(prod[key]);
-            sampleData[key].push(val);
-          }
-        });
-      });
-
-      // Also check tables structure if present
-      const tables = (p.vision_result as any)?.tables || [];
-      tables.forEach((t: any) => {
-        (t.headers || []).forEach((h: string) => {
-          allHeaders.add(h);
-          if (!sampleData[h]) sampleData[h] = [];
-          (t.rows || []).slice(0, 3).forEach((r: any) => {
-            const idx = (t.headers || []).indexOf(h);
-            if (idx >= 0 && r[idx]) sampleData[h].push(String(r[idx]));
-          });
-        });
-      });
-    });
-
-    const autoMap: Record<string, string> = {
-      sku: "sku", title: "product_name", description: "description",
-      price: "price", category: "category", dimensions: "dimension",
-      weight: "weight", material: "material", color_options: "attribute",
-      technical_specs: "technical_specs", image_description: "image",
-    };
-
-    const mappings = Array.from(allHeaders).map((h) => {
-      const lower = h.toLowerCase();
-      let mapped = autoMap[h] || "attribute";
-      if (!autoMap[h]) {
-        if (lower.includes("sku") || lower === "ref") mapped = "sku";
-        else if (lower.includes("nome") || lower.includes("title") || lower.includes("designação")) mapped = "product_name";
-        else if (lower.includes("preço") || lower.includes("price") || lower === "pvp") mapped = "price";
-        else if (lower.includes("desc")) mapped = "description";
-        else if (lower.includes("potência") || lower.includes("power")) mapped = "power";
-        else if (lower.includes("peso") || lower.includes("weight")) mapped = "weight";
-        else if (lower.includes("dim")) mapped = "dimension";
-        else if (lower.includes("categ")) mapped = "category";
-      }
-      return {
-        header: h,
-        mappedTo: mapped,
-        confidence: mapped !== "attribute" ? 85 : 50,
-        sampleValues: sampleData[h] || [],
-      };
-    });
-
-    setColumnMappings(mappings);
-
-    // Also trigger map-pdf-to-products to populate detected_products
-    if (wizardExtractionId) {
-      mapToProducts.mutate({ extractionId: wizardExtractionId });
-    }
-  };
-
-  const handleMappingChange = (header: string, mappedTo: string) => {
-    setColumnMappings((prev) =>
-      prev.map((c) => c.header === header ? { ...c, mappedTo, confidence: 100 } : c)
-    );
-  };
-
-  const handleSaveMappings = async () => {
-    if (!wizardExtractionId) return;
-    await saveMappingRules.mutateAsync({
-      extractionId: wizardExtractionId,
-      rules: columnMappings.map((c, i) => ({
-        field_label: c.header,
-        mapped_to: c.mappedTo,
-        confidence: c.confidence,
-        column_index: i,
-      })),
-    });
-    setWizardStep("preview");
-  };
+  // Auto-advance: when extraction finishes (status=reviewing) and detected_products is populated, go to review
+  const extractionStatus = wizardExtraction?.status;
+  const hasDetectedProducts = ((wizardExtraction?.detected_products as any[])?.length || 0) > 0;
+  
+  // Auto-advance to review when extraction is done
+  if (wizardStep === "extracting" && extractionStatus === "reviewing" && hasDetectedProducts) {
+    setWizardStep("review");
+  }
 
   const handleSendToIngestion = async (config: { mergeStrategy: string; dupFields: string }) => {
     if (!wizardExtractionId) return;
@@ -293,14 +171,13 @@ export default function PDFExtractionPage() {
       mergeStrategy: config.mergeStrategy,
       dupFields: config.dupFields,
     });
-    setWizardStep("ingestion");
   };
 
   const resetWizard = () => {
     setWizardStep("upload");
     setWizardExtractionId(null);
     setSelectedFileId("");
-    setColumnMappings([]);
+    
   };
 
   // Quick extraction from history table
@@ -390,83 +267,76 @@ export default function PDFExtractionPage() {
             </div>
           )}
 
-          {/* Step: Analysis */}
-          {wizardStep === "analysis" && (
-            <div className="space-y-4">
-              <DocumentPreviewPanel analysis={wizardExtraction?.layout_analysis} />
-
-              {analyzeLayout.isPending ? (
-                <Card>
-                  <CardContent className="flex items-center justify-center py-8 gap-3">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-sm text-muted-foreground">A analisar layout do documento...</span>
-                  </CardContent>
-                </Card>
-              ) : wizardExtraction?.layout_analysis ? (
-                <div className="flex gap-3">
-                  <Button onClick={handleAnalysisComplete}>
-                    <ArrowRight className="h-4 w-4 mr-2" /> Escolher Motor de Extração
-                  </Button>
-                  <Button variant="outline" onClick={() => analyzeLayout.mutate(wizardExtractionId!)}>
-                    Reanalisar
-                  </Button>
+          {/* Step: Extracting (auto, shows progress) */}
+          {wizardStep === "extracting" && (
+            <Card>
+              <CardContent className="py-12">
+                <div className="flex flex-col items-center gap-4">
+                  {extractionStatus === "error" ? (
+                    <>
+                      <XCircle className="h-10 w-10 text-destructive" />
+                      <p className="text-sm font-medium">Erro na extração</p>
+                      <Button variant="outline" onClick={resetWizard}>
+                        <Upload className="h-4 w-4 mr-2" /> Tentar novamente
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                      <div className="text-center space-y-1">
+                        <p className="text-sm font-medium">A extrair produtos do PDF com AI Vision...</p>
+                        <p className="text-xs text-muted-foreground">
+                          {wizardExtraction?.processed_pages || 0} / {wizardExtraction?.total_pages || "?"} páginas processadas
+                        </p>
+                        {wizardExtraction?.total_pages > 0 && (
+                          <div className="w-64 mx-auto mt-2">
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary rounded-full transition-all duration-500"
+                                style={{ width: `${Math.round(((wizardExtraction?.processed_pages || 0) / wizardExtraction.total_pages) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground mt-2">
+                          Podes sair desta página — a extração continua em segundo plano.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
-              ) : (
-                <Button onClick={() => analyzeLayout.mutate(wizardExtractionId!)} disabled={analyzeLayout.isPending}>
-                  <Scan className="h-4 w-4 mr-2" /> Analisar Layout
-                </Button>
-              )}
-            </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Step: Engine selection */}
-          {wizardStep === "engine" && (
-            <EngineRecommendationCard
-              recommendation={wizardExtraction?.engine_recommendation}
-              selectedEngine={selectedEngine}
-              onEngineChange={setSelectedEngine}
-              onAccept={handleRunExtraction}
-              isProcessing={runDocIntel.isPending}
-            />
-          )}
-
-          {/* Step: Mapping */}
-          {wizardStep === "mapping" && (
+          {/* Step: Review — compiled product table */}
+          {wizardStep === "review" && (
             <div className="space-y-4">
-              {columnMappings.length > 0 ? (
-                <MappingEditor
-                  columns={columnMappings}
-                  onMappingChange={handleMappingChange}
-                  onSave={handleSaveMappings}
-                  onReset={buildMappingFromExtraction}
-                  isSaving={saveMappingRules.isPending}
-                />
-              ) : (
-                <Card>
-                  <CardContent className="py-8 text-center">
-                    <p className="text-muted-foreground">Nenhuma coluna detetada — a extração poderá não ter encontrado tabelas.</p>
-                    <Button variant="outline" className="mt-3" onClick={() => setWizardStep("preview")}>
-                      Avançar sem mapeamento
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Package className="h-5 w-5" /> Produtos Extraídos
+                    </CardTitle>
+                    <Badge variant="default">{wizardProductCount} produtos encontrados</Badge>
+                  </div>
+                  <CardDescription>
+                    Revise os produtos extraídos do PDF. Quando estiver satisfeito, envie para o Ingestion Hub.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
 
-          {/* Step: Preview */}
-          {wizardStep === "preview" && (
-            <div className="space-y-4">
               <DataPreviewTable
                 products={(wizardExtraction?.detected_products as any[]) || []}
-                columns={columnMappings.length > 0 ? columnMappings.map((c) => c.header) : undefined}
+                columns={undefined}
               />
+
               <div className="flex gap-3">
                 <Button onClick={() => setWizardStep("ingestion")}>
-                  <ArrowRight className="h-4 w-4 mr-2" /> Enviar para Ingestão
+                  <ArrowRight className="h-4 w-4 mr-2" /> Aceitar e Enviar para Ingestão
                 </Button>
-                <Button variant="outline" onClick={() => setWizardStep("mapping")}>
-                  Voltar ao Mapeamento
+                <Button variant="outline" onClick={resetWizard}>
+                  Cancelar
                 </Button>
               </div>
             </div>

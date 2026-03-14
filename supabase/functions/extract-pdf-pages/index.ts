@@ -159,6 +159,7 @@ Return ONLY valid JSON.`,
 
     // Process chunks with bounded concurrency to prevent worker pressure
     const results: Array<{ chunk: { start: number; end: number }; ok: boolean; result: any }> = [];
+    let cumulativeProcessed = alreadyDone.size;
 
     for (let i = 0; i < chunks.length; i += MAX_CHUNK_CONCURRENCY) {
       const batch = chunks.slice(i, i + MAX_CHUNK_CONCURRENCY);
@@ -174,45 +175,55 @@ Return ONLY valid JSON.`,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
           },
-          // Do NOT pass pdfBase64 — chunks download from storage to avoid request size limits
         })
       ));
       results.push(...batchResults);
+
+      // Update processed_pages incrementally so the UI shows real progress
+      for (const r of batchResults) {
+        if (r.ok && r.result) {
+          cumulativeProcessed += r.result.pagesProcessed || 0;
+        } else {
+          // Count error pages too
+          cumulativeProcessed += (r.chunk.end - r.chunk.start + 1);
+          console.error(`Chunk ${r.chunk.start}-${r.chunk.end} failed:`, r.result?.error);
+          for (let p = r.chunk.start; p <= r.chunk.end; p++) {
+            await supabase.from("pdf_pages").insert({
+              extraction_id: extractionId,
+              page_number: p,
+              raw_text: `[Extraction failed]`,
+              has_tables: false, has_images: false,
+              confidence_score: 0, status: "error" as any,
+              zones: [],
+              page_context: { error: r.result?.error || "chunk failed" },
+            });
+          }
+        }
+      }
+      // Update progress in DB after each batch
+      await supabase.from("pdf_extractions").update({
+        processed_pages: cumulativeProcessed,
+      }).eq("id", extractionId);
     }
 
+    const processingTime = Date.now() - startTime;
+    // Compute totals from results
     let totalPagesProcessed = 0;
     let totalTablesCreated = 0;
     let totalRowsExtracted = 0;
     let confidenceSum = 0;
-
     for (const r of results) {
       if (r.ok && r.result) {
         totalPagesProcessed += r.result.pagesProcessed || 0;
         totalTablesCreated += r.result.tablesCreated || 0;
         totalRowsExtracted += r.result.rowsExtracted || 0;
         confidenceSum += r.result.confidenceSum || 0;
-      } else {
-        console.error(`Chunk ${r.chunk.start}-${r.chunk.end} failed:`, r.result?.error);
-        // Create error page entries for failed chunks
-        for (let p = r.chunk.start; p <= r.chunk.end; p++) {
-          await supabase.from("pdf_pages").insert({
-            extraction_id: extractionId,
-            page_number: p,
-            raw_text: `[Extraction failed]`,
-            has_tables: false, has_images: false,
-            confidence_score: 0, status: "error" as any,
-            zones: [],
-            page_context: { error: r.result?.error || "chunk failed" },
-          });
-          totalPagesProcessed++;
-        }
       }
     }
 
-    const processingTime = Date.now() - startTime;
     await supabase.from("pdf_extractions").update({
-      status: "reviewing",
-      processed_pages: totalPagesProcessed,
+      status: "processing",
+      processed_pages: cumulativeProcessed,
       extraction_mode: "ai_vision_chunked",
       provider_used: "Lovable AI Gateway",
       provider_model: "google/gemini-2.5-flash",
@@ -229,9 +240,33 @@ Return ONLY valid JSON.`,
       processing_time: processingTime,
     });
 
+    // Auto-compile: run map-pdf-to-products to populate detected_products
+    console.log("Auto-compiling products from extraction...");
+    try {
+      const mapResp = await fetch(`${supabaseUrl}/functions/v1/map-pdf-to-products`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          extractionId,
+          workspaceId: extraction.workspace_id,
+        }),
+      });
+      const mapResult = mapResp.ok ? await mapResp.json() : null;
+      console.log(`Auto-compile result: ${mapResult?.rowsMapped || 0} products compiled`);
+    } catch (mapErr) {
+      console.error("Auto-compile failed:", mapErr);
+      // Still mark as reviewing even if compile fails
+    }
+
+    // Final status update
+    await supabase.from("pdf_extractions").update({ status: "reviewing" }).eq("id", extractionId);
+
     return new Response(JSON.stringify({
       success: true, extractionId, totalPages,
-      pagesProcessed: totalPagesProcessed + alreadyDone.size,
+      pagesProcessed: cumulativeProcessed,
       pagesResumed: alreadyDone.size,
       pagesNewlyExtracted: totalPagesProcessed,
       tablesDetected: totalTablesCreated,

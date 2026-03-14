@@ -12,10 +12,36 @@ interface DetectedProduct {
 
 interface Props {
   products: DetectedProduct[];
-  columns: string[];
+  columns?: string[];
 }
 
-export function DataPreviewTable({ products, columns }: Props) {
+const DISPLAY_LABELS: Record<string, string> = {
+  sku: "SKU", original_title: "Título", original_description: "Descrição",
+  original_price: "Preço", category: "Categoria", dimensions: "Dimensões",
+  weight: "Peso", material: "Material", title: "Título", description: "Descrição",
+  price: "Preço", color_options: "Cores", technical_specs: "Especificações",
+};
+
+export function DataPreviewTable({ products, columns: columnsProp }: Props) {
+  if (!products?.length) return null;
+
+  // Auto-detect columns from product keys, excluding internal fields
+  const columns = columnsProp || (() => {
+    const keys = new Set<string>();
+    products.slice(0, 10).forEach((p) => {
+      Object.keys(p).forEach((k) => {
+        if (!k.startsWith("_") && k !== "confidence" && k !== "images" && k !== "currency") keys.add(k);
+      });
+    });
+    // Prioritize common fields
+    const priority = ["sku", "title", "original_title", "description", "original_description", "original_price", "price", "category", "material", "dimensions", "weight"];
+    const sorted = [...keys].sort((a, b) => {
+      const ai = priority.indexOf(a);
+      const bi = priority.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    return sorted;
+  })();
   if (!products?.length) return null;
 
   const lowConfidence = products.filter((p) => (p._confidence || 0) < 60);
@@ -43,20 +69,24 @@ export function DataPreviewTable({ products, columns }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
-                {columns.slice(0, 6).map((col) => (
-                  <TableHead key={col} className="text-xs">{col}</TableHead>
+                {columns.slice(0, 7).map((col) => (
+                  <TableHead key={col} className="text-xs">{DISPLAY_LABELS[col] || col}</TableHead>
                 ))}
                 <TableHead className="text-xs">Confiança</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.slice(0, 30).map((product, i) => (
+              {products.slice(0, 50).map((product, i) => (
                 <TableRow key={i} className={(product._confidence || 100) < 60 ? "bg-destructive/5" : ""}>
-                  {columns.slice(0, 6).map((col) => (
-                    <TableCell key={col} className="text-xs max-w-32 truncate">
-                      {product[col] || <span className="text-muted-foreground italic">vazio</span>}
-                    </TableCell>
-                  ))}
+                  {columns.slice(0, 7).map((col) => {
+                    let val = product[col];
+                    if (val != null && typeof val === "object") val = JSON.stringify(val);
+                    return (
+                      <TableCell key={col} className="text-xs max-w-40 truncate">
+                        {val || <span className="text-muted-foreground italic">—</span>}
+                      </TableCell>
+                    );
+                  })}
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {(product._confidence || 100) >= 80 ? (
@@ -73,8 +103,8 @@ export function DataPreviewTable({ products, columns }: Props) {
               ))}
             </TableBody>
           </Table>
-          {products.length > 30 && (
-            <p className="text-xs text-muted-foreground mt-2 text-center">A mostrar 30 de {products.length}</p>
+          {products.length > 50 && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">A mostrar 50 de {products.length}</p>
           )}
         </ScrollArea>
       </CardContent>
