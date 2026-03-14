@@ -343,7 +343,7 @@ async function processChunk(opts: {
       messages: [
         {
           role: "system",
-          content: "You are a product data extraction expert. Extract ALL products from the specified pages with maximum precision.",
+          content: "You are a product data extraction expert. Extract ALL products from the specified pages with maximum precision. Pay special attention to product images — describe each image in detail for SEO alt-text generation.",
         },
         {
           role: "user",
@@ -355,10 +355,19 @@ async function processChunk(opts: {
 Language: ${overviewData?.language || "auto-detect"}
 Supplier: ${overviewData?.supplier_name || "unknown"}
 
-For each product return: sku, title, description, price (number), currency, category, dimensions, weight, material, color_options (array), technical_specs (object), image_description, confidence (0-100).
+For each product return:
+- sku, title, description, price (number), currency, category, dimensions, weight, material, color_options (array), technical_specs (object), confidence (0-100)
+- images (array of objects): For EACH product image visible on the page, provide:
+  - image_description: detailed description of what the image shows (product angle, context, styling)
+  - alt_text: SEO-optimized alt text (max 125 chars)
+  - image_type: "product_photo"|"technical_drawing"|"lifestyle"|"packaging"|"detail_closeup"|"color_swatch"|"dimension_diagram"
+  - position_on_page: "top"|"middle"|"bottom"|"left"|"right"|"center"
+  - estimated_size: "small"|"medium"|"large"|"full_width"
+  - contains_text: boolean (if the image has overlaid text)
+  - background: "white"|"transparent"|"lifestyle"|"colored"|"studio"
 
 JSON format:
-{"pages":[{"page_number":N,"page_type":"product_listing","zones":["header","table"],"section_title":"...","products":[{...}]}]}
+{"pages":[{"page_number":N,"page_type":"product_listing","zones":["header","table","images"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
 Return ONLY valid JSON.`,
             },
           ],
