@@ -323,3 +323,24 @@ verify_jwt = false
 
 [functions.generate-agent-runtime-alerts]
 verify_jwt = false
+
+[functions.start-catalog-workflow]
+verify_jwt = false
+
+[functions.execute-workflow-step]
+verify_jwt = false
+
+[functions.handoff-workflow-step]
+verify_jwt = false
+
+[functions.pause-workflow-run]
+verify_jwt = false
+
+[functions.resume-workflow-run]
+verify_jwt = false
+
+[functions.retry-workflow-step]
+verify_jwt = false
+
+[functions.summarize-workflow-run]
+verify_jwt = false

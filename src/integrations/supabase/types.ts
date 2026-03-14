@@ -3373,6 +3373,161 @@ export type Database = {
           },
         ]
       }
+      catalog_workflow_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          run_summary: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          supplier_id: string | null
+          trigger_source: string
+          workflow_id: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          run_summary?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          supplier_id?: string | null
+          trigger_source?: string
+          workflow_id: string
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          run_summary?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          supplier_id?: string | null
+          trigger_source?: string
+          workflow_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_workflow_runs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_workflow_runs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_workflows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_workflow_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_workflow_steps: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_payload: Json | null
+          id: string
+          input_ref: Json | null
+          output_ref: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          step_name: string
+          step_order: number
+          step_type: Database["public"]["Enums"]["catalog_step_type_enum"]
+          workflow_run_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_payload?: Json | null
+          id?: string
+          input_ref?: Json | null
+          output_ref?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          step_name: string
+          step_order?: number
+          step_type: Database["public"]["Enums"]["catalog_step_type_enum"]
+          workflow_run_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_payload?: Json | null
+          id?: string
+          input_ref?: Json | null
+          output_ref?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          step_name?: string
+          step_order?: number
+          step_type?: Database["public"]["Enums"]["catalog_step_type_enum"]
+          workflow_run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_workflow_steps_workflow_run_id_fkey"
+            columns: ["workflow_run_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_workflow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_workflows: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          workflow_config: Json | null
+          workflow_name: string
+          workflow_status: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          workflow_type: Database["public"]["Enums"]["catalog_workflow_type_enum"]
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          workflow_config?: Json | null
+          workflow_name: string
+          workflow_status?: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          workflow_type?: Database["public"]["Enums"]["catalog_workflow_type_enum"]
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          workflow_config?: Json | null
+          workflow_name?: string
+          workflow_status?: Database["public"]["Enums"]["catalog_workflow_status_enum"]
+          workflow_type?: Database["public"]["Enums"]["catalog_workflow_type_enum"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_workflows_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -11616,6 +11771,44 @@ export type Database = {
           },
         ]
       }
+      workflow_handoffs: {
+        Row: {
+          created_at: string
+          from_module: string
+          handoff_payload: Json | null
+          handoff_status: Database["public"]["Enums"]["handoff_status_enum"]
+          id: string
+          to_module: string
+          workflow_run_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_module: string
+          handoff_payload?: Json | null
+          handoff_status?: Database["public"]["Enums"]["handoff_status_enum"]
+          id?: string
+          to_module: string
+          workflow_run_id: string
+        }
+        Update: {
+          created_at?: string
+          from_module?: string
+          handoff_payload?: Json | null
+          handoff_status?: Database["public"]["Enums"]["handoff_status_enum"]
+          id?: string
+          to_module?: string
+          workflow_run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_handoffs_workflow_run_id_fkey"
+            columns: ["workflow_run_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_workflow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_transitions: {
         Row: {
           created_at: string
@@ -12656,6 +12849,34 @@ export type Database = {
         | "required"
         | "approved"
         | "rejected"
+      catalog_step_type_enum:
+        | "intake"
+        | "classification"
+        | "matching"
+        | "grouping"
+        | "canonical_assembly"
+        | "validation"
+        | "review"
+        | "asset_processing"
+        | "payload_build"
+        | "publish"
+        | "sync"
+        | "monitoring"
+      catalog_workflow_status_enum:
+        | "queued"
+        | "running"
+        | "paused"
+        | "completed"
+        | "partial"
+        | "failed"
+        | "cancelled"
+      catalog_workflow_type_enum:
+        | "supplier_import"
+        | "catalog_refresh"
+        | "price_update"
+        | "channel_republish"
+        | "marketplace_export"
+        | "full_catalog_cycle"
       channel_asset_status_enum:
         | "selected"
         | "optimized"
@@ -12902,6 +13123,7 @@ export type Database = {
         | "missing_bundle"
         | "missing_supplier_range"
       gate_severity: "error" | "warning" | "info"
+      handoff_status_enum: "pending" | "completed" | "failed"
       image_job_item_status:
         | "queued"
         | "processing"
@@ -13836,6 +14058,37 @@ export const Constants = {
         "approved",
         "rejected",
       ],
+      catalog_step_type_enum: [
+        "intake",
+        "classification",
+        "matching",
+        "grouping",
+        "canonical_assembly",
+        "validation",
+        "review",
+        "asset_processing",
+        "payload_build",
+        "publish",
+        "sync",
+        "monitoring",
+      ],
+      catalog_workflow_status_enum: [
+        "queued",
+        "running",
+        "paused",
+        "completed",
+        "partial",
+        "failed",
+        "cancelled",
+      ],
+      catalog_workflow_type_enum: [
+        "supplier_import",
+        "catalog_refresh",
+        "price_update",
+        "channel_republish",
+        "marketplace_export",
+        "full_catalog_cycle",
+      ],
       channel_asset_status_enum: [
         "selected",
         "optimized",
@@ -14111,6 +14364,7 @@ export const Constants = {
         "missing_supplier_range",
       ],
       gate_severity: ["error", "warning", "info"],
+      handoff_status_enum: ["pending", "completed", "failed"],
       image_job_item_status: [
         "queued",
         "processing",
