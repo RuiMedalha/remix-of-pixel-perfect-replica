@@ -7,7 +7,7 @@ export function usePdfExtractions() {
   const { activeWorkspace } = useWorkspaceContext();
   const workspaceId = activeWorkspace?.id;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["pdf-extractions", workspaceId],
     enabled: !!workspaceId,
     queryFn: async () => {
@@ -19,7 +19,17 @@ export function usePdfExtractions() {
       if (error) throw error;
       return data;
     },
+    // Auto-poll every 5s when any extraction is in progress
+    refetchInterval: (query) => {
+      const data = query.state.data as any[] | undefined;
+      const hasActive = data?.some((e: any) =>
+        ["queued", "extracting", "processing"].includes(e.status)
+      );
+      return hasActive ? 5000 : false;
+    },
   });
+
+  return query;
 }
 
 export function usePdfPages(extractionId: string | null) {
@@ -72,15 +82,22 @@ export function useStartPdfExtraction() {
         .single();
       if (createErr) throw createErr;
 
-      // Trigger extraction
-      const { data, error } = await supabase.functions.invoke("extract-pdf-pages", {
+      // Fire-and-forget: trigger extraction without awaiting completion
+      // The edge function runs server-side and updates the DB as it progresses
+      supabase.functions.invoke("extract-pdf-pages", {
         body: { extractionId: extraction.id },
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
+      }).catch((err) => {
+        console.error("Background extraction error:", err);
+        // The extraction status will be set to "error" by the edge function itself
+        queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
       });
-      if (error) throw error;
-      return { ...data, extractionId: extraction.id };
+
+      return { extractionId: extraction.id };
     },
     onSuccess: () => {
-      toast.success("Extração PDF iniciada");
+      toast.success("Extração PDF iniciada em segundo plano");
       queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
     },
     onError: (e: Error) => toast.error("Erro na extração: " + e.message),
