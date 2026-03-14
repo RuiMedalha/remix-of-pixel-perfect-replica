@@ -699,7 +699,7 @@ export default function PDFExtractionPage() {
                 products={productsForReview}
                 columns={undefined}
                 editable
-                onProductsChange={setReviewDraftProducts}
+                onProductsChange={(products) => setReviewDraftProducts(products)}
               />
 
               <div className="flex flex-wrap items-center gap-3">
