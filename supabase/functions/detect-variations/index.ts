@@ -318,8 +318,8 @@ ${JSON.stringify(productList, null, 1).substring(0, 25000)}${existingGroupsConte
       throw new Error("AI error: " + aiResponse.status + " " + errText);
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const routeData = await aiResponse.json();
+    const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
       return new Response(
         JSON.stringify({ groups: [], addToExisting: [], reclassify: [], message: "IA não detetou variações." }),
