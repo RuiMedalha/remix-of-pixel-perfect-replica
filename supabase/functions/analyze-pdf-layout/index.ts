@@ -10,16 +10,14 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     const { extractionId } = await req.json();
     if (!extractionId) throw new Error("extractionId required");
 
-    // Get extraction and pages
+    // Get extraction with layout_analysis already populated by extract-pdf-pages
     const { data: extraction } = await supabase
       .from("pdf_extractions")
       .select("*, uploaded_files:file_id(file_name)")
@@ -27,93 +25,56 @@ serve(async (req) => {
       .single();
     if (!extraction) throw new Error("Extraction not found");
 
+    const workspaceId = extraction.workspace_id;
+
+    // Get pages with their extracted data
     const { data: pages } = await supabase
       .from("pdf_pages")
-      .select("id, page_number, raw_text, has_tables, zones, layout_zones")
+      .select("id, page_number, raw_text, has_tables, has_images, zones, page_context, confidence_score, vision_result")
       .eq("extraction_id", extractionId)
       .order("page_number");
 
     if (!pages?.length) throw new Error("No pages found");
 
-    // Build summary for AI analysis
-    const pageSummaries = pages.map((p: any) => ({
-      page: p.page_number,
-      textLength: (p.raw_text || "").length,
-      hasTables: p.has_tables,
-      zonesCount: (p.zones || p.layout_zones || []).length,
-      textPreview: (p.raw_text || "").substring(0, 500),
-    }));
-
-    const totalText = pages.reduce((s: number, p: any) => s + (p.raw_text || "").length, 0);
-    const tablesCount = pages.filter((p: any) => p.has_tables).length;
     const totalPages = pages.length;
+    const pagesWithProducts = pages.filter((p: any) => p.page_context?.product_count > 0).length;
+    const totalProducts = pages.reduce((s: number, p: any) => s + (p.page_context?.product_count || 0), 0);
+    const avgConfidence = Math.round(pages.reduce((s: number, p: any) => s + (p.confidence_score || 0), 0) / totalPages);
 
-    // Call AI for layout analysis + engine recommendation
-    const prompt = `Analyze this PDF document structure for product catalog extraction. The document has ${totalPages} pages, ${totalText} total characters, and ${tablesCount} pages with tables.
+    // Use existing layout_analysis from extraction (populated during extract-pdf-pages)
+    const existingAnalysis = extraction.layout_analysis || {};
 
-Page summaries:
-${JSON.stringify(pageSummaries.slice(0, 10), null, 2)}
+    const analysis = {
+      layout_complexity: totalProducts > 100 ? "complex" : totalProducts > 20 ? "moderate" : "simple",
+      text_quality: avgConfidence > 75 ? "high" : avgConfidence > 50 ? "medium" : "low",
+      has_complex_tables: pagesWithProducts > 10,
+      needs_ocr: false, // AI vision handles this
+      recommended_engine: "lovable_gateway",
+      engine_confidence: avgConfidence,
+      estimated_accuracy: avgConfidence,
+      estimated_cost_usd: totalPages * 0.005,
+      detected_products_estimate: totalProducts,
+      document_language: existingAnalysis.language || "unknown",
+      supplier_hint: existingAnalysis.supplier_name || null,
+      document_type: existingAnalysis.document_type || "product_catalog",
+      totalPages,
+      pagesWithProducts,
+      avgConfidence,
+    };
 
-Return a JSON with:
-1. "layout_complexity": "simple" | "moderate" | "complex"
-2. "detected_zones": array of { "type": string, "description": string, "pages": number[], "confidence": number }
-   Types: product_title, sku, reference, price, technical_specs, dimension, power, description, table_product_list, image, category, header, footer
-3. "has_complex_tables": boolean
-4. "needs_ocr": boolean  
-5. "text_quality": "high" | "medium" | "low"
-6. "recommended_engine": "gemini_vision" | "openai_vision" | "lovable_gateway" | "ocr_rules"
-7. "engine_confidence": number (0-100)
-8. "estimated_accuracy": number (0-100)
-9. "estimated_cost_usd": number
-10. "detected_products_estimate": number
-11. "document_language": string
-12. "supplier_hint": string or null`;
-
-    const resp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({
-        taskType: "pdf_layout_analysis",
-        workspaceId,
-        systemPrompt: "You are a document analysis expert. Return only valid JSON.",
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    let analysis: any = {};
-    if (resp.ok) {
-      const routeData = await resp.json();
-      const content = routeData.result?.choices?.[0]?.message?.content || "{}";
-      try { analysis = JSON.parse(content); } catch { analysis = {}; }
-    }
-
-    // Build engine recommendation
     const engineRecommendation = {
-      recommended: analysis.recommended_engine || "lovable_gateway",
-      confidence: analysis.engine_confidence || 70,
-      estimated_accuracy: analysis.estimated_accuracy || 75,
-      estimated_cost_usd: analysis.estimated_cost_usd || 0.01 * totalPages,
+      recommended: "lovable_gateway",
+      confidence: avgConfidence,
+      estimated_accuracy: avgConfidence,
+      estimated_cost_usd: totalPages * 0.005,
       alternatives: [
-        { engine: "lovable_gateway", label: "Lovable AI Gateway", pros: "Sem configuração extra", cost: "Incluído" },
-        { engine: "gemini_vision", label: "Google Gemini Vision", pros: "Melhor para tabelas complexas", cost: "~$0.02/page" },
-        { engine: "openai_vision", label: "OpenAI Vision", pros: "Forte em OCR e texto", cost: "~$0.03/page" },
-        { engine: "ocr_rules", label: "OCR + Regras", pros: "Mais rápido, sem custo AI", cost: "Grátis" },
+        { engine: "lovable_gateway", label: "Lovable AI Gateway", pros: "Sem configuração extra, visão AI nativa", cost: "Incluído" },
       ],
     };
 
-    // Save analysis to extraction
     await supabase.from("pdf_extractions").update({
-      layout_analysis: {
-        ...analysis,
-        totalPages,
-        totalCharacters: totalText,
-        pagesWithTables: tablesCount,
-      },
+      layout_analysis: analysis,
       engine_recommendation: engineRecommendation,
-      status: "reviewing",
     }).eq("id", extractionId);
 
     return new Response(JSON.stringify({
@@ -121,7 +82,8 @@ Return a JSON with:
       analysis,
       engineRecommendation,
       totalPages,
-      pagesWithTables: tablesCount,
+      pagesWithProducts,
+      totalProducts,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("analyze-pdf-layout error:", e);
