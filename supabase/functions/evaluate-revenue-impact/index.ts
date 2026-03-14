@@ -99,8 +99,8 @@ Rules:
       throw new Error(`AI error ${status}: ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const routeData = await aiResponse.json();
+    const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
     let result = { revenue_opportunities: [] as any[], estimated_impact: 0, priority_score: 0, analysis_summary: "" };
 
     if (toolCall?.function?.arguments) {
