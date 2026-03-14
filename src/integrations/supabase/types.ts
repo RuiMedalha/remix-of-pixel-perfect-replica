@@ -9934,6 +9934,57 @@ export type Database = {
           },
         ]
       }
+      supplier_connector_setups: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_tested_at: string | null
+          setup_config: Json | null
+          setup_status: Database["public"]["Enums"]["setup_status_enum"] | null
+          supplier_id: string
+          tested_successfully: boolean | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_tested_at?: string | null
+          setup_config?: Json | null
+          setup_status?: Database["public"]["Enums"]["setup_status_enum"] | null
+          supplier_id: string
+          tested_successfully?: boolean | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_tested_at?: string | null
+          setup_config?: Json | null
+          setup_status?: Database["public"]["Enums"]["setup_status_enum"] | null
+          supplier_id?: string
+          tested_successfully?: boolean | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_connector_setups_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_connector_setups_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_cost_profiles: {
         Row: {
           average_cost_per_import: number | null
@@ -10296,6 +10347,47 @@ export type Database = {
           },
         ]
       }
+      supplier_lookup_strategies: {
+        Row: {
+          created_at: string | null
+          fallback_rules: Json | null
+          id: string
+          is_default: boolean | null
+          lookup_order: Json | null
+          search_url_template: string | null
+          strategy_name: string
+          supplier_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          fallback_rules?: Json | null
+          id?: string
+          is_default?: boolean | null
+          lookup_order?: Json | null
+          search_url_template?: string | null
+          strategy_name: string
+          supplier_id: string
+        }
+        Update: {
+          created_at?: string | null
+          fallback_rules?: Json | null
+          id?: string
+          is_default?: boolean | null
+          lookup_order?: Json | null
+          search_url_template?: string | null
+          strategy_name?: string
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_lookup_strategies_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_matching_rules: {
         Row: {
           created_at: string | null
@@ -10333,6 +10425,69 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_playbooks: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_template: boolean | null
+          playbook_config: Json | null
+          playbook_name: string
+          playbook_type: Database["public"]["Enums"]["playbook_type_enum"]
+          supplier_id: string | null
+          updated_at: string | null
+          version_number: number | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_template?: boolean | null
+          playbook_config?: Json | null
+          playbook_name: string
+          playbook_type?: Database["public"]["Enums"]["playbook_type_enum"]
+          supplier_id?: string | null
+          updated_at?: string | null
+          version_number?: number | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_template?: boolean | null
+          playbook_config?: Json | null
+          playbook_name?: string
+          playbook_type?: Database["public"]["Enums"]["playbook_type_enum"]
+          supplier_id?: string | null
+          updated_at?: string | null
+          version_number?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_playbooks_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_playbooks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -10427,6 +10582,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "supplier_prompt_profiles_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_setup_checklists: {
+        Row: {
+          checklist_items: Json | null
+          checklist_type: Database["public"]["Enums"]["checklist_type_enum"]
+          completion_status: string | null
+          created_at: string | null
+          id: string
+          supplier_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          checklist_items?: Json | null
+          checklist_type?: Database["public"]["Enums"]["checklist_type_enum"]
+          completion_status?: string | null
+          created_at?: string | null
+          id?: string
+          supplier_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          checklist_items?: Json | null
+          checklist_type?: Database["public"]["Enums"]["checklist_type_enum"]
+          completion_status?: string | null
+          created_at?: string | null
+          id?: string
+          supplier_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_setup_checklists_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "supplier_profiles"
@@ -10574,6 +10767,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "supplier_taxonomy_profiles_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_test_runs: {
+        Row: {
+          created_at: string | null
+          id: string
+          playbook_id: string | null
+          result_payload: Json | null
+          result_status:
+            | Database["public"]["Enums"]["supplier_result_status_enum"]
+            | null
+          supplier_id: string
+          test_payload: Json | null
+          test_type: Database["public"]["Enums"]["supplier_test_type_enum"]
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          playbook_id?: string | null
+          result_payload?: Json | null
+          result_status?:
+            | Database["public"]["Enums"]["supplier_result_status_enum"]
+            | null
+          supplier_id: string
+          test_payload?: Json | null
+          test_type: Database["public"]["Enums"]["supplier_test_type_enum"]
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          playbook_id?: string | null
+          result_payload?: Json | null
+          result_status?:
+            | Database["public"]["Enums"]["supplier_result_status_enum"]
+            | null
+          supplier_id?: string
+          test_payload?: Json | null
+          test_type?: Database["public"]["Enums"]["supplier_test_type_enum"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_test_runs_playbook_id_fkey"
+            columns: ["playbook_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_playbooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_test_runs_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "supplier_profiles"
@@ -12223,6 +12470,11 @@ export type Database = {
         | "csv_export"
         | "api_endpoint"
         | "marketplace"
+      checklist_type_enum:
+        | "technical_setup"
+        | "data_quality"
+        | "taxonomy_mapping"
+        | "go_live_readiness"
       confidence_source: "ai" | "human" | "import" | "scrape" | "ocr" | "api"
       conflict_scope_enum:
         | "field"
@@ -12663,6 +12915,15 @@ export type Database = {
         | "publish"
         | "sync"
         | "review_support"
+      playbook_type_enum:
+        | "manufacturer_catalog"
+        | "distributor_feed"
+        | "excel_only"
+        | "pdf_plus_excel"
+        | "website_plus_excel"
+        | "xml_feed"
+        | "api_catalog"
+        | "hybrid_supplier"
       product_identity_status_enum:
         | "unresolved"
         | "matched"
@@ -12756,6 +13017,13 @@ export type Database = {
         | "selected"
         | "rejected"
         | "needs_review"
+      setup_status_enum:
+        | "draft"
+        | "configuring"
+        | "testing"
+        | "ready"
+        | "active"
+        | "failed"
       severity_enum: "low" | "medium" | "high" | "critical"
       simulation_result_type:
         | "expected_improvement"
@@ -12813,6 +13081,7 @@ export type Database = {
         | "title_similarity"
         | "family_match"
         | "dimensions_match"
+      supplier_result_status_enum: "success" | "partial" | "failed"
       supplier_source_role_enum:
         | "commercial"
         | "technical"
@@ -12829,6 +13098,14 @@ export type Database = {
         | "api"
         | "woo_export"
         | "image_pack"
+      supplier_test_type_enum:
+        | "lookup_test"
+        | "matching_test"
+        | "grouping_test"
+        | "taxonomy_test"
+        | "pricing_test"
+        | "asset_test"
+        | "full_pipeline_test"
       task_type_enum:
         | "field_review"
         | "identity_review"
@@ -13352,6 +13629,12 @@ export const Constants = {
         "api_endpoint",
         "marketplace",
       ],
+      checklist_type_enum: [
+        "technical_setup",
+        "data_quality",
+        "taxonomy_mapping",
+        "go_live_readiness",
+      ],
       confidence_source: ["ai", "human", "import", "scrape", "ocr", "api"],
       conflict_scope_enum: [
         "field",
@@ -13840,6 +14123,16 @@ export const Constants = {
         "sync",
         "review_support",
       ],
+      playbook_type_enum: [
+        "manufacturer_catalog",
+        "distributor_feed",
+        "excel_only",
+        "pdf_plus_excel",
+        "website_plus_excel",
+        "xml_feed",
+        "api_catalog",
+        "hybrid_supplier",
+      ],
       product_identity_status_enum: [
         "unresolved",
         "matched",
@@ -13946,6 +14239,14 @@ export const Constants = {
         "rejected",
         "needs_review",
       ],
+      setup_status_enum: [
+        "draft",
+        "configuring",
+        "testing",
+        "ready",
+        "active",
+        "failed",
+      ],
       severity_enum: ["low", "medium", "high", "critical"],
       simulation_result_type: [
         "expected_improvement",
@@ -14011,6 +14312,7 @@ export const Constants = {
         "family_match",
         "dimensions_match",
       ],
+      supplier_result_status_enum: ["success", "partial", "failed"],
       supplier_source_role_enum: [
         "commercial",
         "technical",
@@ -14028,6 +14330,15 @@ export const Constants = {
         "api",
         "woo_export",
         "image_pack",
+      ],
+      supplier_test_type_enum: [
+        "lookup_test",
+        "matching_test",
+        "grouping_test",
+        "taxonomy_test",
+        "pricing_test",
+        "asset_test",
+        "full_pipeline_test",
       ],
       task_type_enum: [
         "field_review",
