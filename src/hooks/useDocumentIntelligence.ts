@@ -159,6 +159,7 @@ export function useReprocessExtraction() {
 
 export const PIPELINE_STEPS = [
   { id: "extract-pdf-pages", name: "Extração de Páginas", description: "Segmentação de texto, zonas e tabelas" },
+  { id: "analyze-pdf-layout", name: "Análise de Layout", description: "Classificação semântica e recomendação de motor" },
   { id: "vision-parse-pdf", name: "Análise Visual AI", description: "Classificação semântica com LLM" },
   { id: "map-pdf-to-products", name: "Mapeamento de Produtos", description: "Conversão para produtos estruturados" },
 ];
@@ -177,3 +178,84 @@ export const EXECUTION_MODES = [
   { value: "fast", label: "Rápido", description: "Menor latência" },
   { value: "manual", label: "Manual", description: "Escolher provider manualmente" },
 ];
+
+export function useAnalyzePdfLayout() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (extractionId: string) => {
+      const { data, error } = await supabase.functions.invoke("analyze-pdf-layout", {
+        body: { extractionId },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Análise de layout concluída");
+      queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
+    },
+    onError: (e: Error) => toast.error("Erro na análise: " + e.message),
+  });
+}
+
+export function useSaveExtractionMappingRules() {
+  const queryClient = useQueryClient();
+  const { activeWorkspace } = useWorkspaceContext();
+
+  return useMutation({
+    mutationFn: async ({ extractionId, rules }: { extractionId: string; rules: Array<{ field_label: string; mapped_to: string; confidence: number; column_index?: number; table_index?: number }> }) => {
+      // Delete existing rules for this extraction
+      await supabase
+        .from("extraction_mapping_rules" as any)
+        .delete()
+        .eq("extraction_id", extractionId);
+
+      // Insert new rules
+      const rows = rules.map((r) => ({
+        workspace_id: activeWorkspace!.id,
+        extraction_id: extractionId,
+        field_label: r.field_label,
+        mapped_to: r.mapped_to,
+        confidence: r.confidence,
+        column_index: r.column_index,
+        table_index: r.table_index,
+        source: "human",
+      }));
+
+      const { error } = await supabase
+        .from("extraction_mapping_rules" as any)
+        .insert(rows);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Regras de mapeamento guardadas");
+      queryClient.invalidateQueries({ queryKey: ["extraction-mapping-rules"] });
+    },
+    onError: (e: Error) => toast.error("Erro: " + e.message),
+  });
+}
+
+export function useSendExtractionToIngestion() {
+  const queryClient = useQueryClient();
+  const { activeWorkspace } = useWorkspaceContext();
+
+  return useMutation({
+    mutationFn: async ({ extractionId, mergeStrategy, dupFields }: { extractionId: string; mergeStrategy: string; dupFields: string }) => {
+      const { data, error } = await supabase.functions.invoke("map-pdf-to-products", {
+        body: { extractionId, sendToIngestion: true, workspaceId: activeWorkspace?.id, mergeStrategy, dupFields },
+      });
+      if (error) throw error;
+
+      // Mark extraction as sent
+      await supabase.from("pdf_extractions").update({ sent_to_ingestion: true }).eq("id", extractionId);
+
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`${data.rowsMapped || 0} produtos enviados para Ingestion Hub`);
+      queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
+      queryClient.invalidateQueries({ queryKey: ["ingestion-jobs"] });
+    },
+    onError: (e: Error) => toast.error("Erro: " + e.message),
+  });
+}
