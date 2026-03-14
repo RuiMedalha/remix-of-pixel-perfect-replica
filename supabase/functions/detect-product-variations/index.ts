@@ -28,18 +28,19 @@ Deno.serve(async (req) => {
       category: p.category || "",
     }));
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+        "Authorization": `Bearer ${serviceKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are a Variation Detection Agent for a HORECA product catalog.
+        taskType: "variation_detection",
+        workspaceId: workspace_id,
+        systemPrompt: `You are a Variation Detection Agent for a HORECA product catalog.
 
 Your task: analyze a list of products and determine if they belong to the same family and should be grouped as variations of a single parent product.
 
@@ -80,23 +81,24 @@ Respond with valid JSON only, no markdown:
 }
 
 If NOT a variation family, return is_variation_family=false with empty children and null parent title.`,
-          },
-          {
-            role: "user",
-            content: `Analyze these ${productSummaries.length} products:\n${JSON.stringify(productSummaries, null, 2)}`,
-          },
-        ],
-        temperature: 0.15,
-        max_tokens: 2048,
+        messages: [{
+          role: "user",
+          content: `Analyze these ${productSummaries.length} products:\n${JSON.stringify(productSummaries, null, 2)}`,
+        }],
+        options: {
+          temperature: 0.15,
+          max_tokens: 2048,
+        },
       }),
     });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      throw new Error(`AI Gateway error: ${aiResponse.status} - ${errText}`);
+      throw new Error(`AI route error: ${aiResponse.status} - ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
+    const aiWrapper = await aiResponse.json();
+    const aiData = aiWrapper.result || aiWrapper;
     const content = (aiData.choices?.[0]?.message?.content || "")
       .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
