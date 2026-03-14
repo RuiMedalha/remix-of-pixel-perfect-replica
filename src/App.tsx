@@ -51,6 +51,7 @@ import CostDashboardPage from "./pages/CostDashboardPage";
 import CatalogOperationsControlTowerPage from "./pages/CatalogOperationsControlTowerPage";
 import SupplierPlaybooksPage from "./pages/SupplierPlaybooksPage";
 import AgentRuntimeConsolePage from "./pages/AgentRuntimeConsolePage";
+import CatalogWorkflowCenterPage from "./pages/CatalogWorkflowCenterPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
