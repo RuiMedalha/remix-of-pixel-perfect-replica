@@ -35,6 +35,7 @@ import {
   Building2,
   Layers,
   Scale,
+  Send,
   type LucideIcon,
 } from "lucide-react";
 
