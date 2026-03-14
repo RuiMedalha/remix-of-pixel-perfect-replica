@@ -692,83 +692,85 @@ MARKDOWN CONTENT:
 ${truncatedMd}${variationHtml}`;
 
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "extract_product_data",
-            description: "Extract structured product data from a scraped web page",
-            parameters: {
-              type: "object",
-              properties: {
-                product_images: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "ONLY images of THIS product from the product gallery/carousel/slider. Include main photo, alternate angles, zoom views, detail shots. EXCLUDE: related products, recommended items, category images, logos, icons, banners, footer images, social media icons. Max 8-10 images."
-                },
-                variations: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string", description: "Attribute name (e.g., Diâmetro, Cor, Tamanho)" },
-                      values: { 
-                        type: "array", 
-                        items: { type: "string" },
-                        description: "Available values for this attribute"
-                      },
-                      skus: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "SKU codes (numeric or alphanumeric) for each variation value, in matching order. Extract ONLY the SKU identifier (e.g. '80020'), NEVER full URLs. If the SKU is in a URL like '/product-name/80020', extract only '80020'."
-                      }
-                 },
-                     required: ["name", "values"],
-                     additionalProperties: false
+        taskType: "product_enrichment",
+        workspaceId: Deno.env.get("SUPABASE_URL")!, // workspace resolved elsewhere
+        modelOverride: "google/gemini-2.5-flash",
+        systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        options: {
+          tools: [{
+            type: "function",
+            function: {
+              name: "extract_product_data",
+              description: "Extract structured product data from a scraped web page",
+              parameters: {
+                type: "object",
+                properties: {
+                  product_images: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "ONLY images of THIS product from the product gallery/carousel/slider. Include main photo, alternate angles, zoom views, detail shots. EXCLUDE: related products, recommended items, category images, logos, icons, banners, footer images, social media icons. Max 8-10 images."
+                  },
+                  variations: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", description: "Attribute name (e.g., Diâmetro, Cor, Tamanho)" },
+                        values: { 
+                          type: "array", 
+                          items: { type: "string" },
+                          description: "Available values for this attribute"
+                        },
+                        skus: {
+                          type: "array",
+                          items: { type: "string" },
+                          description: "SKU codes (numeric or alphanumeric) for each variation value, in matching order. Extract ONLY the SKU identifier (e.g. '80020'), NEVER full URLs."
+                        }
                    },
-                   description: "Product variations (sizes, colors, etc.)"
-                 },
-                 variation_urls: {
-                   type: "array",
-                   items: {
-                     type: "object",
-                     properties: {
-                       sku: { type: "string", description: "SKU code only (e.g. '80020'), NOT the full URL" },
-                       url: { type: "string" },
-                       value: { type: "string" }
+                       required: ["name", "values"],
+                       additionalProperties: false
                      },
-                     required: ["sku", "value"],
-                     additionalProperties: false
+                     description: "Product variations (sizes, colors, etc.)"
                    },
-                   description: "Individual URLs for each variation, if clickable links are visible on the page (e.g. size selector links)"
-                 },
-                specs: {
-                  type: "object",
-                  additionalProperties: { type: "string" },
-                  description: "Technical specifications as key-value pairs (e.g., Material: Aço Inoxidável)"
+                   variation_urls: {
+                     type: "array",
+                     items: {
+                       type: "object",
+                       properties: {
+                         sku: { type: "string", description: "SKU code only (e.g. '80020'), NOT the full URL" },
+                         url: { type: "string" },
+                         value: { type: "string" }
+                       },
+                       required: ["sku", "value"],
+                       additionalProperties: false
+                     },
+                     description: "Individual URLs for each variation"
+                   },
+                  specs: {
+                    type: "object",
+                    additionalProperties: { type: "string" },
+                    description: "Technical specifications as key-value pairs"
+                  },
+                  series_name: {
+                    type: "string",
+                    description: "Product series/family name if identified"
+                  }
                 },
-                series_name: {
-                  type: "string",
-                  description: "Product series/family name if identified"
-                }
-              },
-              required: ["product_images", "variations", "specs"],
-              additionalProperties: false
+                required: ["product_images", "variations", "specs"],
+                additionalProperties: false
+              }
             }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "extract_product_data" } },
+          }],
+          tool_choice: { type: "function", function: { name: "extract_product_data" } },
+        },
       }),
     });
 
