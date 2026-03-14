@@ -359,3 +359,6 @@ verify_jwt = false
 
 [functions.generate-product-description]
 verify_jwt = false
+
+[functions.analyze-product-image]
+verify_jwt = false
