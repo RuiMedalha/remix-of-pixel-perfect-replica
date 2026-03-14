@@ -12,10 +12,9 @@ Deno.serve(async (req) => {
     const { workspace_id, product_ids } = await req.json();
     if (!workspace_id) throw new Error("workspace_id is required");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Fetch products to analyze
     let query = supabase
