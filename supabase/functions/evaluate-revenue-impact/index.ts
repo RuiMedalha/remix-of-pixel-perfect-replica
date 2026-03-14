@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -12,9 +12,9 @@ Deno.serve(async (req) => {
     const { workspace_id } = await req.json();
     if (!workspace_id) throw new Error("workspace_id is required");
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Gather all revenue-related data in parallel
     const [productsRes, bundlesRes, pricingRes, promosRes, demandRes, insightsRes] = await Promise.all([
@@ -51,61 +51,43 @@ Deno.serve(async (req) => {
       open_opportunities: (insightsRes.data || []).length,
     };
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are a revenue optimization expert for HORECA e-commerce catalogs. Analyze the catalog data and identify concrete revenue opportunities across 5 dimensions: bundles, cross-sell/upsell, pricing, campaigns, and strategic categories.
+    const revenueTools = [{
+      type: "function",
+      function: {
+        name: "report_revenue_opportunities",
+        description: "Report revenue optimization opportunities",
+        parameters: {
+          type: "object",
+          properties: {
+            revenue_opportunities: { type: "array", items: { type: "object", properties: { opportunity_type: { type: "string", enum: ["bundle", "cross_sell", "upsell", "price_optimization", "campaign", "strategic_category", "seasonal_promotion"] }, title: { type: "string" }, description: { type: "string" }, estimated_revenue_impact: { type: "number" }, confidence: { type: "number" }, priority: { type: "string", enum: ["critical", "high", "medium", "low"] }, affected_products: { type: "array", items: { type: "string" } }, suggested_action: { type: "string" } }, required: ["opportunity_type", "title", "description", "estimated_revenue_impact", "confidence", "priority", "suggested_action"], additionalProperties: false } },
+            estimated_impact: { type: "number" },
+            priority_score: { type: "number" },
+            analysis_summary: { type: "string" },
+          },
+          required: ["revenue_opportunities", "estimated_impact", "priority_score", "analysis_summary"],
+          additionalProperties: false,
+        },
+      },
+    }];
+
+    const systemPrompt = `You are a revenue optimization expert for HORECA e-commerce catalogs. Analyze the catalog data and identify concrete revenue opportunities across 5 dimensions: bundles, cross-sell/upsell, pricing, campaigns, and strategic categories.
 
 Rules:
 - Each opportunity must have a clear estimated revenue impact in EUR
 - Prioritize by impact × confidence
 - Provide Portuguese descriptions
 - Be specific with product references when possible
-- Consider HORECA seasonality and industry patterns`,
-          },
-          { role: "user", content: `Analyze this catalog for revenue opportunities:\n${JSON.stringify(context, null, 1)}` },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "report_revenue_opportunities",
-            description: "Report revenue optimization opportunities",
-            parameters: {
-              type: "object",
-              properties: {
-                revenue_opportunities: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      opportunity_type: { type: "string", enum: ["bundle", "cross_sell", "upsell", "price_optimization", "campaign", "strategic_category", "seasonal_promotion"] },
-                      title: { type: "string" },
-                      description: { type: "string" },
-                      estimated_revenue_impact: { type: "number" },
-                      confidence: { type: "number" },
-                      priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
-                      affected_products: { type: "array", items: { type: "string" } },
-                      suggested_action: { type: "string" },
-                    },
-                    required: ["opportunity_type", "title", "description", "estimated_revenue_impact", "confidence", "priority", "suggested_action"],
-                    additionalProperties: false,
-                  },
-                },
-                estimated_impact: { type: "number" },
-                priority_score: { type: "number" },
-                analysis_summary: { type: "string" },
-              },
-              required: ["revenue_opportunities", "estimated_impact", "priority_score", "analysis_summary"],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "report_revenue_opportunities" } },
+- Consider HORECA seasonality and industry patterns`;
+
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        taskType: "price_optimization",
+        workspaceId: workspace_id,
+        systemPrompt,
+        messages: [{ role: "user", content: `Analyze this catalog for revenue opportunities:\n${JSON.stringify(context, null, 1)}` }],
+        options: { tools: revenueTools, tool_choice: { type: "function", function: { name: "report_revenue_opportunities" } } },
       }),
     });
 
@@ -117,8 +99,8 @@ Rules:
       throw new Error(`AI error ${status}: ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const routeData = await aiResponse.json();
+    const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
     let result = { revenue_opportunities: [] as any[], estimated_impact: 0, priority_score: 0, analysis_summary: "" };
 
     if (toolCall?.function?.arguments) {

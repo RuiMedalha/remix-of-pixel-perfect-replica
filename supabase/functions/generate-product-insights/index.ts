@@ -2,15 +2,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
     const { workspace_id, product_id } = await req.json();
     if (!workspace_id || !product_id) throw new Error("workspace_id and product_id required");
 
@@ -28,53 +29,39 @@ Deno.serve(async (req) => {
     if (!product.image_urls?.length) insights.push({ workspace_id, product_id, insight_type: "image_quality_issue", confidence: 95, priority: 95, insight_payload: { reason: "Sem imagens" } });
 
     // AI-powered deep analysis
-    if (LOVABLE_API_KEY && title) {
+    if (title) {
       try {
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const insightTools = [{
+          type: "function",
+          function: {
+            name: "product_insights",
+            description: "Return product improvement insights",
+            parameters: {
+              type: "object",
+              properties: {
+                insights: { type: "array", items: { type: "object", properties: { type: { type: "string", enum: ["title_optimization", "description_improvement", "missing_attribute", "category_mismatch", "price_anomaly", "keyword_opportunity"] }, reason: { type: "string" }, suggestion: { type: "string" }, confidence: { type: "number" }, priority: { type: "number" } }, required: ["type", "reason", "suggestion", "confidence", "priority"], additionalProperties: false } }
+              },
+              required: ["insights"],
+              additionalProperties: false
+            }
+          }
+        }];
+
+        const aiResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: "You are a product catalog optimization expert for HORECA/hospitality. Analyze the product and return improvement suggestions." },
-              { role: "user", content: `Product: ${title}\nSKU: ${product.sku}\nCategory: ${product.category || "N/A"}\nDescription: ${desc.substring(0, 500)}\nPrice: ${product.optimized_price || product.original_price || "N/A"}\nAttributes: ${JSON.stringify(product.attributes || {}).substring(0, 300)}\n\nAnalyze and suggest improvements.` }
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "product_insights",
-                description: "Return product improvement insights",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    insights: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          type: { type: "string", enum: ["title_optimization", "description_improvement", "missing_attribute", "category_mismatch", "price_anomaly", "keyword_opportunity"] },
-                          reason: { type: "string" },
-                          suggestion: { type: "string" },
-                          confidence: { type: "number" },
-                          priority: { type: "number" }
-                        },
-                        required: ["type", "reason", "suggestion", "confidence", "priority"],
-                        additionalProperties: false
-                      }
-                    }
-                  },
-                  required: ["insights"],
-                  additionalProperties: false
-                }
-              }
-            }],
-            tool_choice: { type: "function", function: { name: "product_insights" } },
+            taskType: "product_validation",
+            workspaceId: workspace_id,
+            systemPrompt: "You are a product catalog optimization expert for HORECA/hospitality. Analyze the product and return improvement suggestions.",
+            messages: [{ role: "user", content: `Product: ${title}\nSKU: ${product.sku}\nCategory: ${product.category || "N/A"}\nDescription: ${desc.substring(0, 500)}\nPrice: ${product.optimized_price || product.original_price || "N/A"}\nAttributes: ${JSON.stringify(product.attributes || {}).substring(0, 300)}\n\nAnalyze and suggest improvements.` }],
+            options: { tools: insightTools, tool_choice: { type: "function", function: { name: "product_insights" } } },
           }),
         });
 
         if (aiResp.ok) {
-          const aiData = await aiResp.json();
-          const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+          const routeData = await aiResp.json();
+          const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall) {
             const parsed = JSON.parse(toolCall.function.arguments);
             for (const i of parsed.insights || []) {

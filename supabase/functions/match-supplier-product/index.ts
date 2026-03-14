@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -12,10 +12,9 @@ Deno.serve(async (req) => {
     const { workspace_id, product } = await req.json();
     if (!workspace_id || !product) throw new Error("workspace_id and product are required");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     const candidates: Array<{ product_id: string; sku: string; title: string; confidence: number; strategy: string }> = [];
 
@@ -105,41 +104,33 @@ Deno.serve(async (req) => {
         };
       } else {
         // Use AI to refine weak matches
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
-          },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              {
-                role: "system",
-                content: `You are a product matching agent. Given a new product and candidate matches from the catalog, determine if any candidate is truly the same product. Consider title, brand, dimensions, specs. Respond with valid JSON only:
+            taskType: "supplier_matching",
+            workspaceId: workspace_id,
+            systemPrompt: `You are a product matching agent. Given a new product and candidate matches from the catalog, determine if any candidate is truly the same product. Consider title, brand, dimensions, specs. Respond with valid JSON only:
 {
   "best_match_index": number or null,
   "confidence_score": 0.0-1.0,
   "reasoning": "string"
 }`,
-              },
-              {
-                role: "user",
-                content: `New product:\n${JSON.stringify(product, null, 2)}\n\nCandidates:\n${JSON.stringify(candidates.slice(0, 5), null, 2)}`,
-              },
-            ],
-            temperature: 0.1,
-            max_tokens: 512,
+            messages: [{
+              role: "user",
+              content: `New product:\n${JSON.stringify(product, null, 2)}\n\nCandidates:\n${JSON.stringify(candidates.slice(0, 5), null, 2)}`,
+            }],
+            options: { max_tokens: 512 },
           }),
         });
 
         let aiPick = null;
         if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const raw = (aiData.choices?.[0]?.message?.content || "").replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+          const routeData = await aiResponse.json();
+          const raw = (routeData.result?.choices?.[0]?.message?.content || "").replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
           try { aiPick = JSON.parse(raw); } catch { /* ignore */ }
         } else {
-          await aiResponse.text(); // consume body
+          await aiResponse.text();
         }
 
         if (aiPick && aiPick.best_match_index !== null && aiPick.best_match_index !== undefined && aiPick.confidence_score >= 0.6) {

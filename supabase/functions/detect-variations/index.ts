@@ -278,29 +278,28 @@ ${JSON.stringify(productList, null, 1).substring(0, 25000)}${existingGroupsConte
       additionalProperties: false,
     };
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey2 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey2}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-        tools: [
-          {
+        taskType: "variation_detection",
+        workspaceId: workspace_id,
+        systemPrompt,
+        messages: [{ role: "user", content: userContent }],
+        options: {
+          tools: [{
             type: "function",
             function: {
               name: "detect_variations",
               description: "Devolve grupos de variações com atributos concretos, sugestões de adição e correções",
               parameters: toolParameters,
             },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "detect_variations" } },
+          }],
+          tool_choice: { type: "function", function: { name: "detect_variations" } },
+        },
       }),
     });
 
@@ -319,8 +318,8 @@ ${JSON.stringify(productList, null, 1).substring(0, 25000)}${existingGroupsConte
       throw new Error("AI error: " + aiResponse.status + " " + errText);
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const routeData = await aiResponse.json();
+    const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
       return new Response(
         JSON.stringify({ groups: [], addToExisting: [], reclassify: [], message: "IA não detetou variações." }),

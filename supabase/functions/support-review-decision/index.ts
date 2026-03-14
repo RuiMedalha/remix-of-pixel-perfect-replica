@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -12,10 +12,9 @@ Deno.serve(async (req) => {
     const { workspace_id, review_item } = await req.json();
     if (!workspace_id || !review_item) throw new Error("workspace_id and review_item are required");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Gather context: product, conflict, previous agent runs
     let productData = null;
@@ -51,35 +50,17 @@ Deno.serve(async (req) => {
       recentRuns = data || [];
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are a Review Support Agent for a HORECA catalog management system.
+    const systemPrompt = `You are a Review Support Agent for a HORECA catalog management system.
 
 Help human reviewers make quick, informed decisions about product data conflicts and quality issues.
 
 Analyze the review item context and provide:
 - recommended_action: one of "approve", "reject", "edit_and_approve", "escalate", "merge"
-- confidence_score: 0.0-1.0 how confident you are
+- confidence_score: 0.0-1.0
 - explanation: concise reasoning in Portuguese (2-3 sentences)
 - risk_level: "low", "medium", "high"
 - suggested_edits: specific field changes if action is "edit_and_approve" (object or null)
 - key_differences: list of important differences found (if conflict)
-
-Consider:
-- Data completeness and accuracy
-- Supplier reliability patterns
-- Conflict severity
-- Impact on catalog quality
-- Whether automated resolution is safe
 
 Respond with valid JSON only:
 {
@@ -89,11 +70,9 @@ Respond with valid JSON only:
   "risk_level": "low|medium|high",
   "suggested_edits": {} | null,
   "key_differences": ["string"]
-}`,
-          },
-          {
-            role: "user",
-            content: `Review this item:
+}`;
+
+    const userPrompt = `Review this item:
 
 Reason: ${review_item.reason || "unknown"}
 Priority: ${review_item.priority || "normal"}
@@ -111,21 +90,27 @@ Recent AI recommendations:
 ${recentRuns.length ? JSON.stringify(recentRuns, null, 2) : "None"}
 
 Additional context:
-${review_item.notes || "None"}`,
-          },
-        ],
-        temperature: 0.2,
-        max_tokens: 1024,
+${review_item.notes || "None"}`;
+
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        taskType: "product_validation",
+        workspaceId: workspace_id,
+        systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        options: { max_tokens: 1024 },
       }),
     });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      throw new Error(`AI Gateway error: ${aiResponse.status} - ${errText}`);
+      throw new Error(`AI Route error: ${aiResponse.status} - ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const content = (aiData.choices?.[0]?.message?.content || "")
+    const routeData = await aiResponse.json();
+    const content = (routeData.result?.choices?.[0]?.message?.content || "")
       .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
     let result;
@@ -142,7 +127,7 @@ ${review_item.notes || "None"}`,
       input_payload: { product_id: review_item.product_id, reason: review_item.reason },
       output_payload: result,
       confidence_score: result.confidence_score,
-      cost_estimate: aiData.usage ? (aiData.usage.prompt_tokens + aiData.usage.completion_tokens) * 0.000001 : null,
+      cost_estimate: routeData.result?.usage ? (routeData.result.usage.prompt_tokens + routeData.result.usage.completion_tokens) * 0.000001 : null,
       completed_at: new Date().toISOString(),
     });
 

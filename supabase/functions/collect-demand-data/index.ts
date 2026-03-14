@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -12,9 +12,9 @@ Deno.serve(async (req) => {
     const { workspace_id, search_queries, marketplace_data, google_ads_data } = await req.json();
     if (!workspace_id) throw new Error("workspace_id is required");
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Fetch existing catalog products
     const { data: products } = await supabase
@@ -78,68 +78,34 @@ Rules:
 
     const userPrompt = `Catalog Summary:\n${JSON.stringify(catalogSummary, null, 1)}\n\nDemand Signals:\n${JSON.stringify(demandInputs, null, 1)}\n\nAnalyze and identify high-demand products and missing catalog opportunities.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "report_demand_intelligence",
-            description: "Report demand intelligence analysis results",
-            parameters: {
-              type: "object",
-              properties: {
-                high_demand_products: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      product_title: { type: "string" },
-                      category: { type: "string" },
-                      demand_signal: { type: "string", enum: ["search_volume", "marketplace_trend", "seasonal", "competitor_gap", "internal_search"] },
-                      estimated_demand_level: { type: "string", enum: ["very_high", "high", "medium"] },
-                      reasoning: { type: "string" },
-                      suggested_action: { type: "string" },
-                    },
-                    required: ["product_title", "category", "demand_signal", "estimated_demand_level", "reasoning"],
-                    additionalProperties: false,
-                  },
-                },
-                missing_catalog_opportunities: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      opportunity_title: { type: "string" },
-                      category: { type: "string" },
-                      opportunity_type: { type: "string", enum: ["new_product", "new_category", "product_variant", "bundle", "seasonal_item"] },
-                      estimated_demand_level: { type: "string", enum: ["very_high", "high", "medium"] },
-                      reasoning: { type: "string" },
-                      suggested_price_range: { type: "string" },
-                      priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
-                    },
-                    required: ["opportunity_title", "category", "opportunity_type", "estimated_demand_level", "reasoning", "priority"],
-                    additionalProperties: false,
-                  },
-                },
-                confidence_score: { type: "number" },
-                analysis_summary: { type: "string" },
-              },
-              required: ["high_demand_products", "missing_catalog_opportunities", "confidence_score", "analysis_summary"],
-              additionalProperties: false,
-            },
+    const demandTools = [{
+      type: "function",
+      function: {
+        name: "report_demand_intelligence",
+        description: "Report demand intelligence analysis results",
+        parameters: {
+          type: "object",
+          properties: {
+            high_demand_products: { type: "array", items: { type: "object", properties: { product_title: { type: "string" }, category: { type: "string" }, demand_signal: { type: "string", enum: ["search_volume", "marketplace_trend", "seasonal", "competitor_gap", "internal_search"] }, estimated_demand_level: { type: "string", enum: ["very_high", "high", "medium"] }, reasoning: { type: "string" }, suggested_action: { type: "string" } }, required: ["product_title", "category", "demand_signal", "estimated_demand_level", "reasoning"], additionalProperties: false } },
+            missing_catalog_opportunities: { type: "array", items: { type: "object", properties: { opportunity_title: { type: "string" }, category: { type: "string" }, opportunity_type: { type: "string", enum: ["new_product", "new_category", "product_variant", "bundle", "seasonal_item"] }, estimated_demand_level: { type: "string", enum: ["very_high", "high", "medium"] }, reasoning: { type: "string" }, suggested_price_range: { type: "string" }, priority: { type: "string", enum: ["critical", "high", "medium", "low"] } }, required: ["opportunity_title", "category", "opportunity_type", "estimated_demand_level", "reasoning", "priority"], additionalProperties: false } },
+            confidence_score: { type: "number" },
+            analysis_summary: { type: "string" },
           },
-        }],
-        tool_choice: { type: "function", function: { name: "report_demand_intelligence" } },
+          required: ["high_demand_products", "missing_catalog_opportunities", "confidence_score", "analysis_summary"],
+          additionalProperties: false,
+        },
+      },
+    }];
+
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        taskType: "bundle_detection",
+        workspaceId: workspace_id,
+        systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        options: { tools: demandTools, tool_choice: { type: "function", function: { name: "report_demand_intelligence" } } },
       }),
     });
 
@@ -151,8 +117,8 @@ Rules:
       throw new Error(`AI error ${status}: ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const routeData = await aiResponse.json();
+    const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
     let result = { high_demand_products: [] as any[], missing_catalog_opportunities: [] as any[], confidence_score: 0, analysis_summary: "" };
 
     if (toolCall?.function?.arguments) {
