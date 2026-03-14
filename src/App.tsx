@@ -96,6 +96,7 @@ function ProtectedRoutes() {
           <Route path="/orquestracao" element={<OrchestrationPage />} />
           <Route path="/source-priority" element={<SourcePriorityPage />} />
           <Route path="/prompt-governance" element={<PromptGovernancePage />} />
+          <Route path="/agent-registry" element={<AgentRegistryPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
