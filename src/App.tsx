@@ -112,6 +112,7 @@ function ProtectedRoutes() {
           <Route path="/agent-registry" element={<AgentRegistryPage />} />
           <Route path="/product-identity" element={<ProductIdentityPage />} />
           <Route path="/ai-governance" element={<AiGovernancePage />} />
+          <Route path="/ai-provider-center" element={<AiProviderCenterPage />} />
           <Route path="/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="/canonical-assembly" element={<CanonicalAssemblyPage />} />
           <Route path="/conflict-center" element={<ConflictCenterPage />} />
