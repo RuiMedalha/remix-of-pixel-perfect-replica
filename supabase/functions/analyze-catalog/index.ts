@@ -230,22 +230,23 @@ Deno.serve(async (req) => {
     if (LOVABLE_API_KEY && topProducts.length > 0) {
       const productSummaries = topProducts.map(p => `SKU: ${p.sku}, Title: ${p.optimized_title || p.original_title}, Category: ${p.category || "N/A"}, Meta: ${p.meta_title || "N/A"}`).join("\n");
       try {
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const seoResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "system", content: "You are an SEO expert for HORECA e-commerce catalogs. Return structured recommendations." },
-              { role: "user", content: `Analyze these products and suggest SEO improvements:\n${productSummaries}` }
-            ],
-            tools: [{ type: "function", function: { name: "seo_recommendations", description: "Return SEO recommendations", parameters: { type: "object", properties: { recommendations: { type: "array", items: { type: "object", properties: { sku: { type: "string" }, recommended_title: { type: "string" }, recommended_meta_description: { type: "string" }, recommended_keywords: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["sku", "recommended_title", "recommended_meta_description", "recommended_keywords", "confidence"], additionalProperties: false } } }, required: ["recommendations"], additionalProperties: false } } }],
-            tool_choice: { type: "function", function: { name: "seo_recommendations" } },
+            taskType: "seo_optimization",
+            workspaceId: workspace_id,
+            systemPrompt: "You are an SEO expert for HORECA e-commerce catalogs. Return structured recommendations.",
+            messages: [{ role: "user", content: `Analyze these products and suggest SEO improvements:\n${productSummaries}` }],
+            options: {
+              tools: [{ type: "function", function: { name: "seo_recommendations", description: "Return SEO recommendations", parameters: { type: "object", properties: { recommendations: { type: "array", items: { type: "object", properties: { sku: { type: "string" }, recommended_title: { type: "string" }, recommended_meta_description: { type: "string" }, recommended_keywords: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["sku", "recommended_title", "recommended_meta_description", "recommended_keywords", "confidence"], additionalProperties: false } } }, required: ["recommendations"], additionalProperties: false } } }],
+              tool_choice: { type: "function", function: { name: "seo_recommendations" } },
+            },
           }),
         });
-        if (aiResp.ok) {
-          const aiData = await aiResp.json();
-          const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+        if (seoResp.ok) {
+          const routeData = await seoResp.json();
+          const toolCall = routeData.result?.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall) {
             const parsed = JSON.parse(toolCall.function.arguments);
             for (const rec of parsed.recommendations || []) {
