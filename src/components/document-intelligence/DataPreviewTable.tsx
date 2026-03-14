@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,7 +23,20 @@ const DISPLAY_LABELS: Record<string, string> = {
   price: "Preço", color_options: "Cores", technical_specs: "Especificações",
 };
 
-export function DataPreviewTable({ products, columns: columnsProp }: Props) {
+export function DataPreviewTable({ products: rawProducts, columns: columnsProp }: Props) {
+  // Flatten nested section structures
+  const products = useMemo(() => {
+    if (!Array.isArray(rawProducts)) return [];
+    const flat: DetectedProduct[] = [];
+    for (const item of rawProducts) {
+      if (item && Array.isArray(item.products)) {
+        for (const p of item.products) flat.push({ ...p, category: p.category || item.section_title });
+      } else if (item && typeof item === "object" && !Array.isArray(item)) {
+        flat.push(item);
+      }
+    }
+    return flat;
+  }, [rawProducts]);
   if (!products?.length) return null;
 
   // Auto-detect columns from product keys, excluding internal fields

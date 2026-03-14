@@ -33,6 +33,23 @@ import { MappingEditor } from "@/components/document-intelligence/MappingEditor"
 import { DataPreviewTable } from "@/components/document-intelligence/DataPreviewTable";
 import { SendToIngestionPanel } from "@/components/document-intelligence/SendToIngestionPanel";
 
+// Flatten nested product structures like [{products: [...], section_title: "..."}] into flat product arrays
+function flattenProducts(items: any[]): any[] {
+  if (!Array.isArray(items)) return [];
+  const flat: any[] = [];
+  for (const item of items) {
+    if (item && Array.isArray(item.products)) {
+      // This is a section object — flatten its products and carry section_title as category
+      for (const p of item.products) {
+        flat.push({ ...p, category: p.category || item.section_title });
+      }
+    } else if (item && typeof item === "object" && !Array.isArray(item)) {
+      flat.push(item);
+    }
+  }
+  return flat;
+}
+
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   queued: { label: "Na fila", variant: "secondary" },
   extracting: { label: "A extrair", variant: "default" },
@@ -154,7 +171,7 @@ export default function PDFExtractionPage() {
     // Count products from vision_result
     let productCount = 0;
     pages.forEach((p: any) => {
-      const products = (p.vision_result as any)?.products || [];
+      const products = flattenProducts((p.vision_result as any)?.products || []);
       productCount += products.filter((prod: any) => prod.title || prod.sku).length;
     });
     return { extractedPages, errorPages, totalPages, pct, productCount };
@@ -162,8 +179,8 @@ export default function PDFExtractionPage() {
 
   // Compute product count: prefer detected_products, fallback to counting from pages
   const wizardProductCount = (() => {
-    const dp = wizardExtraction?.detected_products as any[];
-    if (dp?.length) return dp.length;
+    const dp = flattenProducts((wizardExtraction?.detected_products as any[]) || []);
+    if (dp.length) return dp.length;
     return realProgress.productCount;
   })();
 
@@ -465,7 +482,7 @@ export default function PDFExtractionPage() {
               </Card>
 
               <DataPreviewTable
-                products={(wizardExtraction?.detected_products as any[]) || []}
+                products={flattenProducts((wizardExtraction?.detected_products as any[]) || [])}
                 columns={undefined}
               />
 
@@ -733,7 +750,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                         const hasContent = (p.raw_text || "").length > 10;
                         return productCount > 0 || hasContent;
                       }).map((page: any) => {
-                        const products = (page.vision_result as any)?.products || [];
+                        const products = flattenProducts((page.vision_result as any)?.products || []);
                         const pageCtx = page.page_context as any;
                         const productCount = pageCtx?.product_count || products.length || 0;
                         return (
