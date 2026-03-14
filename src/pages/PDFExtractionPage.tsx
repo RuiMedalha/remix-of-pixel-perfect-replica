@@ -154,6 +154,8 @@ export default function PDFExtractionPage() {
   // Wizard state
   const [wizardStep, setWizardStep] = useState<WizardStep>("upload");
   const [wizardExtractionId, setWizardExtractionId] = useState<string | null>(null);
+  const [reviewDraftProducts, setReviewDraftProducts] = useState<any[] | null>(null);
+  const [isSavingReviewDraft, setIsSavingReviewDraft] = useState(false);
 
   const pdfFiles = (files || []).filter(f => f.file_type === "application/pdf" || f.file_name?.endsWith(".pdf"));
   const activeExtractions = (extractions || []).filter((e: any) => !e.archived_at);
@@ -264,7 +266,9 @@ export default function PDFExtractionPage() {
     return fromPages;
   }, [wizardExtraction?.detected_products, latestWizardPages]);
 
-  const wizardProductCount = reviewProducts.length > 0 ? reviewProducts.length : realProgress.productCount;
+  const productsForReview = reviewDraftProducts ?? reviewProducts;
+  const hasReviewDraftChanges = !!reviewDraftProducts;
+  const wizardProductCount = productsForReview.length > 0 ? productsForReview.length : realProgress.productCount;
 
   const extractionStatus = wizardExtraction?.status;
 
@@ -283,6 +287,7 @@ export default function PDFExtractionPage() {
   useEffect(() => {
     setLastProgressAt(Date.now());
     setLastExtractedCount(0);
+    setReviewDraftProducts(null);
   }, [wizardExtractionId]);
 
   useEffect(() => {
@@ -403,8 +408,46 @@ export default function PDFExtractionPage() {
     });
   };
 
+  const persistReviewDraft = async (options?: { silent?: boolean }) => {
+    if (!wizardExtractionId || !reviewDraftProducts) return;
+
+    setIsSavingReviewDraft(true);
+    try {
+      const { error } = await supabase
+        .from("pdf_extractions")
+        .update({ status: "reviewing", detected_products: reviewDraftProducts })
+        .eq("id", wizardExtractionId);
+
+      if (error) throw error;
+
+      setReviewDraftProducts(null);
+      if (!options?.silent) toast.success("Alterações guardadas na revisão");
+    } catch (error: any) {
+      toast.error(`Erro ao guardar revisão: ${error?.message || "erro desconhecido"}`);
+      throw error;
+    } finally {
+      setIsSavingReviewDraft(false);
+    }
+  };
+
+  const handleProceedToIngestion = async () => {
+    if (hasReviewDraftChanges) {
+      try {
+        await persistReviewDraft({ silent: true });
+      } catch {
+        return;
+      }
+    }
+    setWizardStep("ingestion");
+  };
+
   const handleSendToIngestion = async (config: { mergeStrategy: string; dupFields: string }) => {
     if (!wizardExtractionId) return;
+
+    if (hasReviewDraftChanges) {
+      await persistReviewDraft({ silent: true });
+    }
+
     await sendToIngestion.mutateAsync({
       extractionId: wizardExtractionId,
       mergeStrategy: config.mergeStrategy,
@@ -412,11 +455,28 @@ export default function PDFExtractionPage() {
     });
   };
 
+  const openExtractionInWizard = (ext: any) => {
+    setWizardExtractionId(ext.id);
+    setActiveTab("wizard");
+
+    if (["queued", "extracting", "processing", "error"].includes(ext.status)) {
+      setWizardStep("extracting");
+      return;
+    }
+
+    if (ext.sent_to_ingestion) {
+      setWizardStep("ingestion");
+      return;
+    }
+
+    setWizardStep("review");
+  };
+
   const resetWizard = () => {
     setWizardStep("upload");
     setWizardExtractionId(null);
     setSelectedFileId("");
-    
+    setReviewDraftProducts(null);
   };
 
   // Quick extraction from history table
@@ -636,12 +696,19 @@ export default function PDFExtractionPage() {
               </Card>
 
               <DataPreviewTable
-                products={reviewProducts}
+                products={productsForReview}
                 columns={undefined}
+                editable
+                onProductsChange={(products) => setReviewDraftProducts(products)}
               />
 
-              <div className="flex gap-3">
-                <Button onClick={() => setWizardStep("ingestion")}>
+              <div className="flex flex-wrap items-center gap-3">
+                {hasReviewDraftChanges && <Badge variant="secondary">Alterações por guardar</Badge>}
+                <Button variant="outline" onClick={() => persistReviewDraft()} disabled={!hasReviewDraftChanges || isSavingReviewDraft}>
+                  {isSavingReviewDraft ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Guardar alterações
+                </Button>
+                <Button onClick={handleProceedToIngestion} disabled={isSavingReviewDraft}>
                   <ArrowRight className="h-4 w-4 mr-2" /> Aceitar e Enviar para Ingestão
                 </Button>
                 <Button variant="outline" onClick={resetWizard}>
@@ -728,11 +795,17 @@ export default function PDFExtractionPage() {
                   <TableBody>
                     {activeExtractions.map((ext: any) => {
                       const sc = statusConfig[ext.status] || statusConfig.queued;
+                      const canOpenWizard = ["queued", "extracting", "processing", "reviewing", "done", "error"].includes(ext.status);
+                      const canSendFromHistory = ["reviewing", "done"].includes(ext.status) && !ext.sent_to_ingestion;
+                      const processedPages = Number(ext.processed_pages || 0) > 0
+                        ? Number(ext.processed_pages)
+                        : (["reviewing", "done"].includes(ext.status) ? Number(ext.total_pages || 0) : 0);
+
                       return (
                         <TableRow key={ext.id}>
                           <TableCell className="font-medium text-sm">{ext.uploaded_files?.file_name || "—"}</TableCell>
                           <TableCell><Badge variant={sc.variant}>{sc.label}</Badge></TableCell>
-                          <TableCell className="text-sm">{ext.processed_pages}/{ext.total_pages}</TableCell>
+                          <TableCell className="text-sm">{processedPages}/{ext.total_pages || 0}</TableCell>
                           <TableCell className="text-xs">{ext.provider_used || "—"}</TableCell>
                           <TableCell className="text-xs">{ext.provider_model || ext.model_used || "—"}</TableCell>
                           <TableCell><Badge variant="outline" className="text-[10px]">{ext.extraction_mode || "auto"}</Badge></TableCell>
@@ -752,15 +825,20 @@ export default function PDFExtractionPage() {
                               <Button size="sm" variant="outline" onClick={() => setSelectedExtraction(ext.id)}>
                                 <Eye className="h-3 w-3" />
                               </Button>
-                              {["extracting", "processing"].includes(ext.status) && (
-                                <Button size="sm" variant="outline" className="text-primary" onClick={() => {
-                                  setWizardExtractionId(ext.id);
-                                  setWizardStep("extracting");
-                                  setActiveTab("wizard");
-                                }}>
-                                  <ArrowRight className="h-3 w-3" />
-                                </Button>
+
+                              {canOpenWizard && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="outline" className="text-primary" onClick={() => openExtractionInWizard(ext)}>
+                                      <ArrowRight className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {ext.sent_to_ingestion ? "Abrir estado de ingestão" : "Abrir revisão/ingestão no fluxo"}
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
+
                               {["extracting", "processing"].includes(ext.status) && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -776,16 +854,28 @@ export default function PDFExtractionPage() {
                                   <TooltipContent>Retomar extração</TooltipContent>
                                 </Tooltip>
                               )}
-                              {ext.status === "reviewing" && (
+
+                              {canSendFromHistory && (
                                 <>
-                                  <Button size="sm" variant="outline" onClick={() => mapToProducts.mutate({ extractionId: ext.id })}>
-                                    <Table2 className="h-3 w-3" />
-                                  </Button>
-                                  <Button size="sm" onClick={() => mapToProducts.mutate({ extractionId: ext.id, sendToIngestion: true })}>
-                                    <Send className="h-3 w-3" />
-                                  </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="sm" variant="outline" onClick={() => mapToProducts.mutate({ extractionId: ext.id })}>
+                                        <Table2 className="h-3 w-3" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Recompilar produtos</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="sm" onClick={() => mapToProducts.mutate({ extractionId: ext.id, sendToIngestion: true })}>
+                                        <Send className="h-3 w-3" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Enviar para ingestão</TooltipContent>
+                                  </Tooltip>
                                 </>
                               )}
+
                               <ExtractionActionsDropdown extraction={ext} onViewDetails={setSelectedExtraction} />
                               <Button
                                 size="sm"
