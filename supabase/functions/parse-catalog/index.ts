@@ -704,27 +704,24 @@ async function extractPdfText(fileData: Blob, fileName: string): Promise<string>
   }
   const base64 = btoa(binary);
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: `És um extrator de conteúdo de documentos técnicos e catálogos de produtos. Extrai TODO o texto relevante do PDF, incluindo nomes de produtos, especificações técnicas, tabelas de preços, descrições e códigos de referência. Mantém a estrutura organizada. Responde APENAS com o texto extraído.`,
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `Extrai todo o conteúdo relevante deste documento: "${fileName}".` },
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
-          ],
-        },
-      ],
+      taskType: "pdf_text_extraction",
+      workspaceId: "system",
+      modelOverride: "google/gemini-2.5-flash",
+      systemPrompt: `És um extrator de conteúdo de documentos técnicos e catálogos de produtos. Extrai TODO o texto relevante do PDF, incluindo nomes de produtos, especificações técnicas, tabelas de preços, descrições e códigos de referência. Mantém a estrutura organizada. Responde APENAS com o texto extraído.`,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: `Extrai todo o conteúdo relevante deste documento: "${fileName}".` },
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
+        ],
+      }],
     }),
   });
 
