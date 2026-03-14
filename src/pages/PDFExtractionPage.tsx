@@ -595,7 +595,7 @@ export default function PDFExtractionPage() {
               </Card>
 
               <DataPreviewTable
-                products={flattenProducts((wizardExtraction?.detected_products as any[]) || [])}
+                products={reviewProducts}
                 columns={undefined}
               />
 
