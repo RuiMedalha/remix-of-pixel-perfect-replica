@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspace } from "@/hooks/useWorkspaces";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 
 export function useOrchestration() {
-  const { currentWorkspace } = useWorkspace();
+  const { activeWorkspace } = useWorkspaceContext();
   const qc = useQueryClient();
   const wsId = currentWorkspace?.id;
 
