@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useCurrentUserProfile } from "@/hooks/useUserManagement";
 import { WorkspaceProvider } from "@/hooks/useWorkspaces";
 import { PendingApproval } from "@/components/PendingApproval";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import UploadPage from "./pages/UploadPage";
 import ProductsPage from "./pages/ProductsPage";
