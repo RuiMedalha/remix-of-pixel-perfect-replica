@@ -227,3 +227,15 @@ verify_jwt = false
 
 [functions.apply-commerce-action]
 verify_jwt = false
+
+[functions.start-orchestration-run]
+verify_jwt = false
+
+[functions.route-ingestion-pipeline]
+verify_jwt = false
+
+[functions.execute-orchestration-step]
+verify_jwt = false
+
+[functions.resolve-step-dependencies]
+verify_jwt = false

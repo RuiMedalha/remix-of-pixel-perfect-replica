@@ -3591,6 +3591,41 @@ export type Database = {
           },
         ]
       }
+      execution_decisions: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          decision_reason: string | null
+          decision_type: string
+          id: string
+          run_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          decision_reason?: string | null
+          decision_type: string
+          id?: string
+          run_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          decision_reason?: string | null
+          decision_type?: string
+          id?: string
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execution_decisions_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "orchestration_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       extraction_case_signatures: {
         Row: {
           confidence: number
@@ -5137,6 +5172,135 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orchestration_policies: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          policy_config: Json | null
+          policy_name: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          policy_config?: Json | null
+          policy_name: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          policy_config?: Json | null
+          policy_name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orchestration_policies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orchestration_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          payload: Json | null
+          run_type: Database["public"]["Enums"]["orchestration_run_type"]
+          started_at: string | null
+          status: Database["public"]["Enums"]["orchestration_run_status"]
+          trigger_source: string | null
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          run_type: Database["public"]["Enums"]["orchestration_run_type"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["orchestration_run_status"]
+          trigger_source?: string | null
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          run_type?: Database["public"]["Enums"]["orchestration_run_type"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["orchestration_run_status"]
+          trigger_source?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orchestration_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orchestration_steps: {
+        Row: {
+          completed_at: string | null
+          confidence_score: number | null
+          created_at: string
+          error_payload: Json | null
+          id: string
+          result_payload: Json | null
+          run_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["orchestration_step_status"]
+          step_order: number
+          step_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          error_payload?: Json | null
+          id?: string
+          result_payload?: Json | null
+          run_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["orchestration_step_status"]
+          step_order?: number
+          step_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          error_payload?: Json | null
+          id?: string
+          result_payload?: Json | null
+          run_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["orchestration_step_status"]
+          step_order?: number
+          step_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orchestration_steps_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "orchestration_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -8902,6 +9066,22 @@ export type Database = {
         | "low_visibility"
         | "low_conversion"
         | "underpriced_product"
+      orchestration_run_status:
+        | "pending"
+        | "running"
+        | "completed"
+        | "failed"
+        | "cancelled"
+      orchestration_run_type:
+        | "supplier_import"
+        | "catalog_update"
+        | "channel_sync"
+      orchestration_step_status:
+        | "pending"
+        | "running"
+        | "completed"
+        | "failed"
+        | "skipped"
       pdf_block_role:
         | "product_family"
         | "product_group"
@@ -9742,6 +9922,25 @@ export const Constants = {
         "low_visibility",
         "low_conversion",
         "underpriced_product",
+      ],
+      orchestration_run_status: [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
+      orchestration_run_type: [
+        "supplier_import",
+        "catalog_update",
+        "channel_sync",
+      ],
+      orchestration_step_status: [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
       ],
       pdf_block_role: [
         "product_family",
