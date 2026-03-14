@@ -134,7 +134,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
             {promptProfiles.data?.length ? (
               <Table><TableHeader><TableRow><TableHead>Agente</TableHead><TableHead>Scope</TableHead><TableHead>Ativo</TableHead></TableRow></TableHeader>
                 <TableBody>{promptProfiles.data.map((pp: any) => (
-                  <TableRow key={pp.id}><TableCell>{pp.agent_name}</TableCell><TableCell>{pp.usage_scope}</TableCell><TableCell>{pp.is_active ? <CheckCircle className="h-4 w-4 text-green-500" /> : "—"}</TableCell></TableRow>
+                  <TableRow key={pp.id}><TableCell>{pp.agent_name}</TableCell><TableCell>{pp.usage_scope}</TableCell><TableCell>{pp.is_active ? <CheckCircle className="h-4 w-4 text-primary" /> : "—"}</TableCell></TableRow>
                 ))}</TableBody></Table>
             ) : <p className="text-sm text-muted-foreground">Sem prompt overrides.</p>}
           </CardContent></Card>
