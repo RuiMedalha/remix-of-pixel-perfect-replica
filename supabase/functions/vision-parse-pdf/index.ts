@@ -179,13 +179,14 @@ ${rawText}`;
     let visionResult: any = { tables: [], summary: "", zones: [], page_context: {}, detected_images: [] };
 
     if (aiResponse.ok) {
-      const aiData = await aiResponse.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      const routeData = await aiResponse.json();
+      const aiData = routeData.result;
+      const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
       if (toolCall?.function?.arguments) {
         try { visionResult = JSON.parse(toolCall.function.arguments); } catch { /* keep default */ }
       }
     } else {
-      console.error("AI error:", aiResponse.status, await aiResponse.text());
+      console.error("AI route error:", aiResponse.status, await aiResponse.text());
     }
 
     // Match supplier template/profile
