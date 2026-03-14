@@ -371,3 +371,6 @@ verify_jwt = false
 
 [functions.transform-for-channel]
 verify_jwt = false
+
+[functions.support-review-decision]
+verify_jwt = false
