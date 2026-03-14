@@ -728,9 +728,11 @@ export default function PDFExtractionPage() {
             <div className="space-y-4">
               <SendToIngestionPanel
                 productCount={wizardProductCount}
+                approvedCount={productsForReview.filter((p: any) => p._approved).length}
                 onSendToIngestion={handleSendToIngestion}
                 isSending={sendToIngestion.isPending}
                 alreadySent={wizardExtraction?.sent_to_ingestion}
+                requireApproval
               />
               {wizardExtraction?.sent_to_ingestion && (
                 <div className="flex gap-3">
