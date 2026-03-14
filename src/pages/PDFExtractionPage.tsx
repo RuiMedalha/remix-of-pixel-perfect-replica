@@ -111,7 +111,6 @@ export default function PDFExtractionPage() {
     enabled: !!wizardExtractionId,
     refetchInterval: (query) => {
       const ext = query.state.data as any;
-      // Keep polling if extraction is in progress or detected_products not yet populated
       if (ext && ["queued", "extracting", "processing"].includes(ext.status)) return 3000;
       return false;
     },
@@ -126,21 +125,62 @@ export default function PDFExtractionPage() {
     },
   });
 
-  // Get pages to count products from vision_result as fallback
-  const { data: wizardPages } = usePdfPages(wizardExtractionId);
-  
+  // Real progress: count pages actually extracted from pdf_pages table
+  const { data: wizardPages } = useQuery({
+    queryKey: ["wizard-pages-progress", wizardExtractionId],
+    enabled: !!wizardExtractionId,
+    refetchInterval: (query) => {
+      const ext = wizardExtraction;
+      if (ext && ["queued", "extracting", "processing"].includes(ext.status)) return 3000;
+      return false;
+    },
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pdf_pages")
+        .select("id, page_number, status, vision_result")
+        .eq("extraction_id", wizardExtractionId!)
+        .order("page_number");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const realProgress = useMemo(() => {
+    const pages = wizardPages || [];
+    const totalPages = wizardExtraction?.total_pages || 0;
+    const extractedPages = pages.filter((p: any) => p.status === "extracted").length;
+    const errorPages = pages.filter((p: any) => p.status === "error").length;
+    const pct = totalPages > 0 ? Math.round((extractedPages / totalPages) * 100) : 0;
+    // Count products from vision_result
+    let productCount = 0;
+    pages.forEach((p: any) => {
+      const products = (p.vision_result as any)?.products || [];
+      productCount += products.filter((prod: any) => prod.title || prod.sku).length;
+    });
+    return { extractedPages, errorPages, totalPages, pct, productCount };
+  }, [wizardPages, wizardExtraction?.total_pages]);
+
   // Compute product count: prefer detected_products, fallback to counting from pages
   const wizardProductCount = (() => {
     const dp = wizardExtraction?.detected_products as any[];
     if (dp?.length) return dp.length;
-    if (!wizardPages) return 0;
-    let count = 0;
-    wizardPages.forEach((p: any) => {
-      const products = (p.vision_result as any)?.products || [];
-      count += products.filter((prod: any) => prod.title || prod.sku).length;
-    });
-    return count;
+    return realProgress.productCount;
   })();
+
+  // Detect stalled extraction (no progress for 60s while status is still extracting)
+  const [extractionStartedAt] = useState(() => Date.now());
+  const isStalled = useMemo(() => {
+    if (!wizardExtraction) return false;
+    const status = wizardExtraction.status;
+    if (!["extracting", "processing"].includes(status)) return false;
+    // If created_at is > 2 min ago and processed_pages hasn't changed from what pdf_pages shows
+    const createdAt = new Date(wizardExtraction.created_at).getTime();
+    const elapsed = Date.now() - createdAt;
+    const totalPages = wizardExtraction.total_pages || 0;
+    const extracted = realProgress.extractedPages;
+    // Consider stalled if: has been running > 3 min AND not all pages done AND < totalPages
+    return elapsed > 180000 && extracted > 0 && extracted < totalPages;
+  }, [wizardExtraction, realProgress.extractedPages]);
 
   // Step 1: Start extraction — goes straight to extracting
   const handleStartWizard = async () => {
