@@ -433,16 +433,52 @@ Return ONLY valid JSON.`,
       if (prod.category) parts.push(`Category: ${prod.category}`);
       if (prod.dimensions) parts.push(`Dimensions: ${prod.dimensions}`);
       if (prod.material) parts.push(`Material: ${prod.material}`);
-      if (prod.image_description) parts.push(`Image: ${prod.image_description}`);
+      // Include image details
+      const images = prod.images || [];
+      if (images.length > 0) {
+        parts.push(`Images (${images.length}):`);
+        images.forEach((img: any, idx: number) => {
+          parts.push(`  [Image ${idx + 1}] ${img.image_type || "photo"}: ${img.image_description || "N/A"}`);
+          if (img.alt_text) parts.push(`    Alt: ${img.alt_text}`);
+        });
+      } else if (prod.image_description) {
+        parts.push(`Image: ${prod.image_description}`);
+      }
       return parts.join("\n");
     }).join("\n\n");
+
+    // Collect all image metadata for the page
+    const pageImages = products.flatMap((prod: any, pi: number) => {
+      const images = prod.images || [];
+      if (images.length > 0) {
+        return images.map((img: any, ii: number) => ({
+          product_index: pi,
+          product_sku: prod.sku,
+          product_title: prod.title,
+          image_index: ii,
+          ...img,
+        }));
+      }
+      if (prod.image_description) {
+        return [{
+          product_index: pi,
+          product_sku: prod.sku,
+          product_title: prod.title,
+          image_index: 0,
+          image_description: prod.image_description,
+          alt_text: prod.image_description?.substring(0, 125),
+          image_type: "product_photo",
+        }];
+      }
+      return [];
+    });
 
     const { data: pageRecord } = await supabase.from("pdf_pages").insert({
       extraction_id: extractionId,
       page_number: p,
       raw_text: readableText || `[Page ${p} - no products]`,
       has_tables: products.length > 0,
-      has_images: zones.some((z: any) => z.type === "images"),
+      has_images: pageImages.length > 0,
       confidence_score: pageConfidence,
       status: "extracted" as any,
       zones, layout_zones: zones,
@@ -450,10 +486,11 @@ Return ONLY valid JSON.`,
         page_type: pageData?.page_type,
         section_title: pageData?.section_title,
         product_count: products.length,
+        image_count: pageImages.length,
         language: overviewData?.language,
         supplier: overviewData?.supplier_name,
       },
-      vision_result: { products, page_type: pageData?.page_type },
+      vision_result: { products, page_type: pageData?.page_type, images: pageImages },
       text_result: { extraction_method: "ai_vision", language: overviewData?.language },
     }).select("id").single();
 
