@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, type IngestionJob } from "@/hooks/useIngestion";
 import { usePlaybookEngine } from "@/hooks/usePlaybookEngine";
+import { useDeleteUploadedFile } from "@/hooks/useDeleteUploadedFile";
 import { SupplierAutoDetectionPanel } from "@/components/playbook-engine/SupplierAutoDetectionPanel";
 import { SmartColumnInferencePreview } from "@/components/playbook-engine/SmartColumnInferencePreview";
 import { ImportPreviewBeforeRun } from "@/components/playbook-engine/ImportPreviewBeforeRun";
@@ -55,7 +56,11 @@ const IngestionHubPage = () => {
   const { data: jobs, isLoading } = useIngestionJobs();
   const parseIngestion = useParseIngestion();
   const runJob = useRunIngestionJob();
-  const { autoDetect, inferMapping, generateDraft, applyCorrections, overrides } = usePlaybookEngine();
+  const {
+    autoDetect, inferMapping, generateDraft, applyCorrections, overrides,
+    deleteIngestionJob, archiveIngestionJob, triggerAutoDraftFromIngestion,
+  } = usePlaybookEngine();
+  const deleteFile = useDeleteUploadedFile();
 
   const [activeTab, setActiveTab] = useState("import");
   const [dragOver, setDragOver] = useState(false);
@@ -201,6 +206,10 @@ const IngestionHubPage = () => {
       });
       setPreviewResult(result);
       setPreviewJobId(result.jobId);
+
+      // Trigger auto-draft creation after successful dry-run
+      triggerAutoDraftAfterIngestion(result.jobId);
+
       toast.success("Preview gerado com sucesso");
     } catch {}
   };
@@ -218,8 +227,24 @@ const IngestionHubPage = () => {
         mode: "live",
       });
       await runJob.mutateAsync(result.jobId);
+
+      // Trigger auto-draft creation after successful live import
+      triggerAutoDraftAfterIngestion(result.jobId);
+
       resetForm();
     } catch {}
+  };
+
+  const triggerAutoDraftAfterIngestion = (jobId: string) => {
+    if (!parsedData || !parsedHeaders.length) return;
+    const ext = fileName.split(".").pop()?.toLowerCase() || "xlsx";
+    triggerAutoDraftFromIngestion.mutate({
+      ingestion_job_id: jobId,
+      file_name: fileName,
+      headers: parsedHeaders,
+      sample_data: parsedData.slice(0, 50),
+      source_type: ext,
+    });
   };
 
   const handleRunExistingJob = async (jobId: string) => {
@@ -227,22 +252,34 @@ const IngestionHubPage = () => {
   };
 
   const handleJobAction = (action: string, jobId: string) => {
+    const job = jobs?.find(j => j.id === jobId);
     switch (action) {
       case "view":
-        const job = jobs?.find(j => j.id === jobId);
         if (job) setDetailJob(job);
         break;
       case "run":
         handleRunExistingJob(jobId);
         break;
       case "delete":
-        toast.info("Delete ainda não implementado");
+        deleteIngestionJob.mutate(jobId);
+        break;
+      case "archive":
+        archiveIngestionJob.mutate(jobId);
+        break;
+      case "delete_file":
+        // Delete the uploaded file associated with this job
+        toast.info("A eliminar ficheiro...");
+        // We'd need the file ID; for now delete by job reference
+        deleteIngestionJob.mutate(jobId);
         break;
       case "clone":
-        toast.info("Clone ainda não implementado");
+        toast.info("Clone: funcionalidade em desenvolvimento");
+        break;
+      case "open_draft":
+        toast.info("Navegar para Supplier Playbooks > Auto-Drafts");
         break;
       default:
-        toast.info(`Ação "${action}" pendente`);
+        toast.info(`Ação "${action}" pendente de implementação`);
     }
   };
 

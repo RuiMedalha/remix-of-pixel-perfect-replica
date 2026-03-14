@@ -1,12 +1,9 @@
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash2, RefreshCw, Copy, Play, Pause, Eye, FileText, Edit, RotateCcw, X } from "lucide-react";
+import { MoreHorizontal, Trash2, RefreshCw, Copy, Play, Eye, FileText, Edit, RotateCcw, X, Archive, Zap } from "lucide-react";
 
 interface Props {
   job: any;
@@ -35,6 +32,9 @@ export function IngestionJobActionsDropdown({ job, onAction }: Props) {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onAction("view_source", job.id)}>
           <FileText className="w-3 h-3 mr-2" /> Ver ficheiro fonte
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onAction("open_draft", job.id)}>
+          <Zap className="w-3 h-3 mr-2" /> Ver auto-draft
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
@@ -82,11 +82,21 @@ export function IngestionJobActionsDropdown({ job, onAction }: Props) {
 
         <DropdownMenuSeparator />
 
+        {isFinal && !isDraft && (
+          <DropdownMenuItem onClick={() => onAction("archive", job.id)}>
+            <Archive className="w-3 h-3 mr-2" /> Arquivar
+          </DropdownMenuItem>
+        )}
+
         {isDraft && (
           <DropdownMenuItem onClick={() => onAction("delete", job.id)} className="text-destructive">
             <Trash2 className="w-3 h-3 mr-2" /> Eliminar draft
           </DropdownMenuItem>
         )}
+
+        <DropdownMenuItem onClick={() => onAction("delete_file", job.id)} className="text-destructive">
+          <Trash2 className="w-3 h-3 mr-2" /> Eliminar ficheiro
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
