@@ -28,6 +28,7 @@ import {
   Zap,
   Workflow,
   ArrowDownUp,
+  FileCode,
   type LucideIcon,
 } from "lucide-react";
 
