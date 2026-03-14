@@ -33,6 +33,7 @@ import {
   Fingerprint,
   Gauge,
   Building2,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
