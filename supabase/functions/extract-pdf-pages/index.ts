@@ -77,7 +77,7 @@ serve(async (req) => {
           {
             role: "user",
             content: [
-              { type: "image_url", image_url: { url: signedPdfUrl } },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${overviewPdfBase64}` } },
               {
                 type: "text",
                 text: `Quickly analyze this PDF. Return JSON:
