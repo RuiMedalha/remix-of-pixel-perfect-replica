@@ -31,6 +31,7 @@ import {
   FileCode,
   Cpu,
   Fingerprint,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 
@@ -124,6 +125,7 @@ export const navGroups: NavGroup[] = [
       { title: "Prompt Governance", icon: FileCode, route: "/prompt-governance" },
       { title: "Agent Registry", icon: Cpu, route: "/agent-registry" },
       { title: "Product Identity", icon: Fingerprint, route: "/product-identity" },
+      { title: "AI Governance", icon: Gauge, route: "/ai-governance" },
     ],
   },
   {

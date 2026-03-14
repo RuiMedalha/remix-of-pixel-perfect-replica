@@ -431,6 +431,133 @@ export type Database = {
           },
         ]
       }
+      ai_execution_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          mode: string
+          model_preferences: Json
+          profile_name: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          mode?: string
+          model_preferences?: Json
+          profile_name: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          mode?: string
+          model_preferences?: Json
+          profile_name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_execution_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_retry_policies: {
+        Row: {
+          created_at: string
+          fallback_model: string | null
+          id: string
+          policy_name: string
+          retry_limit: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          fallback_model?: string | null
+          id?: string
+          policy_name: string
+          retry_limit?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          fallback_model?: string | null
+          id?: string
+          policy_name?: string
+          retry_limit?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_retry_policies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_logs: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          estimated_cost: number | null
+          id: string
+          images_generated: number | null
+          input_tokens: number | null
+          model_name: string | null
+          output_tokens: number | null
+          vision_pages: number | null
+          workspace_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          estimated_cost?: number | null
+          id?: string
+          images_generated?: number | null
+          input_tokens?: number | null
+          model_name?: string | null
+          output_tokens?: number | null
+          vision_pages?: number | null
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          estimated_cost?: number | null
+          id?: string
+          images_generated?: number | null
+          input_tokens?: number | null
+          model_name?: string | null
+          output_tokens?: number | null
+          vision_pages?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_logs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_library: {
         Row: {
           ai_alt_text: string | null

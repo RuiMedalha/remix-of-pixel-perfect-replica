@@ -41,6 +41,7 @@ import SourcePriorityPage from "./pages/SourcePriorityPage";
 import PromptGovernancePage from "./pages/PromptGovernancePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
 import ProductIdentityPage from "./pages/ProductIdentityPage";
+import AiGovernancePage from "./pages/AiGovernancePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -99,6 +100,7 @@ function ProtectedRoutes() {
           <Route path="/prompt-governance" element={<PromptGovernancePage />} />
           <Route path="/agent-registry" element={<AgentRegistryPage />} />
           <Route path="/product-identity" element={<ProductIdentityPage />} />
+          <Route path="/ai-governance" element={<AiGovernancePage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
