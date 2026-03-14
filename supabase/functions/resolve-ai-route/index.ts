@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { taskType, workspaceId, messages, systemPrompt, options } = await req.json();
+    const { taskType, workspaceId, messages, systemPrompt, options, modelOverride } = await req.json();
     if (!taskType || !workspaceId) throw new Error("taskType and workspaceId required");
 
     // 1. Resolve routing rule
