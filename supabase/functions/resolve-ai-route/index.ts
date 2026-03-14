@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -26,10 +26,25 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
       .single();
 
-    // 2. Resolve provider (from route or first active)
+    // 2. Resolve provider + prompt (from route or defaults)
     let provider = route?.provider;
     let model = route?.model_override || route?.recommended_model || provider?.default_model;
-    let prompt = route?.prompt?.content || systemPrompt || "";
+
+    let prompt = systemPrompt || "";
+    if (route?.prompt_template_id) {
+      const { data: activePromptVersion } = await supabase
+        .from("prompt_versions")
+        .select("prompt_text")
+        .eq("template_id", route.prompt_template_id)
+        .eq("is_active", true)
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      prompt = activePromptVersion?.prompt_text || route?.prompt?.base_prompt || prompt;
+    } else {
+      prompt = route?.prompt?.base_prompt || prompt;
+    }
 
     if (!provider) {
       const { data: defaultProvider } = await supabase
