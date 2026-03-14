@@ -287,6 +287,7 @@ export default function PDFExtractionPage() {
   useEffect(() => {
     setLastProgressAt(Date.now());
     setLastExtractedCount(0);
+    setReviewDraftProducts(null);
   }, [wizardExtractionId]);
 
   useEffect(() => {
