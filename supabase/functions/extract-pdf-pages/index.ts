@@ -297,7 +297,7 @@ async function processChunk(opts: {
         {
           role: "user",
           content: [
-            { type: "image_url", image_url: { url: pdfUrl } },
+            { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
             {
               type: "text",
               text: `Extract ALL products from pages ${chunkStart} to ${chunkEnd} of this PDF.
