@@ -245,6 +245,7 @@ async function invokeChunkExtraction(opts: {
         chunkEnd: chunk.end,
         storagePath,
         overviewData,
+        signedUrl,
       }),
     });
 
