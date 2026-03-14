@@ -841,15 +841,15 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                   <TableBody>
                                     {products.slice(0, 10).map((prod: any, pi: number) => (
                                       <TableRow key={pi}>
-                                        <TableCell className="text-xs font-mono">{prod.sku || "—"}</TableCell>
+                                        <TableCell className="text-xs font-mono">{toDisplayText(prod.sku)}</TableCell>
                                         <TableCell className="text-xs">
-                                          <div className="font-medium">{prod.title || "—"}</div>
-                                          {prod.description && (
-                                            <div className="text-muted-foreground text-[10px] mt-0.5 truncate max-w-xs">{prod.description}</div>
+                                          <div className="font-medium">{toDisplayText(prod.title)}</div>
+                                          {toDisplayText(prod.description, "") && (
+                                            <div className="text-muted-foreground text-[10px] mt-0.5 truncate max-w-xs">{toDisplayText(prod.description, "")}</div>
                                           )}
                                         </TableCell>
                                         <TableCell className="text-xs">{prod.price ? `${prod.currency || "€"}${prod.price}` : "—"}</TableCell>
-                                        <TableCell className="text-xs">{prod.category || pageCtx?.section_title || "—"}</TableCell>
+                                        <TableCell className="text-xs">{toDisplayText(prod.category ?? pageCtx?.section_title)}</TableCell>
                                         <TableCell>
                                           <div className="flex items-center gap-1">
                                             {(prod.confidence || 0) >= 80 && <CheckCircle className="h-3 w-3 text-primary" />}
