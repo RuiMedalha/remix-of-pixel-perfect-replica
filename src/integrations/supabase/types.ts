@@ -3525,6 +3525,192 @@ export type Database = {
           },
         ]
       }
+      channel_payload_assets: {
+        Row: {
+          asset_id: string | null
+          channel_asset_status: Database["public"]["Enums"]["channel_asset_status_enum"]
+          channel_payload_id: string
+          created_at: string
+          id: string
+          sort_order: number | null
+          usage_context: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          channel_asset_status?: Database["public"]["Enums"]["channel_asset_status_enum"]
+          channel_payload_id: string
+          created_at?: string
+          id?: string
+          sort_order?: number | null
+          usage_context?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          channel_asset_status?: Database["public"]["Enums"]["channel_asset_status_enum"]
+          channel_payload_id?: string
+          created_at?: string
+          id?: string
+          sort_order?: number | null
+          usage_context?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_payload_assets_channel_payload_id_fkey"
+            columns: ["channel_payload_id"]
+            isOneToOne: false
+            referencedRelation: "channel_payloads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_payload_fields: {
+        Row: {
+          channel_payload_id: string
+          created_at: string
+          field_name: string
+          id: string
+          source_field_name: string | null
+          source_value: Json | null
+          transformed_value: Json | null
+          transformer_used: string | null
+          validation_status: string | null
+        }
+        Insert: {
+          channel_payload_id: string
+          created_at?: string
+          field_name: string
+          id?: string
+          source_field_name?: string | null
+          source_value?: Json | null
+          transformed_value?: Json | null
+          transformer_used?: string | null
+          validation_status?: string | null
+        }
+        Update: {
+          channel_payload_id?: string
+          created_at?: string
+          field_name?: string
+          id?: string
+          source_field_name?: string | null
+          source_value?: Json | null
+          transformed_value?: Json | null
+          transformer_used?: string | null
+          validation_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_payload_fields_channel_payload_id_fkey"
+            columns: ["channel_payload_id"]
+            isOneToOne: false
+            referencedRelation: "channel_payloads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_payload_logs: {
+        Row: {
+          channel_payload_id: string
+          created_at: string
+          error_payload: Json | null
+          id: string
+          input_payload: Json | null
+          output_payload: Json | null
+          status: string | null
+          step_name: string
+        }
+        Insert: {
+          channel_payload_id: string
+          created_at?: string
+          error_payload?: Json | null
+          id?: string
+          input_payload?: Json | null
+          output_payload?: Json | null
+          status?: string | null
+          step_name: string
+        }
+        Update: {
+          channel_payload_id?: string
+          created_at?: string
+          error_payload?: Json | null
+          id?: string
+          input_payload?: Json | null
+          output_payload?: Json | null
+          status?: string | null
+          step_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_payload_logs_channel_payload_id_fkey"
+            columns: ["channel_payload_id"]
+            isOneToOne: false
+            referencedRelation: "channel_payloads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_payloads: {
+        Row: {
+          canonical_product_id: string | null
+          channel_id: string | null
+          created_at: string
+          generated_at: string | null
+          id: string
+          payload_data: Json | null
+          payload_status: Database["public"]["Enums"]["payload_status_enum"]
+          payload_version: number
+          updated_at: string
+          validation_errors: Json | null
+          validation_status: string | null
+          workspace_id: string
+        }
+        Insert: {
+          canonical_product_id?: string | null
+          channel_id?: string | null
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          payload_data?: Json | null
+          payload_status?: Database["public"]["Enums"]["payload_status_enum"]
+          payload_version?: number
+          updated_at?: string
+          validation_errors?: Json | null
+          validation_status?: string | null
+          workspace_id: string
+        }
+        Update: {
+          canonical_product_id?: string | null
+          channel_id?: string | null
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          payload_data?: Json | null
+          payload_status?: Database["public"]["Enums"]["payload_status_enum"]
+          payload_version?: number
+          updated_at?: string
+          validation_errors?: Json | null
+          validation_status?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_payloads_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_payloads_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_performance_predictions: {
         Row: {
           channel_id: string | null
@@ -3939,6 +4125,54 @@ export type Database = {
           },
           {
             foreignKeyName: "channel_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_sync_snapshots: {
+        Row: {
+          canonical_product_id: string | null
+          channel_id: string | null
+          channel_product_id: string | null
+          created_at: string
+          id: string
+          snapshot_payload: Json | null
+          snapshot_type: Database["public"]["Enums"]["snapshot_type_enum"]
+          workspace_id: string
+        }
+        Insert: {
+          canonical_product_id?: string | null
+          channel_id?: string | null
+          channel_product_id?: string | null
+          created_at?: string
+          id?: string
+          snapshot_payload?: Json | null
+          snapshot_type?: Database["public"]["Enums"]["snapshot_type_enum"]
+          workspace_id: string
+        }
+        Update: {
+          canonical_product_id?: string | null
+          channel_id?: string | null
+          channel_product_id?: string | null
+          created_at?: string
+          id?: string
+          snapshot_payload?: Json | null
+          snapshot_type?: Database["public"]["Enums"]["snapshot_type_enum"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_sync_snapshots_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_sync_snapshots_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -11038,6 +11272,11 @@ export type Database = {
         | "required"
         | "approved"
         | "rejected"
+      channel_asset_status_enum:
+        | "selected"
+        | "optimized"
+        | "rejected"
+        | "missing"
       channel_job_status_enum: "queued" | "running" | "completed" | "failed"
       channel_rule_type_enum:
         | "title_template"
@@ -11351,6 +11590,14 @@ export type Database = {
         | "completed"
         | "failed"
         | "skipped"
+      payload_status_enum:
+        | "queued"
+        | "building"
+        | "built"
+        | "validated"
+        | "invalid"
+        | "published"
+        | "error"
       pdf_block_role:
         | "product_family"
         | "product_group"
@@ -11500,6 +11747,11 @@ export type Database = {
         | "translation_quality_simulation"
         | "image_quality_simulation"
         | "schema_validation_simulation"
+      snapshot_type_enum:
+        | "pre_publish"
+        | "published"
+        | "post_sync"
+        | "remote_state"
       strategy_action_type:
         | "launch_product"
         | "expand_category"
@@ -12036,6 +12288,12 @@ export const Constants = {
         "approved",
         "rejected",
       ],
+      channel_asset_status_enum: [
+        "selected",
+        "optimized",
+        "rejected",
+        "missing",
+      ],
       channel_job_status_enum: ["queued", "running", "completed", "failed"],
       channel_rule_type_enum: [
         "title_template",
@@ -12381,6 +12639,15 @@ export const Constants = {
         "failed",
         "skipped",
       ],
+      payload_status_enum: [
+        "queued",
+        "building",
+        "built",
+        "validated",
+        "invalid",
+        "published",
+        "error",
+      ],
       pdf_block_role: [
         "product_family",
         "product_group",
@@ -12549,6 +12816,12 @@ export const Constants = {
         "translation_quality_simulation",
         "image_quality_simulation",
         "schema_validation_simulation",
+      ],
+      snapshot_type_enum: [
+        "pre_publish",
+        "published",
+        "post_sync",
+        "remote_state",
       ],
       strategy_action_type: [
         "launch_product",
