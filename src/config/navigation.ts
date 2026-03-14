@@ -142,6 +142,7 @@ export const navGroups: NavGroup[] = [
       { title: "Execution Planner", icon: Route, route: "/execution-planner" },
       { title: "Cost Intelligence", icon: DollarSign, route: "/cost-intelligence" },
       { title: "Supplier Playbooks", icon: BookOpen, route: "/supplier-playbooks" },
+      { title: "Agent Runtime", icon: Terminal, route: "/agent-runtime" },
     ],
   },
   {

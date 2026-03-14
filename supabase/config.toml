@@ -311,3 +311,15 @@ verify_jwt = false
 
 [functions.suggest-playbook-template]
 verify_jwt = false
+
+[functions.record-agent-run]
+verify_jwt = false
+
+[functions.record-agent-feedback]
+verify_jwt = false
+
+[functions.summarize-agent-runtime]
+verify_jwt = false
+
+[functions.generate-agent-runtime-alerts]
+verify_jwt = false
