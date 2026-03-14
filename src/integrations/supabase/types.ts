@@ -326,6 +326,206 @@ export type Database = {
           },
         ]
       }
+      agent_run_feedback: {
+        Row: {
+          agent_run_id: string
+          created_at: string | null
+          feedback_payload: Json | null
+          feedback_score: number | null
+          feedback_type: Database["public"]["Enums"]["feedback_type_enum"]
+          id: string
+          provided_by: string | null
+        }
+        Insert: {
+          agent_run_id: string
+          created_at?: string | null
+          feedback_payload?: Json | null
+          feedback_score?: number | null
+          feedback_type: Database["public"]["Enums"]["feedback_type_enum"]
+          id?: string
+          provided_by?: string | null
+        }
+        Update: {
+          agent_run_id?: string
+          created_at?: string | null
+          feedback_payload?: Json | null
+          feedback_score?: number | null
+          feedback_type?: Database["public"]["Enums"]["feedback_type_enum"]
+          id?: string
+          provided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_run_feedback_agent_run_id_fkey"
+            columns: ["agent_run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_run_steps: {
+        Row: {
+          agent_run_id: string
+          cost_estimate: number | null
+          created_at: string | null
+          error_payload: Json | null
+          id: string
+          input_payload: Json | null
+          latency_ms: number | null
+          output_payload: Json | null
+          status: string | null
+          step_name: string
+          step_order: number | null
+        }
+        Insert: {
+          agent_run_id: string
+          cost_estimate?: number | null
+          created_at?: string | null
+          error_payload?: Json | null
+          id?: string
+          input_payload?: Json | null
+          latency_ms?: number | null
+          output_payload?: Json | null
+          status?: string | null
+          step_name: string
+          step_order?: number | null
+        }
+        Update: {
+          agent_run_id?: string
+          cost_estimate?: number | null
+          created_at?: string | null
+          error_payload?: Json | null
+          id?: string
+          input_payload?: Json | null
+          latency_ms?: number | null
+          output_payload?: Json | null
+          status?: string | null
+          step_name?: string
+          step_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_run_steps_agent_run_id_fkey"
+            columns: ["agent_run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runs: {
+        Row: {
+          agent_id: string | null
+          agent_name: string
+          agent_version: string | null
+          completed_at: string | null
+          confidence_score: number | null
+          cost_estimate: number | null
+          created_at: string | null
+          fallback_reason: string | null
+          fallback_used: boolean | null
+          id: string
+          input_payload: Json | null
+          latency_ms: number | null
+          output_payload: Json | null
+          prompt_version_id: string | null
+          run_id: string | null
+          status: Database["public"]["Enums"]["agent_run_status_enum"] | null
+          workspace_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_name: string
+          agent_version?: string | null
+          completed_at?: string | null
+          confidence_score?: number | null
+          cost_estimate?: number | null
+          created_at?: string | null
+          fallback_reason?: string | null
+          fallback_used?: boolean | null
+          id?: string
+          input_payload?: Json | null
+          latency_ms?: number | null
+          output_payload?: Json | null
+          prompt_version_id?: string | null
+          run_id?: string | null
+          status?: Database["public"]["Enums"]["agent_run_status_enum"] | null
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          agent_name?: string
+          agent_version?: string | null
+          completed_at?: string | null
+          confidence_score?: number | null
+          cost_estimate?: number | null
+          created_at?: string | null
+          fallback_reason?: string | null
+          fallback_used?: boolean | null
+          id?: string
+          input_payload?: Json | null
+          latency_ms?: number | null
+          output_payload?: Json | null
+          prompt_version_id?: string | null
+          run_id?: string | null
+          status?: Database["public"]["Enums"]["agent_run_status_enum"] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runtime_alerts: {
+        Row: {
+          agent_id: string | null
+          alert_type: Database["public"]["Enums"]["agent_alert_type_enum"]
+          created_at: string | null
+          id: string
+          message: string | null
+          resolved_at: string | null
+          severity: number | null
+          status: string | null
+          workspace_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          alert_type: Database["public"]["Enums"]["agent_alert_type_enum"]
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          resolved_at?: string | null
+          severity?: number | null
+          status?: string | null
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          alert_type?: Database["public"]["Enums"]["agent_alert_type_enum"]
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          resolved_at?: string | null
+          severity?: number | null
+          status?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runtime_alerts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_schedules: {
         Row: {
           agent_id: string
@@ -12183,6 +12383,20 @@ export type Database = {
         | "generate_translation"
         | "optimize_images"
         | "suggest_price_change"
+      agent_alert_type_enum:
+        | "failure_spike"
+        | "cost_spike"
+        | "latency_spike"
+        | "low_confidence_rate"
+        | "fallback_rate_high"
+      agent_run_status_enum:
+        | "queued"
+        | "running"
+        | "completed"
+        | "partial"
+        | "failed"
+        | "fallback_completed"
+        | "cancelled"
       agent_schedule_enum: "manual" | "hourly" | "daily" | "weekly"
       agent_status_enum: "active" | "paused" | "disabled"
       agent_task_status_enum:
@@ -12666,6 +12880,14 @@ export type Database = {
         | "partner_csv"
         | "internal_api"
         | "retailer_feed"
+      feedback_type_enum:
+        | "human_approved"
+        | "human_rejected"
+        | "auto_low_confidence"
+        | "schema_fail"
+        | "publish_fail"
+        | "cost_too_high"
+        | "latency_too_high"
       field_validation_status: "valid" | "invalid" | "unvalidated"
       forecast_type_enum:
         | "job_forecast"
@@ -13311,6 +13533,22 @@ export const Constants = {
         "optimize_images",
         "suggest_price_change",
       ],
+      agent_alert_type_enum: [
+        "failure_spike",
+        "cost_spike",
+        "latency_spike",
+        "low_confidence_rate",
+        "fallback_rate_high",
+      ],
+      agent_run_status_enum: [
+        "queued",
+        "running",
+        "completed",
+        "partial",
+        "failed",
+        "fallback_completed",
+        "cancelled",
+      ],
       agent_schedule_enum: ["manual", "hourly", "daily", "weekly"],
       agent_status_enum: ["active", "paused", "disabled"],
       agent_task_status_enum: [
@@ -13847,6 +14085,15 @@ export const Constants = {
         "partner_csv",
         "internal_api",
         "retailer_feed",
+      ],
+      feedback_type_enum: [
+        "human_approved",
+        "human_rejected",
+        "auto_low_confidence",
+        "schema_fail",
+        "publish_fail",
+        "cost_too_high",
+        "latency_too_high",
       ],
       field_validation_status: ["valid", "invalid", "unvalidated"],
       forecast_type_enum: [
