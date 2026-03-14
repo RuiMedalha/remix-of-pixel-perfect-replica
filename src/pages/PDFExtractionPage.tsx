@@ -854,7 +854,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                               <div className="mb-3 flex flex-wrap gap-1">
                                 {(page.zones || []).map((z: any, i: number) => (
                                   <Badge key={i} variant="outline" className={`text-xs ${zoneColors[z.type] || ""}`}>
-                                    {z.type || z.content_summary}
+                                    {toDisplayText(z.type || z.content_summary)}
                                   </Badge>
                                 ))}
                               </div>
