@@ -1,151 +1,202 @@
 import { useState } from "react";
-import { usePromptGovernance } from "@/hooks/usePromptGovernance";
+import { usePromptGovernance, type PromptTemplate, type PromptVersion } from "@/hooks/usePromptGovernance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileCode, CheckCircle, Clock, BarChart3 } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, FileCode } from "lucide-react";
+import { PromptTemplatesTable } from "@/components/prompt-governance/PromptTemplatesTable";
+import { EditPromptTemplateDialog } from "@/components/prompt-governance/EditPromptTemplateDialog";
+import { PromptVersionHistoryPanel } from "@/components/prompt-governance/PromptVersionHistoryPanel";
+import { PromptVersionCompareDialog } from "@/components/prompt-governance/PromptVersionCompareDialog";
+import { PromptPerformancePanel } from "@/components/prompt-governance/PromptPerformancePanel";
+import { ConfirmArchiveDialog } from "@/components/prompt-governance/ConfirmArchiveDialog";
+import { ConfirmDeleteDialog } from "@/components/prompt-governance/ConfirmDeleteDialog";
 
 const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general"];
 
 export default function PromptGovernancePage() {
-  const { templates, createTemplate, useVersions, createVersion, activateVersion, usageLogs } = usePromptGovernance();
+  const {
+    templates, createTemplate, updateTemplate, archiveTemplate, restoreTemplate,
+    deleteTemplate, duplicateTemplate, useVersions, createVersion, activateVersion,
+    usageLogs, useVersionPerformance,
+  } = usePromptGovernance();
+
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("templates");
+
+  // Create form
+  const [showCreate, setShowCreate] = useState(false);
   const [newTemplate, setNewTemplate] = useState({ prompt_name: "", prompt_type: "general", base_prompt: "", description: "" });
+
+  // Edit dialog
+  const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null);
+
+  // Confirm dialogs
+  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Compare
+  const [compareVersions, setCompareVersions] = useState<[PromptVersion | null, PromptVersion | null]>([null, null]);
+
+  // New version
   const [newVersionText, setNewVersionText] = useState("");
+  const [newVersionNotes, setNewVersionNotes] = useState("");
 
   const versions = useVersions(selectedTemplate);
   const logs = usageLogs(selectedVersion);
+  const performance = useVersionPerformance(selectedVersion);
+
+  const selectedTpl = templates.data?.find(t => t.id === selectedTemplate);
+
+  const handleSelectTemplate = (id: string) => {
+    setSelectedTemplate(id);
+    setSelectedVersion(null);
+    if (activeTab === "templates") setActiveTab("versions");
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileCode className="w-6 h-6" /> Prompt Governance
-        </h1>
-        <p className="text-muted-foreground">Gestão centralizada de prompts com versionamento e análise</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <FileCode className="w-6 h-6" /> Prompt Governance
+          </h1>
+          <p className="text-muted-foreground">Consola enterprise de gestão de prompts com versionamento, performance e ciclo de vida completo</p>
+        </div>
+        <Button onClick={() => setShowCreate(!showCreate)}>
+          <Plus className="w-4 h-4 mr-1" /> Novo Template
+        </Button>
       </div>
 
-      <Tabs defaultValue="templates">
+      {/* Create form */}
+      {showCreate && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Novo Template</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input placeholder="Nome do prompt" value={newTemplate.prompt_name} onChange={e => setNewTemplate(f => ({ ...f, prompt_name: e.target.value }))} className="flex-1" />
+              <Select value={newTemplate.prompt_type} onValueChange={v => setNewTemplate(f => ({ ...f, prompt_type: v }))}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>{PROMPT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <Input placeholder="Descrição" value={newTemplate.description} onChange={e => setNewTemplate(f => ({ ...f, description: e.target.value }))} />
+            <Textarea placeholder="Prompt base..." value={newTemplate.base_prompt} onChange={e => setNewTemplate(f => ({ ...f, base_prompt: e.target.value }))} rows={4} />
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  createTemplate.mutate(newTemplate);
+                  setNewTemplate({ prompt_name: "", prompt_type: "general", base_prompt: "", description: "" });
+                  setShowCreate(false);
+                }}
+                disabled={!newTemplate.prompt_name || !newTemplate.base_prompt || createTemplate.isPending}
+              >
+                <Plus className="w-4 h-4 mr-1" /> Criar
+              </Button>
+              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="versions">Versões</TabsTrigger>
-          <TabsTrigger value="analytics">Performance</TabsTrigger>
+          <TabsTrigger value="templates">Templates ({templates.data?.length || 0})</TabsTrigger>
+          <TabsTrigger value="versions" disabled={!selectedTemplate}>
+            Versões {selectedTpl ? `— ${selectedTpl.prompt_name}` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="performance" disabled={!selectedVersion}>Performance</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="templates" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Novo Template</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input placeholder="Nome do prompt" value={newTemplate.prompt_name} onChange={(e) => setNewTemplate({ ...newTemplate, prompt_name: e.target.value })} />
-                <Select value={newTemplate.prompt_type} onValueChange={(v) => setNewTemplate({ ...newTemplate, prompt_type: v })}>
-                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                  <SelectContent>{PROMPT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <Input placeholder="Descrição" value={newTemplate.description} onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })} />
-              <Textarea placeholder="Prompt base..." value={newTemplate.base_prompt} onChange={(e) => setNewTemplate({ ...newTemplate, base_prompt: e.target.value })} rows={4} />
-              <Button onClick={() => { createTemplate.mutate(newTemplate); setNewTemplate({ prompt_name: "", prompt_type: "general", base_prompt: "", description: "" }); }} disabled={!newTemplate.prompt_name || !newTemplate.base_prompt || createTemplate.isPending}>
-                <Plus className="w-4 h-4 mr-1" /> Criar Template
-              </Button>
-            </CardContent>
-          </Card>
-
-          {templates.data?.map((t: any) => (
-            <Card key={t.id} className={`cursor-pointer transition-colors ${selectedTemplate === t.id ? "border-primary" : ""}`} onClick={() => { setSelectedTemplate(t.id); setSelectedVersion(null); }}>
-              <CardContent className="flex items-center justify-between p-4">
-                <div>
-                  <p className="font-medium">{t.prompt_name}</p>
-                  <p className="text-xs text-muted-foreground">{t.description || t.prompt_type}</p>
-                </div>
-                <Badge variant="secondary">{t.prompt_type}</Badge>
-              </CardContent>
-            </Card>
-          ))}
-          {templates.data?.length === 0 && <p className="text-muted-foreground">Nenhum template criado.</p>}
+        <TabsContent value="templates" className="mt-4">
+          <PromptTemplatesTable
+            templates={templates.data || []}
+            selectedId={selectedTemplate}
+            onSelect={handleSelectTemplate}
+            onEdit={t => setEditingTemplate(t)}
+            onDuplicate={id => duplicateTemplate.mutate(id)}
+            onArchive={id => setArchiveId(id)}
+            onRestore={id => restoreTemplate.mutate(id)}
+            onDelete={id => setDeleteId(id)}
+          />
         </TabsContent>
 
         <TabsContent value="versions" className="space-y-4 mt-4">
           {!selectedTemplate ? (
-            <p className="text-muted-foreground">Selecione um template na tab Templates.</p>
+            <p className="text-muted-foreground">Selecione um template.</p>
           ) : (
             <>
               <Card>
                 <CardHeader><CardTitle className="text-base">Nova Versão</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
-                  <Textarea placeholder="Texto do prompt..." value={newVersionText} onChange={(e) => setNewVersionText(e.target.value)} rows={4} />
-                  <Button size="sm" onClick={() => { createVersion.mutate({ template_id: selectedTemplate!, prompt_text: newVersionText }); setNewVersionText(""); }} disabled={!newVersionText || createVersion.isPending}>
+                  <Textarea placeholder="Texto do prompt..." value={newVersionText} onChange={e => setNewVersionText(e.target.value)} rows={4} />
+                  <Input placeholder="Notas da versão (opcional)" value={newVersionNotes} onChange={e => setNewVersionNotes(e.target.value)} />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      createVersion.mutate({ template_id: selectedTemplate!, prompt_text: newVersionText, version_notes: newVersionNotes || undefined });
+                      setNewVersionText("");
+                      setNewVersionNotes("");
+                    }}
+                    disabled={!newVersionText || createVersion.isPending}
+                  >
                     <Plus className="w-4 h-4 mr-1" /> Criar Versão
                   </Button>
                 </CardContent>
               </Card>
 
-              {versions.data?.map((v: any) => (
-                <Card key={v.id} className={`cursor-pointer ${selectedVersion === v.id ? "border-primary" : ""}`} onClick={() => setSelectedVersion(v.id)}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {v.is_active ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Clock className="w-4 h-4 text-muted-foreground" />}
-                        <span className="font-medium">v{v.version_number}</span>
-                        {v.is_active && <Badge>Ativa</Badge>}
-                      </div>
-                      {!v.is_active && (
-                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); activateVersion.mutate({ template_id: selectedTemplate!, version_id: v.id }); }}>
-                          Ativar
-                        </Button>
-                      )}
-                    </div>
-                    <pre className="text-xs bg-muted p-2 rounded whitespace-pre-wrap max-h-32 overflow-auto">{v.prompt_text}</pre>
-                  </CardContent>
-                </Card>
-              ))}
+              <PromptVersionHistoryPanel
+                versions={versions.data || []}
+                selectedVersionId={selectedVersion}
+                onSelectVersion={id => { setSelectedVersion(id); }}
+                onActivateVersion={versionId => activateVersion.mutate({ template_id: selectedTemplate!, version_id: versionId })}
+                onCompareVersions={(a, b) => setCompareVersions([a, b])}
+                templateId={selectedTemplate!}
+              />
             </>
           )}
         </TabsContent>
 
-        <TabsContent value="analytics" className="mt-4">
-          {!selectedVersion ? (
-            <p className="text-muted-foreground">Selecione uma versão para ver performance.</p>
-          ) : (
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Logs de Utilização</CardTitle></CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Agente</TableHead>
-                      <TableHead>Input</TableHead>
-                      <TableHead>Output</TableHead>
-                      <TableHead>Tempo (ms)</TableHead>
-                      <TableHead>Confiança</TableHead>
-                      <TableHead>Data</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {logs.data?.map((l: any) => (
-                      <TableRow key={l.id}>
-                        <TableCell>{l.agent_name || "—"}</TableCell>
-                        <TableCell>{l.input_size || 0}</TableCell>
-                        <TableCell>{l.output_size || 0}</TableCell>
-                        <TableCell>{l.execution_time || 0}</TableCell>
-                        <TableCell>{l.confidence_score ? `${(l.confidence_score * 100).toFixed(0)}%` : "—"}</TableCell>
-                        <TableCell className="text-xs">{new Date(l.created_at).toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                    {logs.data?.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sem logs</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="performance" className="mt-4">
+          <PromptPerformancePanel
+            performance={performance.data}
+            logs={logs.data || []}
+            loading={performance.isLoading}
+          />
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <EditPromptTemplateDialog
+        template={editingTemplate}
+        open={!!editingTemplate}
+        onOpenChange={open => { if (!open) setEditingTemplate(null); }}
+        onSave={updates => updateTemplate.mutate(updates)}
+        saving={updateTemplate.isPending}
+      />
+
+      <ConfirmArchiveDialog
+        open={!!archiveId}
+        onOpenChange={open => { if (!open) setArchiveId(null); }}
+        onConfirm={() => { if (archiveId) archiveTemplate.mutate(archiveId); setArchiveId(null); }}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!deleteId}
+        onOpenChange={open => { if (!open) setDeleteId(null); }}
+        onConfirm={() => { if (deleteId) deleteTemplate.mutate(deleteId); setDeleteId(null); }}
+      />
+
+      <PromptVersionCompareDialog
+        open={!!compareVersions[0] && !!compareVersions[1]}
+        onOpenChange={open => { if (!open) setCompareVersions([null, null]); }}
+        versionA={compareVersions[0]}
+        versionB={compareVersions[1]}
+      />
     </div>
   );
 }
