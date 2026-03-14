@@ -94,6 +94,7 @@ function ProtectedRoutes() {
           <Route path="/autonomous-commerce" element={<AutonomousCommercePage />} />
           <Route path="/orquestracao" element={<OrchestrationPage />} />
           <Route path="/source-priority" element={<SourcePriorityPage />} />
+          <Route path="/prompt-governance" element={<PromptGovernancePage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
