@@ -344,3 +344,6 @@ verify_jwt = false
 
 [functions.summarize-workflow-run]
 verify_jwt = false
+
+[functions.classify-product]
+verify_jwt = false
