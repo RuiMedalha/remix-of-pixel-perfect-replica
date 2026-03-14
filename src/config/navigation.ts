@@ -123,6 +123,7 @@ export const navGroups: NavGroup[] = [
       { title: "Source Priority", icon: ArrowDownUp, route: "/source-priority" },
       { title: "Prompt Governance", icon: FileCode, route: "/prompt-governance" },
       { title: "Agent Registry", icon: Cpu, route: "/agent-registry" },
+      { title: "Product Identity", icon: Fingerprint, route: "/product-identity" },
     ],
   },
   {
