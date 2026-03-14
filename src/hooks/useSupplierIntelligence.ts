@@ -4,8 +4,8 @@ import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 
 export function useSupplierIntelligence() {
-  const { currentWorkspace } = useWorkspaceContext();
-  const wsId = currentWorkspace?.id;
+  const { activeWorkspace } = useWorkspaceContext();
+  const wsId = activeWorkspace?.id;
   const qc = useQueryClient();
 
   const suppliers = useQuery({
