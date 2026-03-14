@@ -32,6 +32,7 @@ import {
   Cpu,
   Fingerprint,
   Gauge,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 
