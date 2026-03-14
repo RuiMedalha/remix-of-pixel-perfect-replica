@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { workspace_id, supplier_id, detection_id, inference_id } = await req.json();
+    const { workspace_id, supplier_id, detection_id, inference_id, ingestion_job_id, uploaded_file_id } = await req.json();
     if (!workspace_id) throw new Error("workspace_id required");
 
     // Gather detection data
