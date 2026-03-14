@@ -98,11 +98,11 @@ serve(async (req) => {
     const structuredRows: any[] = [];
 
     for (const page of pages) {
-      const products = page.vision_result?.products || [];
       const sectionTitle = page.page_context?.section_title || "";
+      const products = flattenVisionProducts(page.vision_result?.products || [], sectionTitle);
 
       for (const prod of products) {
-        if (!prod.title && !prod.sku) continue; // Skip empty
+        if (!hasMeaningfulProduct(prod)) continue;
 
         const mapped: Record<string, any> = {};
         if (prod.sku) mapped.sku = prod.sku;
