@@ -122,8 +122,7 @@ Return ONLY valid JSON.`,
       productRanges.push({ start: 1, end: totalPages, content_type: "products" });
     }
 
-    // Build chunks of max 5 pages each (small enough for edge function memory)
-    const CHUNK_SIZE = 5;
+    // Build chunks with low memory pressure
     const chunks: { start: number; end: number }[] = [];
     for (const range of productRanges) {
       const rs = range.start || 1;
@@ -133,36 +132,29 @@ Return ONLY valid JSON.`,
       }
     }
 
-    console.log(`Dispatching ${chunks.length} chunks for ${totalPages} pages`);
+    console.log(`Dispatching ${chunks.length} chunks for ${totalPages} pages (concurrency=${MAX_CHUNK_CONCURRENCY})`);
 
-    // Fire all chunks in parallel (each is a separate function invocation)
-    const chunkPromises = chunks.map((chunk) =>
-      fetch(`${supabaseUrl}/functions/v1/extract-pdf-pages`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${serviceKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+    // Process chunks with bounded concurrency to prevent worker pressure
+    const results: Array<{ chunk: { start: number; end: number }; ok: boolean; result: any }> = [];
+
+    for (let i = 0; i < chunks.length; i += MAX_CHUNK_CONCURRENCY) {
+      const batch = chunks.slice(i, i + MAX_CHUNK_CONCURRENCY);
+      const batchResults = await Promise.all(batch.map((chunk) =>
+        invokeChunkExtraction({
+          supabaseUrl,
+          serviceKey,
           extractionId,
-          chunkMode: true,
-          chunkStart: chunk.start,
-          chunkEnd: chunk.end,
+          chunk,
           storagePath: storagePth,
           overviewData: {
             language: overview.language,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
           },
-        }),
-      }).then(async (r) => {
-        const result = await r.json();
-        return { chunk, ok: r.ok, result };
-      }).catch((e) => ({ chunk, ok: false, result: { error: e.message } }))
-    );
-
-    // Wait for all chunks — each runs in its own worker
-    const results = await Promise.all(chunkPromises);
+        })
+      ));
+      results.push(...batchResults);
+    }
 
     let totalPagesProcessed = 0;
     let totalTablesCreated = 0;
