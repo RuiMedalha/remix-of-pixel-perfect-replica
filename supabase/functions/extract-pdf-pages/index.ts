@@ -332,8 +332,16 @@ Return ONLY valid JSON.`,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  const respData = await extractionResp.json();
-  const content = respData.choices?.[0]?.message?.content || "{}";
+  const rawAiBody = await extractionResp.text();
+  let aiPayload: any = {};
+  try {
+    aiPayload = rawAiBody ? JSON.parse(rawAiBody) : {};
+  } catch {
+    console.error(`Chunk ${chunkStart}-${chunkEnd} returned non-JSON AI payload`);
+    aiPayload = {};
+  }
+
+  const content = aiPayload?.choices?.[0]?.message?.content || "{}";
   let result: any = { pages: [] };
   try {
     result = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
@@ -341,7 +349,10 @@ Return ONLY valid JSON.`,
     try {
       const m = content.match(/\{[\s\S]*\}/);
       if (m) result = JSON.parse(m[0]);
-    } catch { /* skip */ }
+    } catch {
+      console.warn(`Chunk ${chunkStart}-${chunkEnd} returned unparsable content`);
+      result = { pages: [] };
+    }
   }
 
   const pages = result.pages || [];
