@@ -85,8 +85,7 @@ function toNumberPrice(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
 
-  const parsed = parseFloat(String(value).replace(/[^
-\d.,-]/g, "").replace(",", "."));
+  const parsed = parseFloat(String(value).replace(/[^\d.,-]/g, "").replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
 }
 
