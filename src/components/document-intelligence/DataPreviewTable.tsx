@@ -103,8 +103,8 @@ export function DataPreviewTable({ products, columns: columnsProp }: Props) {
               ))}
             </TableBody>
           </Table>
-          {products.length > 30 && (
-            <p className="text-xs text-muted-foreground mt-2 text-center">A mostrar 30 de {products.length}</p>
+          {products.length > 50 && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">A mostrar 50 de {products.length}</p>
           )}
         </ScrollArea>
       </CardContent>
