@@ -127,7 +127,7 @@ ${review_item.notes || "None"}`;
       input_payload: { product_id: review_item.product_id, reason: review_item.reason },
       output_payload: result,
       confidence_score: result.confidence_score,
-      cost_estimate: aiData.usage ? (aiData.usage.prompt_tokens + aiData.usage.completion_tokens) * 0.000001 : null,
+      cost_estimate: routeData.result?.usage ? (routeData.result.usage.prompt_tokens + routeData.result.usage.completion_tokens) * 0.000001 : null,
       completed_at: new Date().toISOString(),
     });
 
