@@ -41,6 +41,7 @@ import SourcePriorityPage from "./pages/SourcePriorityPage";
 import PromptGovernancePage from "./pages/PromptGovernancePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
 import ProductIdentityPage from "./pages/ProductIdentityPage";
+import AiGovernancePage from "./pages/AiGovernancePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
