@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   FileText, Upload, Eye, Brain, Send, Loader2, CheckCircle, AlertTriangle, XCircle,
   Table2, Layers, GitCompare, Shield, BarChart3, Languages, Settings2, ArrowRight,
-  Scan, MapPin, Database, Package, Trash2,
+  Scan, MapPin, Database, Package, Trash2, Square,
 } from "lucide-react";
 import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts, useDeletePdfExtraction } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
