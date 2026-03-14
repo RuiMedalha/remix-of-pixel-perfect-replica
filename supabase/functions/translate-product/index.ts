@@ -149,8 +149,8 @@ Also translate these if present:
         throw new Error(`AI error ${status}: ${errText}`);
       }
 
-      const aiData = await aiResp.json();
-      const content = aiData.choices?.[0]?.message?.content || "";
+      const routeData = await aiResp.json();
+      const content = routeData.result?.choices?.[0]?.message?.content || "";
       
       // Parse JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
