@@ -377,3 +377,6 @@ verify_jwt = false
 
 [functions.analyze-product-price]
 verify_jwt = false
+
+[functions.detect-product-bundles]
+verify_jwt = false
