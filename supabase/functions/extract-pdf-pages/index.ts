@@ -235,7 +235,7 @@ async function invokeChunkExtraction(opts: {
   overviewData: any;
   pdfBase64?: string;
 }) {
-  const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData, signedUrl } = opts;
+  const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData, pdfBase64 } = opts;
 
   try {
     const response = await fetch(`${supabaseUrl}/functions/v1/extract-pdf-pages`, {
