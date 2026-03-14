@@ -154,6 +154,8 @@ export default function PDFExtractionPage() {
   // Wizard state
   const [wizardStep, setWizardStep] = useState<WizardStep>("upload");
   const [wizardExtractionId, setWizardExtractionId] = useState<string | null>(null);
+  const [reviewDraftProducts, setReviewDraftProducts] = useState<any[] | null>(null);
+  const [isSavingReviewDraft, setIsSavingReviewDraft] = useState(false);
 
   const pdfFiles = (files || []).filter(f => f.file_type === "application/pdf" || f.file_name?.endsWith(".pdf"));
   const activeExtractions = (extractions || []).filter((e: any) => !e.archived_at);
