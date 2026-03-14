@@ -4656,6 +4656,10 @@ export type Database = {
           file_id: string
           id: string
           source_name: string | null
+          source_type:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id: string | null
           tsv: unknown
           user_id: string
           workspace_id: string | null
@@ -4667,6 +4671,10 @@ export type Database = {
           file_id: string
           id?: string
           source_name?: string | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id?: string | null
           tsv?: unknown
           user_id: string
           workspace_id?: string | null
@@ -4678,6 +4686,10 @@ export type Database = {
           file_id?: string
           id?: string
           source_name?: string | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id?: string | null
           tsv?: unknown
           user_id?: string
           workspace_id?: string | null
@@ -4688,6 +4700,13 @@ export type Database = {
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "uploaded_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_chunks_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -5379,7 +5398,9 @@ export type Database = {
           prompt_length: number | null
           prompt_tokens: number | null
           rag_match_types: Json | null
+          supplier_id: string | null
           supplier_name: string | null
+          supplier_profile_version: string | null
           supplier_url: string | null
           total_tokens: number | null
           user_id: string
@@ -5399,7 +5420,9 @@ export type Database = {
           prompt_length?: number | null
           prompt_tokens?: number | null
           rag_match_types?: Json | null
+          supplier_id?: string | null
           supplier_name?: string | null
+          supplier_profile_version?: string | null
           supplier_url?: string | null
           total_tokens?: number | null
           user_id: string
@@ -5419,7 +5442,9 @@ export type Database = {
           prompt_length?: number | null
           prompt_tokens?: number | null
           rag_match_types?: Json | null
+          supplier_id?: string | null
           supplier_name?: string | null
+          supplier_profile_version?: string | null
           supplier_url?: string | null
           total_tokens?: number | null
           user_id?: string
@@ -5430,6 +5455,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimization_logs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -6785,6 +6817,8 @@ export type Database = {
       products: {
         Row: {
           attributes: Json | null
+          canonical_supplier_family: string | null
+          canonical_supplier_model: string | null
           category: string | null
           category_id: string | null
           created_at: string
@@ -6813,9 +6847,11 @@ export type Database = {
           seo_slug: string | null
           short_description: string | null
           sku: string | null
+          source_confidence_profile: Json | null
           source_file: string | null
           status: Database["public"]["Enums"]["product_status"]
           suggested_category: string | null
+          supplier_id: string | null
           supplier_ref: string | null
           tags: string[] | null
           technical_specs: string | null
@@ -6832,6 +6868,8 @@ export type Database = {
         }
         Insert: {
           attributes?: Json | null
+          canonical_supplier_family?: string | null
+          canonical_supplier_model?: string | null
           category?: string | null
           category_id?: string | null
           created_at?: string
@@ -6860,9 +6898,11 @@ export type Database = {
           seo_slug?: string | null
           short_description?: string | null
           sku?: string | null
+          source_confidence_profile?: Json | null
           source_file?: string | null
           status?: Database["public"]["Enums"]["product_status"]
           suggested_category?: string | null
+          supplier_id?: string | null
           supplier_ref?: string | null
           tags?: string[] | null
           technical_specs?: string | null
@@ -6881,6 +6921,8 @@ export type Database = {
         }
         Update: {
           attributes?: Json | null
+          canonical_supplier_family?: string | null
+          canonical_supplier_model?: string | null
           category?: string | null
           category_id?: string | null
           created_at?: string
@@ -6909,9 +6951,11 @@ export type Database = {
           seo_slug?: string | null
           short_description?: string | null
           sku?: string | null
+          source_confidence_profile?: Json | null
           source_file?: string | null
           status?: Database["public"]["Enums"]["product_status"]
           suggested_category?: string | null
+          supplier_id?: string | null
           supplier_ref?: string | null
           tags?: string[] | null
           technical_specs?: string | null
@@ -6941,6 +6985,13 @@ export type Database = {
             columns: ["parent_product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -8041,6 +8092,277 @@ export type Database = {
           },
         ]
       }
+      supplier_attribute_patterns: {
+        Row: {
+          attribute_name: string
+          created_at: string | null
+          id: string
+          is_filter_candidate: boolean | null
+          is_variation_candidate: boolean | null
+          normalization_rule: string | null
+          pattern_name: string
+          pattern_regex: string | null
+          source_type:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id: string
+          unit_rule: string | null
+        }
+        Insert: {
+          attribute_name: string
+          created_at?: string | null
+          id?: string
+          is_filter_candidate?: boolean | null
+          is_variation_candidate?: boolean | null
+          normalization_rule?: string | null
+          pattern_name: string
+          pattern_regex?: string | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id: string
+          unit_rule?: string | null
+        }
+        Update: {
+          attribute_name?: string
+          created_at?: string | null
+          id?: string
+          is_filter_candidate?: boolean | null
+          is_variation_candidate?: boolean | null
+          normalization_rule?: string | null
+          pattern_name?: string
+          pattern_regex?: string | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id?: string
+          unit_rule?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_attribute_patterns_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_decision_memory: {
+        Row: {
+          created_at: string | null
+          decision_key: string
+          decision_type: string
+          decision_value: Json | null
+          id: string
+          last_used_at: string | null
+          success_rate: number | null
+          supplier_id: string
+          times_used: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          decision_key: string
+          decision_type: string
+          decision_value?: Json | null
+          id?: string
+          last_used_at?: string | null
+          success_rate?: number | null
+          supplier_id: string
+          times_used?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          decision_key?: string
+          decision_type?: string
+          decision_value?: Json | null
+          id?: string
+          last_used_at?: string | null
+          success_rate?: number | null
+          supplier_id?: string
+          times_used?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_decision_memory_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_extraction_benchmarks: {
+        Row: {
+          average_confidence: number | null
+          average_cost: number | null
+          average_latency_ms: number | null
+          created_at: string | null
+          id: string
+          manual_reviews: number | null
+          pages_processed: number | null
+          rows_processed: number | null
+          source_type:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          successful_matches: number | null
+          supplier_id: string
+        }
+        Insert: {
+          average_confidence?: number | null
+          average_cost?: number | null
+          average_latency_ms?: number | null
+          created_at?: string | null
+          id?: string
+          manual_reviews?: number | null
+          pages_processed?: number | null
+          rows_processed?: number | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          successful_matches?: number | null
+          supplier_id: string
+        }
+        Update: {
+          average_confidence?: number | null
+          average_cost?: number | null
+          average_latency_ms?: number | null
+          created_at?: string | null
+          id?: string
+          manual_reviews?: number | null
+          pages_processed?: number | null
+          rows_processed?: number | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          successful_matches?: number | null
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_extraction_benchmarks_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_field_trust_rules: {
+        Row: {
+          conflict_strategy: string | null
+          created_at: string | null
+          fallback_source_type:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          field_name: string
+          id: string
+          primary_source_type:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          secondary_source_type:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id: string
+          trust_score: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          conflict_strategy?: string | null
+          created_at?: string | null
+          fallback_source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          field_name: string
+          id?: string
+          primary_source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          secondary_source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id: string
+          trust_score?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          conflict_strategy?: string | null
+          created_at?: string | null
+          fallback_source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          field_name?: string
+          id?: string
+          primary_source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          secondary_source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id?: string
+          trust_score?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_field_trust_rules_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_grouping_rules: {
+        Row: {
+          child_detection_strategy: string | null
+          confidence_threshold: number | null
+          created_at: string | null
+          discriminator_fields: string[] | null
+          grouping_type: Database["public"]["Enums"]["supplier_grouping_type_enum"]
+          id: string
+          parent_detection_strategy: string | null
+          review_threshold: number | null
+          rule_config: Json | null
+          supplier_id: string
+        }
+        Insert: {
+          child_detection_strategy?: string | null
+          confidence_threshold?: number | null
+          created_at?: string | null
+          discriminator_fields?: string[] | null
+          grouping_type: Database["public"]["Enums"]["supplier_grouping_type_enum"]
+          id?: string
+          parent_detection_strategy?: string | null
+          review_threshold?: number | null
+          rule_config?: Json | null
+          supplier_id: string
+        }
+        Update: {
+          child_detection_strategy?: string | null
+          confidence_threshold?: number | null
+          created_at?: string | null
+          discriminator_fields?: string[] | null
+          grouping_type?: Database["public"]["Enums"]["supplier_grouping_type_enum"]
+          id?: string
+          parent_detection_strategy?: string | null
+          review_threshold?: number | null
+          rule_config?: Json | null
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_grouping_rules_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_layout_profiles: {
         Row: {
           column_aliases: Json
@@ -8087,6 +8409,347 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_learning_events: {
+        Row: {
+          confidence_after: number | null
+          confidence_before: number | null
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          event_payload: Json | null
+          event_type: string
+          id: string
+          outcome: Database["public"]["Enums"]["learning_outcome_enum"] | null
+          source_type:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id: string
+        }
+        Insert: {
+          confidence_after?: number | null
+          confidence_before?: number | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_payload?: Json | null
+          event_type: string
+          id?: string
+          outcome?: Database["public"]["Enums"]["learning_outcome_enum"] | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id: string
+        }
+        Update: {
+          confidence_after?: number | null
+          confidence_before?: number | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_payload?: Json | null
+          event_type?: string
+          id?: string
+          outcome?: Database["public"]["Enums"]["learning_outcome_enum"] | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_learning_events_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_matching_rules: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          match_type: Database["public"]["Enums"]["supplier_match_type_enum"]
+          rule_config: Json | null
+          rule_name: string
+          rule_weight: number | null
+          supplier_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          match_type: Database["public"]["Enums"]["supplier_match_type_enum"]
+          rule_config?: Json | null
+          rule_name: string
+          rule_weight?: number | null
+          supplier_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          match_type?: Database["public"]["Enums"]["supplier_match_type_enum"]
+          rule_config?: Json | null
+          rule_name?: string
+          rule_weight?: number | null
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_matching_rules_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_profiles: {
+        Row: {
+          base_url: string | null
+          country_code: string | null
+          created_at: string | null
+          default_currency: string | null
+          id: string
+          is_active: boolean | null
+          search_url_template: string | null
+          supplier_code: string | null
+          supplier_name: string
+          updated_at: string | null
+          website_language: string | null
+          workspace_id: string
+        }
+        Insert: {
+          base_url?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          default_currency?: string | null
+          id?: string
+          is_active?: boolean | null
+          search_url_template?: string | null
+          supplier_code?: string | null
+          supplier_name: string
+          updated_at?: string | null
+          website_language?: string | null
+          workspace_id: string
+        }
+        Update: {
+          base_url?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          default_currency?: string | null
+          id?: string
+          is_active?: boolean | null
+          search_url_template?: string | null
+          supplier_code?: string | null
+          supplier_name?: string
+          updated_at?: string | null
+          website_language?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_prompt_profiles: {
+        Row: {
+          agent_name: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          override_prompt: string | null
+          prompt_template_id: string | null
+          supplier_id: string
+          updated_at: string | null
+          usage_scope: string | null
+        }
+        Insert: {
+          agent_name: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          override_prompt?: string | null
+          prompt_template_id?: string | null
+          supplier_id: string
+          updated_at?: string | null
+          usage_scope?: string | null
+        }
+        Update: {
+          agent_name?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          override_prompt?: string | null
+          prompt_template_id?: string | null
+          supplier_id?: string
+          updated_at?: string | null
+          usage_scope?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_prompt_profiles_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_source_profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          matching_strategy: string | null
+          parsing_strategy: string | null
+          priority_rank: number | null
+          reliability_score: number | null
+          source_role: Database["public"]["Enums"]["supplier_source_role_enum"]
+          source_type: Database["public"]["Enums"]["supplier_source_type_enum"]
+          supplier_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          matching_strategy?: string | null
+          parsing_strategy?: string | null
+          priority_rank?: number | null
+          reliability_score?: number | null
+          source_role: Database["public"]["Enums"]["supplier_source_role_enum"]
+          source_type: Database["public"]["Enums"]["supplier_source_type_enum"]
+          supplier_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          matching_strategy?: string | null
+          parsing_strategy?: string | null
+          priority_rank?: number | null
+          reliability_score?: number | null
+          source_role?: Database["public"]["Enums"]["supplier_source_role_enum"]
+          source_type?: Database["public"]["Enums"]["supplier_source_type_enum"]
+          supplier_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_source_profiles_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_taxonomy_mappings: {
+        Row: {
+          created_at: string | null
+          external_category: string | null
+          external_family: string | null
+          external_subcategory: string | null
+          id: string
+          internal_category_id: string | null
+          mapping_confidence: number | null
+          mapping_source:
+            | Database["public"]["Enums"]["mapping_source_enum"]
+            | null
+          supplier_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          external_category?: string | null
+          external_family?: string | null
+          external_subcategory?: string | null
+          id?: string
+          internal_category_id?: string | null
+          mapping_confidence?: number | null
+          mapping_source?:
+            | Database["public"]["Enums"]["mapping_source_enum"]
+            | null
+          supplier_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          external_category?: string | null
+          external_family?: string | null
+          external_subcategory?: string | null
+          id?: string
+          internal_category_id?: string | null
+          mapping_confidence?: number | null
+          mapping_source?:
+            | Database["public"]["Enums"]["mapping_source_enum"]
+            | null
+          supplier_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_taxonomy_mappings_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_taxonomy_profiles: {
+        Row: {
+          attribute_strategy: string | null
+          created_at: string | null
+          default_category_strategy: string | null
+          filterable_attribute_strategy: string | null
+          id: string
+          supplier_id: string
+          taxonomy_mode:
+            | Database["public"]["Enums"]["taxonomy_mode_enum"]
+            | null
+          updated_at: string | null
+        }
+        Insert: {
+          attribute_strategy?: string | null
+          created_at?: string | null
+          default_category_strategy?: string | null
+          filterable_attribute_strategy?: string | null
+          id?: string
+          supplier_id: string
+          taxonomy_mode?:
+            | Database["public"]["Enums"]["taxonomy_mode_enum"]
+            | null
+          updated_at?: string | null
+        }
+        Update: {
+          attribute_strategy?: string | null
+          created_at?: string | null
+          default_category_strategy?: string | null
+          filterable_attribute_strategy?: string | null
+          id?: string
+          supplier_id?: string
+          taxonomy_mode?:
+            | Database["public"]["Enums"]["taxonomy_mode_enum"]
+            | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_taxonomy_profiles_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -8344,8 +9007,15 @@ export type Database = {
           id: string
           metadata: Json | null
           products_count: number | null
+          source_role:
+            | Database["public"]["Enums"]["supplier_source_role_enum"]
+            | null
+          source_type:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
           status: string
           storage_path: string | null
+          supplier_id: string | null
           user_id: string
           workspace_id: string | null
         }
@@ -8359,8 +9029,15 @@ export type Database = {
           id?: string
           metadata?: Json | null
           products_count?: number | null
+          source_role?:
+            | Database["public"]["Enums"]["supplier_source_role_enum"]
+            | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
           status?: string
           storage_path?: string | null
+          supplier_id?: string | null
           user_id: string
           workspace_id?: string | null
         }
@@ -8374,12 +9051,26 @@ export type Database = {
           id?: string
           metadata?: Json | null
           products_count?: number | null
+          source_role?:
+            | Database["public"]["Enums"]["supplier_source_role_enum"]
+            | null
+          source_type?:
+            | Database["public"]["Enums"]["supplier_source_type_enum"]
+            | null
           status?: string
           storage_path?: string | null
+          supplier_id?: string | null
           user_id?: string
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "uploaded_files_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "uploaded_files_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -9652,6 +10343,7 @@ export type Database = {
         | "channel_behavior_learning"
         | "translation_quality_learning"
         | "bundle_success_learning"
+      learning_outcome_enum: "success" | "corrected" | "rejected" | "confirmed"
       learning_outcome_type: "positive" | "neutral" | "negative"
       learning_signal_type:
         | "human_approval"
@@ -9670,6 +10362,7 @@ export type Database = {
         | "manual_review"
         | "ai_detection"
         | "feed_analysis"
+      mapping_source_enum: "manual" | "ai" | "learned" | "rule"
       market_opportunity_type:
         | "price_adjustment"
         | "seo_improvement"
@@ -9858,6 +10551,37 @@ export type Database = {
         | "executing"
         | "completed"
         | "cancelled"
+      supplier_grouping_type_enum:
+        | "variation"
+        | "pack"
+        | "accessory"
+        | "kit"
+        | "family"
+      supplier_match_type_enum:
+        | "sku_exact"
+        | "sku_normalized"
+        | "ean_exact"
+        | "supplier_ref"
+        | "title_similarity"
+        | "family_match"
+        | "dimensions_match"
+      supplier_source_role_enum:
+        | "commercial"
+        | "technical"
+        | "taxonomy"
+        | "assets"
+        | "pricing"
+        | "stock"
+        | "enrichment"
+      supplier_source_type_enum:
+        | "excel"
+        | "pdf"
+        | "website"
+        | "xml"
+        | "api"
+        | "woo_export"
+        | "image_pack"
+      taxonomy_mode_enum: "strict" | "mapped" | "inferred" | "hybrid"
       twin_entity_type:
         | "product"
         | "product_family"
@@ -10502,6 +11226,7 @@ export const Constants = {
         "translation_quality_learning",
         "bundle_success_learning",
       ],
+      learning_outcome_enum: ["success", "corrected", "rejected", "confirmed"],
       learning_outcome_type: ["positive", "neutral", "negative"],
       learning_signal_type: [
         "human_approval",
@@ -10522,6 +11247,7 @@ export const Constants = {
         "ai_detection",
         "feed_analysis",
       ],
+      mapping_source_enum: ["manual", "ai", "learned", "rule"],
       market_opportunity_type: [
         "price_adjustment",
         "seo_improvement",
@@ -10735,6 +11461,41 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      supplier_grouping_type_enum: [
+        "variation",
+        "pack",
+        "accessory",
+        "kit",
+        "family",
+      ],
+      supplier_match_type_enum: [
+        "sku_exact",
+        "sku_normalized",
+        "ean_exact",
+        "supplier_ref",
+        "title_similarity",
+        "family_match",
+        "dimensions_match",
+      ],
+      supplier_source_role_enum: [
+        "commercial",
+        "technical",
+        "taxonomy",
+        "assets",
+        "pricing",
+        "stock",
+        "enrichment",
+      ],
+      supplier_source_type_enum: [
+        "excel",
+        "pdf",
+        "website",
+        "xml",
+        "api",
+        "woo_export",
+        "image_pack",
+      ],
+      taxonomy_mode_enum: ["strict", "mapped", "inferred", "hybrid"],
       twin_entity_type: [
         "product",
         "product_family",
