@@ -20,7 +20,7 @@ export function useProductIdentity() {
 
   const createIdentityRule = useMutation({
     mutationFn: async (p: { rule_name: string; rule_config: Record<string, unknown> }) => {
-      const { error } = await supabase.from("product_identity_rules").insert({ workspace_id: wsId!, ...p });
+      const { error } = await (supabase.from("product_identity_rules") as any).insert({ workspace_id: wsId!, ...p });
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Regra criada"); qc.invalidateQueries({ queryKey: ["product-identity-rules"] }); },
