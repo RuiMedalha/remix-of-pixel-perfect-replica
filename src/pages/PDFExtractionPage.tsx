@@ -542,6 +542,30 @@ export default function PDFExtractionPage() {
                               <Button size="sm" variant="outline" onClick={() => setSelectedExtraction(ext.id)}>
                                 <Eye className="h-3 w-3" />
                               </Button>
+                              {["extracting", "processing"].includes(ext.status) && (
+                                <Button size="sm" variant="outline" className="text-primary" onClick={() => {
+                                  setWizardExtractionId(ext.id);
+                                  setWizardStep("extracting");
+                                  setActiveTab("wizard");
+                                }}>
+                                  <ArrowRight className="h-3 w-3" />
+                                </Button>
+                              )}
+                              {["extracting", "processing"].includes(ext.status) && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="outline" onClick={() => {
+                                      toast.info("A retomar extração...");
+                                      supabase.functions.invoke("extract-pdf-pages", {
+                                        body: { extractionId: ext.id },
+                                      }).then(() => toast.success("Retomada")).catch(() => toast.error("Erro ao retomar"));
+                                    }}>
+                                      <Scan className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Retomar extração</TooltipContent>
+                                </Tooltip>
+                              )}
                               {ext.status === "reviewing" && (
                                 <>
                                   <Button size="sm" variant="outline" onClick={() => mapToProducts.mutate({ extractionId: ext.id })}>
