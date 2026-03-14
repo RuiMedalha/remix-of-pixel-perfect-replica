@@ -1026,7 +1026,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                             <div className="bg-muted rounded-md p-2 max-h-60 overflow-auto">
                               {(((selectedPage.text_result as any)?.zones || (selectedPage.layout_zones as any[]) || []) as any[]).map((z: any, i: number) => (
                                 <div key={i} className={`text-xs p-1 mb-1 rounded ${zoneColors[z.type] || ""}`}>
-                                  <span className="font-medium">[{z.type}]</span> {(z.content || z.content_summary || "").substring(0, 80)}
+                                  <span className="font-medium">[{toDisplayText(z.type)}]</span> {toDisplayText(z.content || z.content_summary, "").toString().substring(0, 80)}
                                 </div>
                               ))}
                             </div>
