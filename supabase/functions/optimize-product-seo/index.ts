@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -12,36 +12,23 @@ Deno.serve(async (req) => {
     const { workspace_id, product, language } = await req.json();
     if (!workspace_id || !product) throw new Error("workspace_id and product are required");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     const lang = language || "pt";
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are an SEO Optimization Agent for a B2B HORECA e-commerce catalog.
+    const systemPrompt = `You are an SEO Optimization Agent for a B2B HORECA e-commerce catalog.
 Write in ${lang === "pt" ? "European Portuguese" : lang === "es" ? "Spanish" : lang === "fr" ? "French" : "English"}.
 
 RULES:
-- meta_title: max 60 chars, include primary keyword naturally, brand if space allows. Never cut important words mid-word.
-- meta_description: max 155 chars, compelling, include primary keyword, end with benefit or call-to-action.
-- seo_slug: lowercase, hyphens, no accents, max 5 words, descriptive.
-- focus_keyword: the single most important search term for this product.
-- seo_keywords: 5-10 relevant long-tail keywords a professional buyer would search.
-- heading_structure: suggested H1 and H2s for the product page.
-- NO keyword stuffing. Keep everything natural and readable.
-- Prioritize commercial intent keywords (buy, professional, commercial, industrial).
+- meta_title: max 60 chars, include primary keyword naturally, brand if space allows.
+- meta_description: max 155 chars, compelling, include primary keyword.
+- seo_slug: lowercase, hyphens, no accents, max 5 words.
+- focus_keyword: the single most important search term.
+- seo_keywords: 5-10 relevant long-tail keywords.
+- heading_structure: suggested H1 and H2s.
+- NO keyword stuffing.
 
 Respond with valid JSON only:
 {
@@ -52,31 +39,35 @@ Respond with valid JSON only:
   "seo_keywords": ["string"],
   "heading_structure": { "h1": "string", "h2s": ["string"] },
   "confidence_score": 0.0-1.0
-}`,
-          },
-          {
-            role: "user",
-            content: `Optimize SEO for:
+}`;
+
+    const userPrompt = `Optimize SEO for:
 
 Title: ${product.title || product.original_title || product.optimized_title || "N/A"}
 Brand: ${product.brand || "N/A"}
 Category: ${product.category || "N/A"}
 Description: ${(product.optimized_description || product.original_description || "").substring(0, 500)}
-Attributes: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}`,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
+Attributes: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}`;
+
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        taskType: "seo_optimization",
+        workspaceId: workspace_id,
+        systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        options: { max_tokens: 1024 },
       }),
     });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      throw new Error(`AI Gateway error: ${aiResponse.status} - ${errText}`);
+      throw new Error(`AI Route error: ${aiResponse.status} - ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const content = (aiData.choices?.[0]?.message?.content || "")
+    const routeData = await aiResponse.json();
+    const content = (routeData.result?.choices?.[0]?.message?.content || "")
       .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
     let result;
@@ -93,7 +84,7 @@ Attributes: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}`,
       input_payload: { title: product.title || product.original_title, language: lang },
       output_payload: result,
       confidence_score: result.confidence_score,
-      cost_estimate: aiData.usage ? (aiData.usage.prompt_tokens + aiData.usage.completion_tokens) * 0.000001 : null,
+      cost_estimate: routeData.result?.usage ? (routeData.result.usage.prompt_tokens + routeData.result.usage.completion_tokens) * 0.000001 : null,
       completed_at: new Date().toISOString(),
     });
 
