@@ -1037,9 +1037,9 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                               {((selectedPage.vision_result as any)?.tables?.length > 0) ? (
                                 (((selectedPage.vision_result as any).tables || []) as any[]).map((t: any, i: number) => (
                                   <div key={i} className="text-xs p-1 mb-1 border-b border-border">
-                                    <span className="font-medium">Tabela {i + 1}:</span> {(t.headers || []).join(", ")}
+                                    <span className="font-medium">Tabela {i + 1}:</span> {toDisplayText((t.headers || []).join(", "))}
                                     <br />
-                                    <span className="text-muted-foreground">{(t.rows || []).length} linhas, confiança {t.confidence}%</span>
+                                    <span className="text-muted-foreground">{toDisplayText((t.rows || []).length)} linhas, confiança {toDisplayText(t.confidence)}%</span>
                                   </div>
                                 ))
                               ) : (
