@@ -12,9 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import {
   FileText, Upload, Eye, Brain, Send, Loader2, CheckCircle, AlertTriangle, XCircle,
   Table2, Layers, GitCompare, Shield, BarChart3, Languages, Settings2, ArrowRight,
-  Scan, MapPin, Database, Package,
+  Scan, MapPin, Database, Package, Trash2,
 } from "lucide-react";
-import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts } from "@/hooks/usePdfExtraction";
+import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts, useDeletePdfExtraction } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
 import {
   useRunDocumentIntelligence, useAnalyzePdfLayout, useSaveExtractionMappingRules,
@@ -91,6 +91,7 @@ export default function PDFExtractionPage() {
   const { data: files } = useUploadedFiles();
   const startExtraction = useStartPdfExtraction();
   const mapToProducts = useMapPdfToProducts();
+  const deleteExtraction = useDeletePdfExtraction();
   const runDocIntel = useRunDocumentIntelligence();
   const analyzeLayout = useAnalyzePdfLayout();
   const saveMappingRules = useSaveExtractionMappingRules();
@@ -534,6 +535,19 @@ export default function PDFExtractionPage() {
                                 </>
                               )}
                               <ExtractionActionsDropdown extraction={ext} onViewDetails={setSelectedExtraction} />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  if (confirm("Eliminar esta extração e todos os dados associados?")) {
+                                    deleteExtraction.mutate(ext.id);
+                                  }
+                                }}
+                                disabled={deleteExtraction.isPending}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
