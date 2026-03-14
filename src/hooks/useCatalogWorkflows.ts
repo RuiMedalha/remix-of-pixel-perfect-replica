@@ -4,9 +4,9 @@ import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 
 export function useCatalogWorkflows() {
-  const { currentWorkspace } = useWorkspaceContext();
+  const { activeWorkspace } = useWorkspaceContext();
   const qc = useQueryClient();
-  const wid = currentWorkspace?.id;
+  const wid = activeWorkspace?.id;
 
   const workflows = useQuery({
     queryKey: ["catalog-workflows", wid],
