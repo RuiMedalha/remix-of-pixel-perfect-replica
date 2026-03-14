@@ -26,7 +26,7 @@ export function PDFUploadDropzone({ onFileUploaded }: PDFUploadDropzoneProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
 
-      const storagePath = `${activeWorkspace.id}/${Date.now()}_${file.name}`;
+      const storagePath = `${user.id}/${Date.now()}_${file.name}`;
       const { error: uploadErr } = await supabase.storage
         .from("catalogs")
         .upload(storagePath, file);
