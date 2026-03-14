@@ -31,6 +31,7 @@ import {
   FileCode,
   Cpu,
   Fingerprint,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 
