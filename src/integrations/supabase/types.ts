@@ -6679,6 +6679,165 @@ export type Database = {
           },
         ]
       }
+      prompt_overrides: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          id: string
+          override_text: string
+          prompt_version_id: string | null
+          supplier_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          override_text?: string
+          prompt_version_id?: string | null
+          supplier_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          override_text?: string
+          prompt_version_id?: string | null
+          supplier_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_overrides_prompt_version_id_fkey"
+            columns: ["prompt_version_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompt_overrides_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_templates: {
+        Row: {
+          base_prompt: string
+          created_at: string
+          description: string | null
+          id: string
+          prompt_name: string
+          prompt_type: string
+          workspace_id: string
+        }
+        Insert: {
+          base_prompt?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          prompt_name: string
+          prompt_type?: string
+          workspace_id: string
+        }
+        Update: {
+          base_prompt?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          prompt_name?: string
+          prompt_type?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_usage_logs: {
+        Row: {
+          agent_name: string | null
+          confidence_score: number | null
+          created_at: string
+          execution_time: number | null
+          id: string
+          input_size: number | null
+          output_size: number | null
+          prompt_version_id: string | null
+        }
+        Insert: {
+          agent_name?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          execution_time?: number | null
+          id?: string
+          input_size?: number | null
+          output_size?: number | null
+          prompt_version_id?: string | null
+        }
+        Update: {
+          agent_name?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          execution_time?: number | null
+          id?: string
+          input_size?: number | null
+          output_size?: number | null
+          prompt_version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_usage_logs_prompt_version_id_fkey"
+            columns: ["prompt_version_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_versions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          prompt_text: string
+          template_id: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          prompt_text?: string
+          template_id: string
+          version_number?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          prompt_text?: string
+          template_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       publish_job_items: {
         Row: {
           completed_at: string | null

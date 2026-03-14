@@ -28,6 +28,7 @@ import {
   Zap,
   Workflow,
   ArrowDownUp,
+  FileCode,
   type LucideIcon,
 } from "lucide-react";
 
@@ -118,6 +119,7 @@ export const navGroups: NavGroup[] = [
       { title: "Digital Twin", icon: Copy, route: "/digital-twin" },
       { title: "Orquestração AI", icon: Workflow, route: "/orquestracao" },
       { title: "Source Priority", icon: ArrowDownUp, route: "/source-priority" },
+      { title: "Prompt Governance", icon: FileCode, route: "/prompt-governance" },
     ],
   },
   {
