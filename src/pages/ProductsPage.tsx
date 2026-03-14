@@ -1614,15 +1614,15 @@ const ProductsPage = () => {
       </Card>
 
       {/* Pagination */}
-      {filtered.length > PAGE_SIZE && (
-        <div className="flex items-center justify-between px-2">
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-2">
           <span className="text-sm text-muted-foreground">
-            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} de {filtered.length} produtos
+            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} de {totalCount} produtos
           </span>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>«</Button>
             <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>‹</Button>
-            <span className="text-sm px-3">{currentPage} / {totalPages}</span>
+            <span className="text-sm px-3">Página {currentPage} / {totalPages}</span>
             <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>›</Button>
             <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)}>»</Button>
           </div>
@@ -2059,9 +2059,19 @@ const ProductsPage = () => {
             <Button variant="outline" size="sm" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
             <Button size="sm" onClick={async () => {
               const prefix = exportSkuPrefix.trim() || undefined;
-              if (exportTarget === "selected") {
-                const prods = products.filter(p => selected.has(p.id));
-                exportProductsToExcel(prods, "produtos-selecionados", prefix);
+              if (exportTarget === "selected" && !allPagesSelected) {
+                // If selection spans multiple pages, fetch all selected from DB
+                const selectedIds = Array.from(selected);
+                if (selectedIds.length <= PAGE_SIZE && selectedIds.every(id => products.some(p => p.id === id))) {
+                  const prods = products.filter(p => selected.has(p.id));
+                  exportProductsToExcel(prods, "produtos-selecionados", prefix);
+                } else {
+                  await exportAllProductsToExcel(activeWorkspace?.id || "", {
+                    fileName: "produtos-selecionados",
+                    skuPrefix: prefix,
+                    statusFilter,
+                  });
+                }
                 setSelected(new Set());
               } else {
                 // Fetch ALL products from DB, not just current page
