@@ -115,6 +115,7 @@ export const navGroups: NavGroup[] = [
       { title: "Learning Engine", icon: GraduationCap, route: "/aprendizagem" },
       { title: "Simulation Engine", icon: FlaskConical, route: "/simulacao" },
       { title: "Digital Twin", icon: Copy, route: "/digital-twin" },
+      { title: "Orquestração AI", icon: Workflow, route: "/orquestracao" },
     ],
   },
   {

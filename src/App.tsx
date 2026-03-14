@@ -90,6 +90,7 @@ function ProtectedRoutes() {
           <Route path="/revenue-demand" element={<RevenueAndDemandPage />} />
           <Route path="/strategic-planner" element={<StrategicPlannerPage />} />
           <Route path="/autonomous-commerce" element={<AutonomousCommercePage />} />
+          <Route path="/orquestracao" element={<OrchestrationPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 export function useOrchestration() {
   const { activeWorkspace } = useWorkspaceContext();
   const qc = useQueryClient();
-  const wsId = currentWorkspace?.id;
+  const wsId = activeWorkspace?.id;
 
   const runs = useQuery({
     queryKey: ["orchestration-runs", wsId],
