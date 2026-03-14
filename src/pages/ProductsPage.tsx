@@ -1614,15 +1614,15 @@ const ProductsPage = () => {
       </Card>
 
       {/* Pagination */}
-      {filtered.length > PAGE_SIZE && (
-        <div className="flex items-center justify-between px-2">
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-2">
           <span className="text-sm text-muted-foreground">
-            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} de {filtered.length} produtos
+            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} de {totalCount} produtos
           </span>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>«</Button>
             <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>‹</Button>
-            <span className="text-sm px-3">{currentPage} / {totalPages}</span>
+            <span className="text-sm px-3">Página {currentPage} / {totalPages}</span>
             <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>›</Button>
             <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)}>»</Button>
           </div>
