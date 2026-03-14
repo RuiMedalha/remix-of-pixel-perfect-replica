@@ -476,7 +476,7 @@ export default function PDFExtractionPage() {
           {wizardStep === "ingestion" && (
             <div className="space-y-4">
               <SendToIngestionPanel
-                productCount={(wizardExtraction?.detected_products as any[])?.length || 0}
+                productCount={wizardProductCount}
                 onSendToIngestion={handleSendToIngestion}
                 isSending={sendToIngestion.isPending}
                 alreadySent={wizardExtraction?.sent_to_ingestion}
