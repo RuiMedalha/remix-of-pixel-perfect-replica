@@ -293,14 +293,17 @@ export default function PDFExtractionPage() {
     setSelectedFileId(fileId);
   };
 
-  // Auto-advance: when extraction finishes (status=reviewing) and detected_products is populated, go to review
-  const extractionStatus = wizardExtraction?.status;
-  const hasDetectedProducts = ((wizardExtraction?.detected_products as any[])?.length || 0) > 0;
-  
-  // Auto-advance to review when extraction is done
-  if (wizardStep === "extracting" && extractionStatus === "reviewing" && (hasDetectedProducts || realProgress.productCount > 0)) {
-    setWizardStep("review");
-  }
+  // Auto-advance to review when extraction is done or when all pages are already available
+  useEffect(() => {
+    if (wizardStep !== "extracting") return;
+
+    const backendReady = extractionStatus === "reviewing" && canProceedToReview;
+    const progressReady = extractionCompletedByProgress;
+
+    if (backendReady || progressReady) {
+      setWizardStep("review");
+    }
+  }, [wizardStep, extractionStatus, canProceedToReview, extractionCompletedByProgress]);
 
   // Resume a stalled extraction (manual)
   const handleResumeExtraction = async () => {
