@@ -119,17 +119,43 @@ Return ONLY valid JSON.`,
       productRanges.push({ start: 1, end: totalPages, content_type: "products" });
     }
 
-    // Build chunks with low memory pressure
-    const chunks: { start: number; end: number }[] = [];
+    // Check which pages are already extracted (resume support)
+    const { data: existingPages } = await supabase
+      .from("pdf_pages")
+      .select("page_number")
+      .eq("extraction_id", extractionId)
+      .neq("status", "error");
+    const alreadyDone = new Set((existingPages || []).map((p: any) => p.page_number));
+    console.log(`Resume check: ${alreadyDone.size} pages already extracted`);
+
+    // Build chunks only for missing pages
+    const missingPages: number[] = [];
     for (const range of productRanges) {
       const rs = range.start || 1;
       const re = range.end || totalPages;
-      for (let s = rs; s <= re; s += CHUNK_SIZE) {
-        chunks.push({ start: s, end: Math.min(s + CHUNK_SIZE - 1, re) });
+      for (let p = rs; p <= re; p++) {
+        if (!alreadyDone.has(p)) missingPages.push(p);
       }
     }
 
-    console.log(`Dispatching ${chunks.length} chunks for ${totalPages} pages (concurrency=${MAX_CHUNK_CONCURRENCY})`);
+    if (missingPages.length === 0) {
+      // All pages already extracted — mark as reviewing and return
+      await supabase.from("pdf_extractions").update({ status: "reviewing" }).eq("id", extractionId);
+      return new Response(JSON.stringify({
+        success: true, extractionId, totalPages,
+        pagesProcessed: alreadyDone.size, resumed: true, message: "All pages already extracted",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Group missing pages into chunks
+    missingPages.sort((a, b) => a - b);
+    const chunks: { start: number; end: number }[] = [];
+    for (let i = 0; i < missingPages.length; i += CHUNK_SIZE) {
+      const group = missingPages.slice(i, i + CHUNK_SIZE);
+      chunks.push({ start: group[0], end: group[group.length - 1] });
+    }
+
+    console.log(`Dispatching ${chunks.length} chunks for ${missingPages.length} missing pages (${alreadyDone.size} already done, concurrency=${MAX_CHUNK_CONCURRENCY})`);
 
     // Process chunks with bounded concurrency to prevent worker pressure
     const results: Array<{ chunk: { start: number; end: number }; ok: boolean; result: any }> = [];
@@ -205,7 +231,9 @@ Return ONLY valid JSON.`,
 
     return new Response(JSON.stringify({
       success: true, extractionId, totalPages,
-      pagesProcessed: totalPagesProcessed,
+      pagesProcessed: totalPagesProcessed + alreadyDone.size,
+      pagesResumed: alreadyDone.size,
+      pagesNewlyExtracted: totalPagesProcessed,
       tablesDetected: totalTablesCreated,
       productsExtracted: totalRowsExtracted,
       processingTimeMs: processingTime,
