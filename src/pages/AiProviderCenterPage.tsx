@@ -156,9 +156,9 @@ export default function AiProviderCenterPage() {
                 <TableRow key={m.id}>
                   <TableCell><Badge variant="outline">{m.provider_type}</Badge></TableCell>
                   <TableCell className="font-medium text-foreground">{m.display_name}<br /><span className="text-xs text-muted-foreground">{m.model_id}</span></TableCell>
-                  <TableCell>{m.supports_text ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
-                  <TableCell>{m.supports_vision ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
-                  <TableCell>{m.supports_tool_calls ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
+                  <TableCell>{m.supports_text ? <CheckCircle className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
+                  <TableCell>{m.supports_vision ? <CheckCircle className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
+                  <TableCell>{m.supports_tool_calls ? <CheckCircle className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
                   <TableCell className="text-xs">${m.cost_input_per_mtok}/MTok</TableCell>
                   <TableCell className="text-xs">${m.cost_output_per_mtok}/MTok</TableCell>
                   <TableCell><Badge variant="outline">{m.speed_rating}/10</Badge></TableCell>
