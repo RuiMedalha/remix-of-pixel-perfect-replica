@@ -71,61 +71,45 @@ Return a JSON array of detected bundles.`;
 
     const userPrompt = `Analyze these ${productSummaries.length} products and detect bundles:\n${JSON.stringify(productSummaries, null, 1)}`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "report_bundles",
-              description: "Report detected product bundles",
-              parameters: {
+    const tools = [{
+      type: "function",
+      function: {
+        name: "report_bundles",
+        description: "Report detected product bundles",
+        parameters: {
+          type: "object",
+          properties: {
+            bundles: {
+              type: "array",
+              items: {
                 type: "object",
                 properties: {
-                  bundles: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        bundle_detected: { type: "boolean" },
-                        bundle_products: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              product_id: { type: "string" },
-                              sku: { type: "string" },
-                              role: { type: "string", enum: ["primary", "accessory", "complementary", "replacement"] },
-                            },
-                            required: ["product_id", "role"],
-                          },
-                        },
-                        bundle_title: { type: "string" },
-                        bundle_type: { type: "string", enum: ["equipment_accessories", "replacement_kit", "utensil_set", "complementary", "starter_kit"] },
-                        confidence_score: { type: "number" },
-                        reason: { type: "string" },
-                      },
-                      required: ["bundle_detected", "bundle_products", "bundle_title", "confidence_score"],
-                    },
-                  },
+                  bundle_detected: { type: "boolean" },
+                  bundle_products: { type: "array", items: { type: "object", properties: { product_id: { type: "string" }, sku: { type: "string" }, role: { type: "string", enum: ["primary", "accessory", "complementary", "replacement"] } }, required: ["product_id", "role"] } },
+                  bundle_title: { type: "string" },
+                  bundle_type: { type: "string", enum: ["equipment_accessories", "replacement_kit", "utensil_set", "complementary", "starter_kit"] },
+                  confidence_score: { type: "number" },
+                  reason: { type: "string" },
                 },
-                required: ["bundles"],
-                additionalProperties: false,
+                required: ["bundle_detected", "bundle_products", "bundle_title", "confidence_score"],
               },
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "report_bundles" } },
+          required: ["bundles"],
+          additionalProperties: false,
+        },
+      },
+    }];
+
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        taskType: "bundle_detection",
+        workspaceId: workspace_id,
+        systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        options: { tools, tool_choice: { type: "function", function: { name: "report_bundles" } } },
       }),
     });
 
