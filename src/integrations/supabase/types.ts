@@ -504,6 +504,47 @@ export type Database = {
           },
         ]
       }
+      ai_routing_policies: {
+        Row: {
+          context_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          policy_name: string
+          routing_rules: Json | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          context_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          policy_name: string
+          routing_rules?: Json | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          context_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          policy_name?: string
+          routing_rules?: Json | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_routing_policies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_usage_logs: {
         Row: {
           agent_id: string | null
@@ -4700,6 +4741,229 @@ export type Database = {
           },
         ]
       }
+      execution_fallback_rules: {
+        Row: {
+          cooldown_seconds: number
+          created_at: string
+          failure_type: Database["public"]["Enums"]["failure_type_enum"]
+          fallback_executor: string
+          id: string
+          is_active: boolean
+          max_retries: number
+          primary_executor: string
+          rule_name: string
+          workspace_id: string
+        }
+        Insert: {
+          cooldown_seconds?: number
+          created_at?: string
+          failure_type: Database["public"]["Enums"]["failure_type_enum"]
+          fallback_executor: string
+          id?: string
+          is_active?: boolean
+          max_retries?: number
+          primary_executor: string
+          rule_name: string
+          workspace_id: string
+        }
+        Update: {
+          cooldown_seconds?: number
+          created_at?: string
+          failure_type?: Database["public"]["Enums"]["failure_type_enum"]
+          fallback_executor?: string
+          id?: string
+          is_active?: boolean
+          max_retries?: number
+          primary_executor?: string
+          rule_name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execution_fallback_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      execution_outcomes: {
+        Row: {
+          confidence_score: number | null
+          cost: number | null
+          created_at: string
+          error_payload: Json | null
+          id: string
+          latency_ms: number | null
+          outcome_type: Database["public"]["Enums"]["outcome_type_enum"]
+          plan_id: string
+          step_id: string | null
+          success: boolean
+        }
+        Insert: {
+          confidence_score?: number | null
+          cost?: number | null
+          created_at?: string
+          error_payload?: Json | null
+          id?: string
+          latency_ms?: number | null
+          outcome_type?: Database["public"]["Enums"]["outcome_type_enum"]
+          plan_id: string
+          step_id?: string | null
+          success?: boolean
+        }
+        Update: {
+          confidence_score?: number | null
+          cost?: number | null
+          created_at?: string
+          error_payload?: Json | null
+          id?: string
+          latency_ms?: number | null
+          outcome_type?: Database["public"]["Enums"]["outcome_type_enum"]
+          plan_id?: string
+          step_id?: string | null
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execution_outcomes_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "execution_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execution_outcomes_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "execution_plan_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      execution_plan_steps: {
+        Row: {
+          actual_cost: number | null
+          actual_duration_ms: number | null
+          created_at: string
+          estimated_cost: number | null
+          estimated_duration_ms: number | null
+          executor_target: string
+          executor_type: Database["public"]["Enums"]["executor_type_enum"]
+          id: string
+          input_scope: Json | null
+          model_name: string | null
+          output_scope: Json | null
+          plan_id: string
+          status: string
+          step_name: string
+          step_order: number
+        }
+        Insert: {
+          actual_cost?: number | null
+          actual_duration_ms?: number | null
+          created_at?: string
+          estimated_cost?: number | null
+          estimated_duration_ms?: number | null
+          executor_target?: string
+          executor_type?: Database["public"]["Enums"]["executor_type_enum"]
+          id?: string
+          input_scope?: Json | null
+          model_name?: string | null
+          output_scope?: Json | null
+          plan_id: string
+          status?: string
+          step_name: string
+          step_order?: number
+        }
+        Update: {
+          actual_cost?: number | null
+          actual_duration_ms?: number | null
+          created_at?: string
+          estimated_cost?: number | null
+          estimated_duration_ms?: number | null
+          executor_target?: string
+          executor_type?: Database["public"]["Enums"]["executor_type_enum"]
+          id?: string
+          input_scope?: Json | null
+          model_name?: string | null
+          output_scope?: Json | null
+          plan_id?: string
+          status?: string
+          step_name?: string
+          step_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execution_plan_steps_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "execution_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      execution_plans: {
+        Row: {
+          actual_cost: number | null
+          actual_duration_ms: number | null
+          created_at: string
+          estimated_cost: number | null
+          estimated_duration_ms: number | null
+          execution_mode: Database["public"]["Enums"]["execution_mode_enum"]
+          id: string
+          plan_type: Database["public"]["Enums"]["plan_type_enum"]
+          run_id: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          actual_cost?: number | null
+          actual_duration_ms?: number | null
+          created_at?: string
+          estimated_cost?: number | null
+          estimated_duration_ms?: number | null
+          execution_mode?: Database["public"]["Enums"]["execution_mode_enum"]
+          id?: string
+          plan_type?: Database["public"]["Enums"]["plan_type_enum"]
+          run_id?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          actual_cost?: number | null
+          actual_duration_ms?: number | null
+          created_at?: string
+          estimated_cost?: number | null
+          estimated_duration_ms?: number | null
+          execution_mode?: Database["public"]["Enums"]["execution_mode_enum"]
+          id?: string
+          plan_type?: Database["public"]["Enums"]["plan_type_enum"]
+          run_id?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execution_plans_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "orchestration_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execution_plans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       extraction_case_signatures: {
         Row: {
           confidence: number
@@ -6045,6 +6309,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      model_capability_matrix: {
+        Row: {
+          id: string
+          is_active: boolean
+          model_name: string
+          provider_name: string
+          quality_score: number
+          relative_cost_score: number
+          relative_latency_score: number
+          supports_image_generation: boolean
+          supports_json_schema: boolean
+          supports_text: boolean
+          supports_translation: boolean
+          supports_vision: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean
+          model_name: string
+          provider_name?: string
+          quality_score?: number
+          relative_cost_score?: number
+          relative_latency_score?: number
+          supports_image_generation?: boolean
+          supports_json_schema?: boolean
+          supports_text?: boolean
+          supports_translation?: boolean
+          supports_vision?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          is_active?: boolean
+          model_name?: string
+          provider_name?: string
+          quality_score?: number
+          relative_cost_score?: number
+          relative_latency_score?: number
+          supports_image_generation?: boolean
+          supports_json_schema?: boolean
+          supports_text?: boolean
+          supports_translation?: boolean
+          supports_vision?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       monetization_opportunities: {
         Row: {
@@ -11380,6 +11692,20 @@ export type Database = {
         | "site_search"
         | "marketplace_search"
         | "external_keyword_data"
+      execution_mode_enum:
+        | "economic"
+        | "balanced"
+        | "premium"
+        | "manual_safe"
+        | "auto_fast"
+      executor_type_enum:
+        | "rules_engine"
+        | "ai_text"
+        | "ai_vision"
+        | "ocr"
+        | "human_review"
+        | "api_connector"
+        | "internal_function"
       extraction_decision_type:
         | "category_assignment"
         | "schema_assignment"
@@ -11407,6 +11733,15 @@ export type Database = {
         | "language_pattern"
         | "supplier_rule"
         | "pdf_section_rule"
+      failure_type_enum:
+        | "timeout"
+        | "low_confidence"
+        | "schema_failure"
+        | "provider_error"
+        | "rate_limit"
+        | "invalid_output"
+        | "missing_assets"
+        | "conflict_unresolved"
       feed_type_enum:
         | "marketplace"
         | "merchant_feed"
@@ -11590,6 +11925,13 @@ export type Database = {
         | "completed"
         | "failed"
         | "skipped"
+      outcome_type_enum:
+        | "success"
+        | "partial_success"
+        | "fallback_used"
+        | "retry_used"
+        | "escalated_to_human"
+        | "blocked"
       payload_status_enum:
         | "queued"
         | "building"
@@ -11639,6 +11981,16 @@ export type Database = {
         | "accessories"
         | "compatibility"
         | "spare_parts"
+      plan_type_enum:
+        | "ingestion"
+        | "canonical_assembly"
+        | "enrichment"
+        | "validation"
+        | "translation"
+        | "asset_processing"
+        | "publish"
+        | "sync"
+        | "review_support"
       product_identity_status_enum:
         | "unresolved"
         | "matched"
@@ -12408,6 +12760,22 @@ export const Constants = {
         "marketplace_search",
         "external_keyword_data",
       ],
+      execution_mode_enum: [
+        "economic",
+        "balanced",
+        "premium",
+        "manual_safe",
+        "auto_fast",
+      ],
+      executor_type_enum: [
+        "rules_engine",
+        "ai_text",
+        "ai_vision",
+        "ocr",
+        "human_review",
+        "api_connector",
+        "internal_function",
+      ],
       extraction_decision_type: [
         "category_assignment",
         "schema_assignment",
@@ -12437,6 +12805,16 @@ export const Constants = {
         "language_pattern",
         "supplier_rule",
         "pdf_section_rule",
+      ],
+      failure_type_enum: [
+        "timeout",
+        "low_confidence",
+        "schema_failure",
+        "provider_error",
+        "rate_limit",
+        "invalid_output",
+        "missing_assets",
+        "conflict_unresolved",
       ],
       feed_type_enum: [
         "marketplace",
@@ -12639,6 +13017,14 @@ export const Constants = {
         "failed",
         "skipped",
       ],
+      outcome_type_enum: [
+        "success",
+        "partial_success",
+        "fallback_used",
+        "retry_used",
+        "escalated_to_human",
+        "blocked",
+      ],
       payload_status_enum: [
         "queued",
         "building",
@@ -12693,6 +13079,17 @@ export const Constants = {
         "accessories",
         "compatibility",
         "spare_parts",
+      ],
+      plan_type_enum: [
+        "ingestion",
+        "canonical_assembly",
+        "enrichment",
+        "validation",
+        "translation",
+        "asset_processing",
+        "publish",
+        "sync",
+        "review_support",
       ],
       product_identity_status_enum: [
         "unresolved",

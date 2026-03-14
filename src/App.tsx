@@ -46,6 +46,7 @@ import SupplierIntelligencePage from "./pages/SupplierIntelligencePage";
 import CanonicalAssemblyPage from "./pages/CanonicalAssemblyPage";
 import ConflictCenterPage from "./pages/ConflictCenterPage";
 import ChannelPayloadBuilderPage from "./pages/ChannelPayloadBuilderPage";
+import ExecutionPlannerPage from "./pages/ExecutionPlannerPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -109,6 +110,7 @@ function ProtectedRoutes() {
           <Route path="/canonical-assembly" element={<CanonicalAssemblyPage />} />
           <Route path="/conflict-center" element={<ConflictCenterPage />} />
           <Route path="/channel-payloads" element={<ChannelPayloadBuilderPage />} />
+          <Route path="/execution-planner" element={<ExecutionPlannerPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
