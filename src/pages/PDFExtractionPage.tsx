@@ -696,12 +696,19 @@ export default function PDFExtractionPage() {
               </Card>
 
               <DataPreviewTable
-                products={reviewProducts}
+                products={productsForReview}
                 columns={undefined}
+                editable
+                onProductsChange={setReviewDraftProducts}
               />
 
-              <div className="flex gap-3">
-                <Button onClick={() => setWizardStep("ingestion")}>
+              <div className="flex flex-wrap items-center gap-3">
+                {hasReviewDraftChanges && <Badge variant="secondary">Alterações por guardar</Badge>}
+                <Button variant="outline" onClick={() => persistReviewDraft()} disabled={!hasReviewDraftChanges || isSavingReviewDraft}>
+                  {isSavingReviewDraft ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Guardar alterações
+                </Button>
+                <Button onClick={handleProceedToIngestion} disabled={isSavingReviewDraft}>
                   <ArrowRight className="h-4 w-4 mr-2" /> Aceitar e Enviar para Ingestão
                 </Button>
                 <Button variant="outline" onClick={resetWizard}>
