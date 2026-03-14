@@ -108,6 +108,7 @@ function ProtectedRoutes() {
           <Route path="/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="/canonical-assembly" element={<CanonicalAssemblyPage />} />
           <Route path="/conflict-center" element={<ConflictCenterPage />} />
+          <Route path="/channel-payloads" element={<ChannelPayloadBuilderPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
