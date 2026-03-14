@@ -179,8 +179,8 @@ export default function PDFExtractionPage() {
 
   // Compute product count: prefer detected_products, fallback to counting from pages
   const wizardProductCount = (() => {
-    const dp = wizardExtraction?.detected_products as any[];
-    if (dp?.length) return dp.length;
+    const dp = flattenProducts((wizardExtraction?.detected_products as any[]) || []);
+    if (dp.length) return dp.length;
     return realProgress.productCount;
   })();
 
