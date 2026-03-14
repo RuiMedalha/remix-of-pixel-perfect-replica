@@ -231,7 +231,9 @@ Return ONLY valid JSON.`,
 
     return new Response(JSON.stringify({
       success: true, extractionId, totalPages,
-      pagesProcessed: totalPagesProcessed,
+      pagesProcessed: totalPagesProcessed + alreadyDone.size,
+      pagesResumed: alreadyDone.size,
+      pagesNewlyExtracted: totalPagesProcessed,
       tablesDetected: totalTablesCreated,
       productsExtracted: totalRowsExtracted,
       processingTimeMs: processingTime,
