@@ -8,12 +8,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, Eye, Package, PencilLine } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Eye, Image, Package, PencilLine, Search, ShieldCheck, ThumbsUp,
+} from "lucide-react";
 
 interface DetectedProduct {
   [key: string]: any;
   _confidence?: number;
   _warnings?: string[];
+  _approved?: boolean;
 }
 
 interface Props {
@@ -21,28 +26,17 @@ interface Props {
   columns?: string[];
   editable?: boolean;
   onProductsChange?: (products: DetectedProduct[]) => void;
+  showApproval?: boolean;
 }
 
 const DISPLAY_LABELS: Record<string, string> = {
-  sku: "SKU",
-  original_title: "Título",
-  original_description: "Descrição",
-  original_price: "Preço",
-  category: "Categoria",
-  dimensions: "Dimensões",
-  weight: "Peso",
-  material: "Material",
-  title: "Título",
-  description: "Descrição",
-  price: "Preço",
-  color_options: "Cores",
-  technical_specs: "Especificações",
-  short_description: "Descrição Curta",
-  brand: "Marca",
-  model: "Modelo",
-  quantity: "Quantidade",
-  unit: "Unidade",
-  reference: "Referência",
+  sku: "SKU", original_title: "Título", original_description: "Descrição",
+  original_price: "Preço", category: "Categoria", dimensions: "Dimensões",
+  weight: "Peso", material: "Material", title: "Título", description: "Descrição",
+  price: "Preço", color_options: "Cores", technical_specs: "Especificações",
+  short_description: "Descrição Curta", brand: "Marca", model: "Modelo",
+  quantity: "Quantidade", unit: "Unidade", reference: "Referência",
+  image_url: "Imagem URL", image_urls: "Imagens", image_description: "Desc. Imagem",
 };
 
 const PAGE_SIZES = [25, 50, 100, 200];
@@ -65,18 +59,15 @@ function getAllColumns(products: DetectedProduct[]): string[] {
   const keys = new Set<string>();
   products.forEach((product) => {
     Object.keys(product).forEach((key) => {
-      if (!key.startsWith("_") && key !== "confidence" && key !== "images" && key !== "currency") {
-        keys.add(key);
-      }
+      if (!key.startsWith("_") && key !== "confidence" && key !== "currency") keys.add(key);
     });
   });
-
   const priority = [
     "sku", "reference", "title", "original_title", "description", "original_description",
     "short_description", "original_price", "price", "category", "brand", "model",
     "material", "dimensions", "weight", "color_options", "technical_specs",
+    "image_url", "image_urls", "image_description",
   ];
-
   return [...keys].sort((a, b) => {
     const ai = priority.indexOf(a);
     const bi = priority.indexOf(b);
@@ -84,14 +75,12 @@ function getAllColumns(products: DetectedProduct[]): string[] {
   });
 }
 
-// Summary columns shown in the table
-const SUMMARY_COLUMNS = ["sku", "reference", "title", "original_title", "price", "original_price", "category"];
+const SUMMARY_COLUMNS = ["sku", "reference", "title", "original_title", "price", "original_price", "category", "image_url"];
 
-export function DataPreviewTable({ products: rawProducts, columns: columnsProp, editable = false, onProductsChange }: Props) {
+export function DataPreviewTable({ products: rawProducts, columns: columnsProp, editable = false, onProductsChange, showApproval = false }: Props) {
   const flattenedProducts = useMemo(() => {
     if (!Array.isArray(rawProducts)) return [];
     const flat: DetectedProduct[] = [];
-
     const walk = (item: any, parentSection?: string) => {
       if (item == null) return;
       if (Array.isArray(item)) { item.forEach((entry) => walk(entry, parentSection)); return; }
@@ -103,7 +92,6 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
       }
       flat.push({ ...item, category: item.category || parentSection });
     };
-
     walk(rawProducts);
     return flat;
   }, [rawProducts]);
@@ -112,60 +100,102 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [selectedProductIndex, setSelectedProductIndex] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => { setTableProducts(flattenedProducts); }, [flattenedProducts]);
-  useEffect(() => { setPage(1); }, [tableProducts.length, pageSize]);
+  useEffect(() => { setPage(1); }, [tableProducts.length, pageSize, searchTerm]);
 
   const allColumns = useMemo(() => columnsProp || getAllColumns(tableProducts), [columnsProp, tableProducts]);
-  
-  // Only show key columns in the table; all columns visible in detail dialog
   const tableColumns = useMemo(() => {
     const available = allColumns.filter((c) => SUMMARY_COLUMNS.includes(c));
-    // If none of the summary columns match, fall back to first 5
     return available.length > 0 ? available : allColumns.slice(0, 5);
   }, [allColumns]);
 
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return tableProducts;
+    const lower = searchTerm.toLowerCase();
+    return tableProducts.filter((p) => {
+      const sku = formatCellValue(p.sku || p.reference).toLowerCase();
+      const title = formatCellValue(p.title || p.original_title).toLowerCase();
+      return sku.includes(lower) || title.includes(lower);
+    });
+  }, [tableProducts, searchTerm]);
+
   if (!tableProducts.length) return null;
 
-  const lowConfidenceCount = tableProducts.filter((p) => {
-    const c = getConfidence(p);
-    return c !== null && c < 60;
-  }).length;
+  const approvedCount = tableProducts.filter((p) => p._approved).length;
+  const allApproved = approvedCount === tableProducts.length;
+  const lowConfidenceCount = tableProducts.filter((p) => { const c = getConfidence(p); return c !== null && c < 60; }).length;
+  const hasImages = tableProducts.some((p) => p.image_url || p.image_urls || p.image_description);
 
-  const totalPages = Math.max(1, Math.ceil(tableProducts.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * pageSize;
-  const visibleProducts = tableProducts.slice(startIndex, startIndex + pageSize);
+  const visibleProducts = filteredProducts.slice(startIndex, startIndex + pageSize);
 
   const handleCellChange = (absoluteIndex: number, column: string, value: string) => {
+    // absoluteIndex is relative to filteredProducts; find real index
+    const realProduct = filteredProducts[absoluteIndex];
+    const realIndex = tableProducts.indexOf(realProduct);
+    if (realIndex === -1) return;
     setTableProducts((prev) => {
       const next = [...prev];
-      next[absoluteIndex] = { ...next[absoluteIndex], [column]: value };
+      next[realIndex] = { ...next[realIndex], [column]: value };
       onProductsChange?.(next);
       return next;
     });
   };
 
-  const selectedProduct = selectedProductIndex !== null ? tableProducts[selectedProductIndex] : null;
+  const handleApprove = (absoluteIndex: number) => {
+    const realProduct = filteredProducts[absoluteIndex];
+    const realIndex = tableProducts.indexOf(realProduct);
+    if (realIndex === -1) return;
+    setTableProducts((prev) => {
+      const next = [...prev];
+      next[realIndex] = { ...next[realIndex], _approved: !next[realIndex]._approved };
+      onProductsChange?.(next);
+      return next;
+    });
+  };
+
+  const handleApproveAll = () => {
+    setTableProducts((prev) => {
+      const next = prev.map((p) => ({ ...p, _approved: !allApproved }));
+      onProductsChange?.(next);
+      return next;
+    });
+  };
+
+  const selectedProduct = selectedProductIndex !== null ? filteredProducts[selectedProductIndex] : null;
 
   return (
     <>
-      <Card>
+      <Card className="border-border/60 shadow-sm">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Package className="h-4 w-4" /> Produtos Detetados
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Package className="h-4 w-4 text-primary" /> Catálogo Extraído
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               {editable && (
-                <Badge variant="outline" className="flex items-center gap-1">
+                <Badge variant="outline" className="flex items-center gap-1 text-xs">
                   <PencilLine className="h-3 w-3" /> Edição ativa
                 </Badge>
               )}
-              <Badge variant="default">{tableProducts.length} produtos</Badge>
+              <Badge variant="default" className="text-xs">{tableProducts.length} produtos</Badge>
+              {hasImages && (
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  <Image className="h-3 w-3" /> Imagens detetadas
+                </Badge>
+              )}
               {lowConfidenceCount > 0 && (
-                <Badge variant="secondary" className="flex items-center gap-1">
+                <Badge variant="destructive" className="flex items-center gap-1 text-xs">
                   <AlertTriangle className="h-3 w-3" /> {lowConfidenceCount} baixa confiança
+                </Badge>
+              )}
+              {showApproval && (
+                <Badge variant={allApproved ? "default" : "secondary"} className="flex items-center gap-1 text-xs">
+                  <ShieldCheck className="h-3 w-3" /> {approvedCount}/{tableProducts.length} aprovados
                 </Badge>
               )}
             </div>
@@ -173,18 +203,38 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
         </CardHeader>
 
         <CardContent className="space-y-3">
+          {/* Search + Approve All */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar por SKU ou título..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-8 text-xs pl-8"
+              />
+            </div>
+            {showApproval && (
+              <Button size="sm" variant={allApproved ? "default" : "outline"} onClick={handleApproveAll} className="h-8 text-xs gap-1">
+                <ThumbsUp className="h-3 w-3" />
+                {allApproved ? "Todos Aprovados ✓" : "Aprovar Todos"}
+              </Button>
+            )}
+          </div>
+
           <ScrollArea className="max-h-[520px]">
             <div className="overflow-auto">
               <Table className="min-w-[800px]">
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs w-10">#</TableHead>
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="text-xs w-10 font-semibold">#</TableHead>
+                    {showApproval && <TableHead className="text-xs w-10">✓</TableHead>}
                     {tableColumns.map((column) => (
-                      <TableHead key={column} className="text-xs whitespace-nowrap">
+                      <TableHead key={column} className="text-xs whitespace-nowrap font-semibold">
                         {DISPLAY_LABELS[column] || column}
                       </TableHead>
                     ))}
-                    <TableHead className="text-xs whitespace-nowrap">Confiança</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap font-semibold">Confiança</TableHead>
                     <TableHead className="text-xs w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -193,14 +243,29 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                   {visibleProducts.map((product, rowIndex) => {
                     const absoluteIndex = startIndex + rowIndex;
                     const confidence = getConfidence(product);
+                    const isApproved = product._approved;
 
                     return (
                       <TableRow
                         key={`${absoluteIndex}-${product.sku || "row"}`}
-                        className={`cursor-pointer hover:bg-muted/50 ${confidence !== null && confidence < 60 ? "bg-destructive/5" : ""}`}
+                        className={`cursor-pointer transition-colors hover:bg-muted/50
+                          ${confidence !== null && confidence < 60 ? "bg-destructive/5" : ""}
+                          ${isApproved ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
                         onClick={() => setSelectedProductIndex(absoluteIndex)}
                       >
-                        <TableCell className="text-xs text-muted-foreground">{absoluteIndex + 1}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono">{absoluteIndex + 1}</TableCell>
+                        {showApproval && (
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant={isApproved ? "default" : "ghost"}
+                              className="h-6 w-6"
+                              onClick={(e) => { e.stopPropagation(); handleApprove(absoluteIndex); }}
+                            >
+                              <ThumbsUp className="h-3 w-3" />
+                            </Button>
+                          </TableCell>
+                        )}
                         {tableColumns.map((column) => {
                           const cellText = formatCellValue(product[column]);
                           return (
@@ -216,9 +281,9 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                             {confidence !== null && confidence >= 80 ? (
                               <CheckCircle className="h-3 w-3 text-primary" />
                             ) : (
-                              <AlertTriangle className="h-3 w-3 text-accent-foreground" />
+                              <AlertTriangle className="h-3 w-3 text-amber-500" />
                             )}
-                            <span className="text-xs">{confidence !== null ? `${confidence}%` : "—"}</span>
+                            <span className="text-xs font-mono">{confidence !== null ? `${confidence}%` : "—"}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -235,34 +300,36 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
           </ScrollArea>
 
           {/* Pagination */}
+          <Separator />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">
-                {startIndex + 1}–{Math.min(startIndex + pageSize, tableProducts.length)} de {tableProducts.length}
+                {startIndex + 1}–{Math.min(startIndex + pageSize, filteredProducts.length)} de {filteredProducts.length}
+                {searchTerm && ` (filtrados de ${tableProducts.length})`}
               </p>
               <select
-                className="text-xs border rounded px-1 py-0.5 bg-background text-foreground"
+                className="text-xs border rounded px-1.5 py-1 bg-background text-foreground"
                 value={pageSize}
                 onChange={(e) => setPageSize(Number(e.target.value))}
               >
                 {PAGE_SIZES.map((s) => (
-                  <option key={s} value={s}>{s} por página</option>
+                  <option key={s} value={s}>{s} /página</option>
                 ))}
               </select>
             </div>
             <div className="flex items-center gap-1">
-              <Button size="sm" variant="outline" onClick={() => setPage(1)} disabled={safePage === 1} className="text-xs h-7 px-2">
-                1
+              <Button size="sm" variant="outline" onClick={() => setPage(1)} disabled={safePage === 1} className="h-7 w-7 p-0">
+                <ChevronsLeft className="h-3 w-3" />
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1} className="h-7">
+              <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1} className="h-7 w-7 p-0">
                 <ChevronLeft className="h-3 w-3" />
               </Button>
-              <span className="text-xs text-muted-foreground px-1">Pág. {safePage}/{totalPages}</span>
-              <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} className="h-7">
+              <span className="text-xs text-muted-foreground px-2 font-medium">{safePage} / {totalPages}</span>
+              <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} className="h-7 w-7 p-0">
                 <ChevronRight className="h-3 w-3" />
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setPage(totalPages)} disabled={safePage === totalPages} className="text-xs h-7 px-2">
-                {totalPages}
+              <Button size="sm" variant="outline" onClick={() => setPage(totalPages)} disabled={safePage === totalPages} className="h-7 w-7 p-0">
+                <ChevronsRight className="h-3 w-3" />
               </Button>
             </div>
           </div>
@@ -273,16 +340,39 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
       <Dialog open={selectedProductIndex !== null} onOpenChange={(open) => { if (!open) setSelectedProductIndex(null); }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm">
-              <Package className="h-4 w-4" />
-              Produto #{selectedProductIndex !== null ? selectedProductIndex + 1 : ""} — {selectedProduct ? formatCellValue(selectedProduct.title || selectedProduct.original_title || selectedProduct.sku || "Sem título") : ""}
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-sm">
+                <Package className="h-4 w-4 text-primary" />
+                Produto #{selectedProductIndex !== null ? selectedProductIndex + 1 : ""}
+              </DialogTitle>
+              {showApproval && selectedProductIndex !== null && (
+                <Button
+                  size="sm"
+                  variant={selectedProduct?._approved ? "default" : "outline"}
+                  onClick={() => handleApprove(selectedProductIndex!)}
+                  className="gap-1"
+                >
+                  <ThumbsUp className="h-3 w-3" />
+                  {selectedProduct?._approved ? "Aprovado ✓" : "Aprovar"}
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           <ScrollArea className="flex-1 pr-2">
             {selectedProduct && (
               <div className="space-y-3 pb-4">
+                {/* Title highlight */}
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm font-semibold">
+                    {formatCellValue(selectedProduct.title || selectedProduct.original_title || selectedProduct.sku || "Sem título")}
+                  </p>
+                  {selectedProduct.sku && <p className="text-xs text-muted-foreground font-mono mt-0.5">SKU: {selectedProduct.sku}</p>}
+                </div>
+
                 {allColumns.map((column) => {
+                  if (column === "title" || column === "original_title" || column === "sku") return null;
                   const value = formatCellValue(selectedProduct[column]);
+                  if (!value && !editable) return null;
                   const isLong = value.length > 80;
                   return (
                     <div key={column} className="space-y-1">
@@ -291,17 +381,9 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                       </Label>
                       {editable ? (
                         isLong ? (
-                          <Textarea
-                            value={value}
-                            onChange={(e) => handleCellChange(selectedProductIndex!, column, e.target.value)}
-                            className="text-sm min-h-[80px]"
-                          />
+                          <Textarea value={value} onChange={(e) => handleCellChange(selectedProductIndex!, column, e.target.value)} className="text-sm min-h-[80px]" />
                         ) : (
-                          <Input
-                            value={value}
-                            onChange={(e) => handleCellChange(selectedProductIndex!, column, e.target.value)}
-                            className="text-sm"
-                          />
+                          <Input value={value} onChange={(e) => handleCellChange(selectedProductIndex!, column, e.target.value)} className="text-sm" />
                         )
                       ) : (
                         <p className="text-sm bg-muted/50 rounded px-3 py-2 whitespace-pre-wrap break-words">
@@ -311,16 +393,17 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                     </div>
                   );
                 })}
+
                 {/* Confidence */}
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Confiança</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Confiança da Extração</Label>
                   <div className="flex items-center gap-2">
                     {(() => {
                       const c = getConfidence(selectedProduct);
                       return (
                         <>
-                          {c !== null && c >= 80 ? <CheckCircle className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-accent-foreground" />}
-                          <span className="text-sm">{c !== null ? `${c}%` : "—"}</span>
+                          {c !== null && c >= 80 ? <CheckCircle className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                          <span className="text-sm font-mono">{c !== null ? `${c}%` : "—"}</span>
                         </>
                       );
                     })()}
@@ -329,13 +412,15 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
               </div>
             )}
           </ScrollArea>
+
+          {/* Bottom navigation */}
           {selectedProductIndex !== null && (
-            <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex items-center justify-between pt-3 border-t">
               <Button size="sm" variant="outline" disabled={selectedProductIndex === 0} onClick={() => setSelectedProductIndex((i) => (i !== null ? i - 1 : null))}>
                 <ChevronLeft className="h-3 w-3 mr-1" /> Anterior
               </Button>
-              <span className="text-xs text-muted-foreground">{selectedProductIndex + 1} / {tableProducts.length}</span>
-              <Button size="sm" variant="outline" disabled={selectedProductIndex === tableProducts.length - 1} onClick={() => setSelectedProductIndex((i) => (i !== null ? i + 1 : null))}>
+              <span className="text-xs text-muted-foreground font-medium">{selectedProductIndex + 1} / {filteredProducts.length}</span>
+              <Button size="sm" variant="outline" disabled={selectedProductIndex === filteredProducts.length - 1} onClick={() => setSelectedProductIndex((i) => (i !== null ? i + 1 : null))}>
                 Seguinte <ChevronRight className="h-3 w-3 ml-1" />
               </Button>
             </div>

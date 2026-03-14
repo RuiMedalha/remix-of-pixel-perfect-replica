@@ -8,90 +8,55 @@ const corsHeaders = {
 
 function hasMeaningfulProduct(candidate: any): boolean {
   if (!candidate || typeof candidate !== "object") return false;
-
   return [
-    candidate.sku,
-    candidate.title,
-    candidate.original_title,
-    candidate.description,
-    candidate.original_description,
-    candidate.price,
-    candidate.original_price,
-  ].some((value) => {
-    if (value === null || value === undefined) return false;
-    return String(value).trim() !== "";
-  });
+    candidate.sku, candidate.title, candidate.original_title,
+    candidate.description, candidate.original_description,
+    candidate.price, candidate.original_price,
+  ].some((value) => value !== null && value !== undefined && String(value).trim() !== "");
 }
 
 function flattenVisionProducts(items: any, parentSection?: string): any[] {
   const flat: any[] = [];
-
   const walk = (candidate: any, section?: string) => {
     if (candidate == null) return;
-
-    if (Array.isArray(candidate)) {
-      candidate.forEach((entry) => walk(entry, section));
-      return;
-    }
-
+    if (Array.isArray(candidate)) { candidate.forEach((entry) => walk(entry, section)); return; }
     if (typeof candidate !== "object") return;
-
     if (Array.isArray(candidate.products)) {
-      const sectionTitle =
-        typeof candidate.section_title === "string" && candidate.section_title.trim()
-          ? candidate.section_title.trim()
-          : section;
+      const sectionTitle = typeof candidate.section_title === "string" && candidate.section_title.trim() ? candidate.section_title.trim() : section;
       candidate.products.forEach((entry: any) => walk(entry, sectionTitle));
       return;
     }
-
-    flat.push({
-      ...candidate,
-      category: candidate.category || section,
-    });
+    flat.push({ ...candidate, category: candidate.category || section });
   };
-
   walk(items, parentSection);
   return flat;
 }
 
 function pickBestPageRows(rows: any[]): any[] {
   const bestByPage = new Map<number, { row: any; productCount: number; confidence: number }>();
-
   for (const row of rows || []) {
     const pageNumber = Number(row?.page_number);
     if (!Number.isFinite(pageNumber)) continue;
-
     const products = flattenVisionProducts(row?.vision_result?.products || [], row?.page_context?.section_title || "");
     const productCount = products.filter(hasMeaningfulProduct).length;
     const confidence = Number(row?.confidence_score || 0);
-
     const current = bestByPage.get(pageNumber);
-    if (
-      !current ||
-      productCount > current.productCount ||
-      (productCount === current.productCount && confidence > current.confidence)
-    ) {
+    if (!current || productCount > current.productCount || (productCount === current.productCount && confidence > current.confidence)) {
       bestByPage.set(pageNumber, { row, productCount, confidence });
     }
   }
-
-  return [...bestByPage.values()]
-    .map((entry) => entry.row)
-    .sort((a, b) => (a?.page_number || 0) - (b?.page_number || 0));
+  return [...bestByPage.values()].map((e) => e.row).sort((a, b) => (a?.page_number || 0) - (b?.page_number || 0));
 }
 
 function toNumberPrice(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
-
   const parsed = parseFloat(String(value).replace(/[^\d.,-]/g, "").replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function mapProductRow(product: any, fallbackCategory = "", source = "pdf_ai_vision", pageNumber?: number): Record<string, any> {
   const mapped: Record<string, any> = {};
-
   const sku = product?.sku ?? product?.SKU;
   const title = product?.original_title ?? product?.title ?? product?.name;
   const description = product?.original_description ?? product?.description;
@@ -108,36 +73,20 @@ function mapProductRow(product: any, fallbackCategory = "", source = "pdf_ai_vis
   if (product?.material) mapped.material = product.material;
   if (product?.color_options?.length) mapped.color_options = product.color_options;
   if (product?.image_description) mapped.image_description = product.image_description;
+  if (product?.image_url) mapped.image_url = product.image_url;
+  if (product?.image_urls) mapped.image_urls = product.image_urls;
   if (product?.technical_specs) mapped.technical_specs = product.technical_specs;
+  if (product?.short_description) mapped.short_description = product.short_description;
 
+  const skipKeys = new Set([
+    "sku", "SKU", "title", "name", "original_title", "description", "original_description",
+    "price", "original_price", "category", "dimensions", "weight", "material", "color_options",
+    "image_description", "image_url", "image_urls", "technical_specs", "short_description",
+    "confidence", "currency",
+  ]);
   for (const [key, value] of Object.entries(product || {})) {
-    if (key.startsWith("_")) continue;
-    if ([
-      "sku",
-      "SKU",
-      "title",
-      "name",
-      "original_title",
-      "description",
-      "original_description",
-      "price",
-      "original_price",
-      "category",
-      "dimensions",
-      "weight",
-      "material",
-      "color_options",
-      "image_description",
-      "technical_specs",
-      "confidence",
-      "currency",
-    ].includes(key)) {
-      continue;
-    }
-
-    if (value !== null && value !== undefined && value !== "") {
-      mapped[key] = value;
-    }
+    if (key.startsWith("_") || skipKeys.has(key)) continue;
+    if (value !== null && value !== undefined && value !== "") mapped[key] = value;
   }
 
   return {
@@ -161,16 +110,16 @@ serve(async (req) => {
 
     const { data: extractionRow, error: extractionError } = await supabase
       .from("pdf_extractions")
-      .select("detected_products")
+      .select("detected_products, workspace_id")
       .eq("id", extractionId)
       .single();
-
     if (extractionError) throw extractionError;
 
-    const reviewedProducts = flattenVisionProducts(extractionRow?.detected_products || []);
+    const effectiveWorkspaceId = workspaceId || extractionRow?.workspace_id;
 
+    const reviewedProducts = flattenVisionProducts(extractionRow?.detected_products || []);
     const structuredRows: any[] = reviewedProducts
-      .map((product: any) => mapProductRow(product, product?.category || "", product?._source || "pdf_review", product?._pageNumber))
+      .map((p: any) => mapProductRow(p, p?.category || "", p?._source || "pdf_review", p?._pageNumber))
       .filter(hasMeaningfulProduct);
 
     if (structuredRows.length === 0) {
@@ -181,77 +130,84 @@ serve(async (req) => {
         .order("page_number");
 
       if (!allPages?.length) throw new Error("No pages found");
-
       const pages = pickBestPageRows(allPages);
 
       for (const page of pages) {
         const sectionTitle = page.page_context?.section_title || "";
         const products = flattenVisionProducts(page.vision_result?.products || [], sectionTitle);
-
         for (const product of products) {
-          const mappedProduct = mapProductRow(product, sectionTitle, "pdf_ai_vision", page.page_number);
-          if (!hasMeaningfulProduct(mappedProduct)) continue;
-          structuredRows.push(mappedProduct);
+          const mapped = mapProductRow(product, sectionTitle, "pdf_ai_vision", page.page_number);
+          if (hasMeaningfulProduct(mapped)) structuredRows.push(mapped);
         }
       }
 
-      const pageIds = pages.map((page) => page.id);
-      const { data: tables } = await supabase
-        .from("pdf_tables")
-        .select("*, pdf_table_rows(*)")
-        .in("page_id", pageIds)
-        .order("table_index");
+      if (structuredRows.length === 0) {
+        const pageIds = pages.map((p) => p.id);
+        const { data: tables } = await supabase
+          .from("pdf_tables")
+          .select("*, pdf_table_rows(*)")
+          .in("page_id", pageIds)
+          .order("table_index");
 
-      if (structuredRows.length === 0 && tables?.length) {
-        for (const table of tables) {
-          for (const row of table.pdf_table_rows || []) {
-            const cells = row.cells || [];
-            const product: Record<string, any> = {};
-            let totalConfidence = 0;
-
-            for (const cell of cells) {
-              const field = cell.semantic_type || cell.header;
-              if (cell.value && field) {
-                if (field === "sku") product.sku = cell.value;
-                else if (field === "title") product.original_title = cell.value;
-                else if (field === "description") product.original_description = cell.value;
-                else if (field === "price") {
-                  const num = toNumberPrice(cell.value);
-                  if (num !== null) product.original_price = num;
-                } else if (field === "category") {
-                  product.category = cell.value;
-                } else if (field === "image_description" || field === "image_url") {
-                  product.image_description = cell.value;
+        if (tables?.length) {
+          for (const table of tables) {
+            for (const row of table.pdf_table_rows || []) {
+              const cells = row.cells || [];
+              const product: Record<string, any> = {};
+              let totalConfidence = 0;
+              for (const cell of cells) {
+                const field = cell.semantic_type || cell.header;
+                if (cell.value && field) {
+                  if (field === "sku") product.sku = cell.value;
+                  else if (field === "title") product.original_title = cell.value;
+                  else if (field === "description") product.original_description = cell.value;
+                  else if (field === "price") { const num = toNumberPrice(cell.value); if (num !== null) product.original_price = num; }
+                  else if (field === "category") product.category = cell.value;
                 }
+                totalConfidence += Number(cell.confidence || 0);
               }
-
-              totalConfidence += Number(cell.confidence || 0);
-            }
-
-            if (hasMeaningfulProduct(product)) {
-              const rowConfidence = cells.length > 0 ? Math.round(totalConfidence / cells.length) : 50;
-              structuredRows.push({
-                ...product,
-                _confidence: rowConfidence,
-                _source: "pdf_table",
-                _rowId: row.id,
-              });
-
-              await supabase
-                .from("pdf_table_rows")
-                .update({ status: "mapped", mapping_confidence: rowConfidence })
-                .eq("id", row.id);
+              if (hasMeaningfulProduct(product)) {
+                structuredRows.push({
+                  ...product,
+                  _confidence: cells.length > 0 ? Math.round(totalConfidence / cells.length) : 50,
+                  _source: "pdf_table",
+                  _rowId: row.id,
+                });
+              }
             }
           }
         }
       }
     }
 
-    if (sendToIngestion && workspaceId && structuredRows.length > 0) {
+    // ─── SKU matching: check which products already exist ───
+    if (sendToIngestion && effectiveWorkspaceId && structuredRows.length > 0) {
+      const skus = structuredRows
+        .map((r) => r.sku)
+        .filter((s) => typeof s === "string" && s.trim() !== "");
+
+      let existingBySku: Record<string, string> = {};
+      if (skus.length > 0) {
+        // Batch query in chunks of 200
+        for (let i = 0; i < skus.length; i += 200) {
+          const batch = skus.slice(i, i + 200);
+          const { data: existing } = await supabase
+            .from("products")
+            .select("id, sku")
+            .eq("workspace_id", effectiveWorkspaceId)
+            .in("sku", batch);
+          if (existing) {
+            for (const p of existing) {
+              if (p.sku) existingBySku[p.sku] = p.id;
+            }
+          }
+        }
+      }
+
       const { data: job } = await supabase
         .from("ingestion_jobs")
         .insert({
-          workspace_id: workspaceId,
+          workspace_id: effectiveWorkspaceId,
           source_type: "api",
           file_name: `pdf_extraction_${extractionId}`,
           status: "mapping",
@@ -264,28 +220,60 @@ serve(async (req) => {
         .single();
 
       if (job) {
-        const items = structuredRows.map((row, i) => ({
-          job_id: job.id,
-          status: "mapped" as const,
-          source_row_index: i,
-          source_data: row,
-          mapped_data: {
-            sku: row.sku,
-            original_title: row.original_title,
-            original_description: row.original_description,
-            original_price: row.original_price,
-            category: row.category,
-            dimensions: row.dimensions,
-            weight: row.weight,
-            material: row.material,
-            image_description: row.image_description,
-          },
-          action: "insert" as const,
-          match_confidence: row._confidence || 0,
-        }));
+        let insertCount = 0, updateCount = 0, duplicateCount = 0;
+
+        const items = structuredRows.map((row, i) => {
+          const sku = row.sku;
+          const matchedId = sku ? existingBySku[sku] || null : null;
+          let action = "insert";
+          let matchConfidence = row._confidence || 0;
+
+          if (matchedId) {
+            const strat = mergeStrategy || "merge";
+            if (strat === "insert_only") {
+              action = "skip";
+              duplicateCount++;
+            } else {
+              action = strat === "replace" ? "update" : "merge";
+              matchConfidence = 100;
+              updateCount++;
+            }
+          } else {
+            insertCount++;
+          }
+
+          return {
+            job_id: job.id,
+            status: "mapped" as const,
+            source_row_index: i,
+            source_data: row,
+            mapped_data: {
+              sku: row.sku,
+              original_title: row.original_title,
+              original_description: row.original_description,
+              short_description: row.short_description,
+              original_price: row.original_price,
+              category: row.category,
+              dimensions: row.dimensions,
+              weight: row.weight,
+              material: row.material,
+              image_description: row.image_description,
+              image_urls: row.image_urls || (row.image_url ? [row.image_url] : undefined),
+              technical_specs: row.technical_specs,
+            },
+            action,
+            matched_existing_id: matchedId,
+            match_confidence: matchConfidence,
+          };
+        });
 
         await supabase.from("ingestion_job_items").insert(items);
-        await supabase.from("ingestion_jobs").update({ status: "dry_run" }).eq("id", job.id);
+        await supabase.from("ingestion_jobs").update({
+          status: "dry_run",
+          imported_rows: insertCount,
+          updated_rows: updateCount,
+          duplicate_rows: duplicateCount,
+        }).eq("id", job.id);
       }
 
       await supabase
@@ -311,25 +299,17 @@ serve(async (req) => {
 
     await supabase
       .from("pdf_extractions")
-      .update({
-        status: "reviewing",
-        detected_products: structuredRows,
-      })
+      .update({ status: "reviewing", detected_products: structuredRows })
       .eq("id", extractionId);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        rowsMapped: structuredRows.length,
-        preview: structuredRows.slice(0, 20),
-      }),
+      JSON.stringify({ success: true, rowsMapped: structuredRows.length, preview: structuredRows.slice(0, 20) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error("map-pdf-to-products error:", e);
     return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

@@ -490,8 +490,8 @@ export default function PDFExtractionPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Document Intelligence</h1>
-          <p className="text-muted-foreground">Extração enterprise de dados de catálogos PDF com preview, validação e integração com Ingestion Hub</p>
+          <h1 className="text-2xl font-bold text-foreground">Extração de Catálogos PDF</h1>
+          <p className="text-muted-foreground">Extraia automaticamente produtos de catálogos PDF com inteligência artificial avançada</p>
         </div>
       </div>
 
@@ -681,16 +681,20 @@ export default function PDFExtractionPage() {
           {/* Step: Review — compiled product table */}
           {wizardStep === "review" && (
             <div className="space-y-4">
-              <Card>
+              <Card className="border-border/60 shadow-sm">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <Package className="h-5 w-5" /> Produtos Extraídos
+                      <Package className="h-5 w-5 text-primary" /> Revisão de Produtos
                     </CardTitle>
-                    <Badge variant="default">{wizardProductCount} produtos encontrados</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default">{wizardProductCount} produtos</Badge>
+                      <Badge variant="secondary">{productsForReview.filter((p: any) => p._approved).length} aprovados</Badge>
+                    </div>
                   </div>
                   <CardDescription>
-                    Revise os produtos extraídos do PDF. Quando estiver satisfeito, envie para o Ingestion Hub.
+                    Revise, edite e aprove cada produto antes de enviar para ingestão.
+                    Pode aprovar individualmente ou em massa. Apenas produtos aprovados serão enviados.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -699,6 +703,7 @@ export default function PDFExtractionPage() {
                 products={productsForReview}
                 columns={undefined}
                 editable
+                showApproval
                 onProductsChange={(products) => setReviewDraftProducts(products)}
               />
 
@@ -709,7 +714,7 @@ export default function PDFExtractionPage() {
                   Guardar alterações
                 </Button>
                 <Button onClick={handleProceedToIngestion} disabled={isSavingReviewDraft}>
-                  <ArrowRight className="h-4 w-4 mr-2" /> Aceitar e Enviar para Ingestão
+                  <ArrowRight className="h-4 w-4 mr-2" /> Avançar para Ingestão
                 </Button>
                 <Button variant="outline" onClick={resetWizard}>
                   Cancelar
@@ -723,9 +728,11 @@ export default function PDFExtractionPage() {
             <div className="space-y-4">
               <SendToIngestionPanel
                 productCount={wizardProductCount}
+                approvedCount={productsForReview.filter((p: any) => p._approved).length}
                 onSendToIngestion={handleSendToIngestion}
                 isSending={sendToIngestion.isPending}
                 alreadySent={wizardExtraction?.sent_to_ingestion}
+                requireApproval
               />
               {wizardExtraction?.sent_to_ingestion && (
                 <div className="flex gap-3">
