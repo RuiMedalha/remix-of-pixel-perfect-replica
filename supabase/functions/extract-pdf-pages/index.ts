@@ -148,7 +148,7 @@ Return ONLY valid JSON.`,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
           },
-          pdfBase64: overviewPdfBase64,
+          // Do NOT pass pdfBase64 — chunks download from storage to avoid request size limits
         })
       ));
       results.push(...batchResults);
