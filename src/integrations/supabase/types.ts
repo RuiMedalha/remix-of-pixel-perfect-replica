@@ -9093,30 +9093,39 @@ export type Database = {
       }
       prompt_templates: {
         Row: {
+          archived_at: string | null
           base_prompt: string
           created_at: string
           description: string | null
           id: string
+          is_active: boolean
           prompt_name: string
           prompt_type: string
+          updated_at: string
           workspace_id: string
         }
         Insert: {
+          archived_at?: string | null
           base_prompt?: string
           created_at?: string
           description?: string | null
           id?: string
+          is_active?: boolean
           prompt_name: string
           prompt_type?: string
+          updated_at?: string
           workspace_id: string
         }
         Update: {
+          archived_at?: string | null
           base_prompt?: string
           created_at?: string
           description?: string | null
           id?: string
+          is_active?: boolean
           prompt_name?: string
           prompt_type?: string
+          updated_at?: string
           workspace_id?: string
         }
         Relationships: [
@@ -9133,32 +9142,44 @@ export type Database = {
         Row: {
           agent_name: string | null
           confidence_score: number | null
+          cost_estimate: number | null
           created_at: string
           execution_time: number | null
+          fallback_used: boolean | null
           id: string
           input_size: number | null
           output_size: number | null
           prompt_version_id: string | null
+          status: string | null
+          workspace_id: string | null
         }
         Insert: {
           agent_name?: string | null
           confidence_score?: number | null
+          cost_estimate?: number | null
           created_at?: string
           execution_time?: number | null
+          fallback_used?: boolean | null
           id?: string
           input_size?: number | null
           output_size?: number | null
           prompt_version_id?: string | null
+          status?: string | null
+          workspace_id?: string | null
         }
         Update: {
           agent_name?: string | null
           confidence_score?: number | null
+          cost_estimate?: number | null
           created_at?: string
           execution_time?: number | null
+          fallback_used?: boolean | null
           id?: string
           input_size?: number | null
           output_size?: number | null
           prompt_version_id?: string | null
+          status?: string | null
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -9168,31 +9189,44 @@ export type Database = {
             referencedRelation: "prompt_versions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "prompt_usage_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
         ]
       }
       prompt_versions: {
         Row: {
           created_at: string
+          created_by: string | null
           id: string
           is_active: boolean
           prompt_text: string
           template_id: string
+          version_notes: string | null
           version_number: number
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           id?: string
           is_active?: boolean
           prompt_text?: string
           template_id: string
+          version_notes?: string | null
           version_number?: number
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           id?: string
           is_active?: boolean
           prompt_text?: string
           template_id?: string
+          version_notes?: string | null
           version_number?: number
         }
         Relationships: [
