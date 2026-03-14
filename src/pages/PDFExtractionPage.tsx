@@ -201,9 +201,12 @@ export default function PDFExtractionPage() {
   const realProgress = useMemo(() => {
     const pages = wizardPages || [];
     const totalPages = wizardExtraction?.total_pages || 0;
-    const extractedPages = pages.filter((p: any) => p.status === "extracted").length;
-    const errorPages = pages.filter((p: any) => p.status === "error").length;
-    const pct = totalPages > 0 ? Math.round((extractedPages / totalPages) * 100) : 0;
+    // Deduplicate by page_number — auto-resume may create duplicate records
+    const uniqueExtracted = new Set(pages.filter((p: any) => p.status === "extracted").map((p: any) => p.page_number));
+    const uniqueErrors = new Set(pages.filter((p: any) => p.status === "error").map((p: any) => p.page_number));
+    const extractedPages = Math.min(uniqueExtracted.size, totalPages);
+    const errorPages = Math.min(uniqueErrors.size, totalPages);
+    const pct = totalPages > 0 ? Math.min(100, Math.round((extractedPages / totalPages) * 100)) : 0;
     // Count products from vision_result
     let productCount = 0;
     pages.forEach((p: any) => {
