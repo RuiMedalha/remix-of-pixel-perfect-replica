@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +8,7 @@ const corsHeaders = {
 
 const CHUNK_SIZE = 3;
 const MAX_CHUNK_CONCURRENCY = 2;
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -51,18 +51,9 @@ serve(async (req) => {
     if (!fileRecord?.storage_path) throw new Error("No file storage_path");
     const storagePth = fileRecord.storage_path;
 
-    // Download PDF — keep only what we need for overview
-    const { data: fileData, error: dlErr } = await supabase.storage
-      .from("catalogs")
-      .download(storagePth);
-    if (dlErr || !fileData) throw new Error("Cannot download file: " + dlErr?.message);
-
-    const pdfBuffer = await fileData.arrayBuffer();
-    const pdfSizeMB = pdfBuffer.byteLength / (1024 * 1024);
-    console.log(`PDF loaded: ${pdfSizeMB.toFixed(2)} MB`);
-
-    // For the overview we send the PDF once — use a lightweight prompt
-    const pdfBase64 = arrayBufferToBase64(pdfBuffer);
+    // Use signed URL instead of loading PDF binary into worker memory
+    const signedPdfUrl = await buildSignedPdfUrl(supabase, supabaseUrl, storagePth);
+    console.log("PDF signed URL created for extraction orchestration");
 
     const overviewResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -80,7 +71,7 @@ serve(async (req) => {
           {
             role: "user",
             content: [
-              { type: "image_url", image_url: { url: `data:application/pdf;base64,${pdfBase64}` } },
+              { type: "image_url", image_url: { url: signedPdfUrl } },
               {
                 type: "text",
                 text: `Quickly analyze this PDF. Return JSON:
@@ -151,6 +142,7 @@ Return ONLY valid JSON.`,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
           },
+          signedUrl: signedPdfUrl,
         })
       ));
       results.push(...batchResults);
@@ -235,8 +227,9 @@ async function invokeChunkExtraction(opts: {
   chunk: { start: number; end: number };
   storagePath: string;
   overviewData: any;
+  signedUrl?: string;
 }) {
-  const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData } = opts;
+  const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData, signedUrl } = opts;
 
   try {
     const response = await fetch(`${supabaseUrl}/functions/v1/extract-pdf-pages`, {
@@ -252,6 +245,7 @@ async function invokeChunkExtraction(opts: {
         chunkEnd: chunk.end,
         storagePath,
         overviewData,
+        signedUrl,
       }),
     });
 
@@ -268,17 +262,11 @@ async function invokeChunkExtraction(opts: {
 async function processChunk(opts: {
   supabase: any; supabaseUrl: string; serviceKey: string; lovableKey: string;
   extractionId: string; chunkStart: number; chunkEnd: number;
-  storagePath: string; overviewData: any;
+  storagePath: string; overviewData: any; signedUrl?: string;
 }) {
-  const { supabase, lovableKey, extractionId, chunkStart, chunkEnd, storagePath, overviewData } = opts;
+  const { supabase, supabaseUrl, lovableKey, extractionId, chunkStart, chunkEnd, storagePath, overviewData, signedUrl } = opts;
 
-  // Download the PDF in this worker's own memory
-  const { data: fileData, error: dlErr } = await supabase.storage
-    .from("catalogs")
-    .download(storagePath);
-  if (dlErr || !fileData) throw new Error("Chunk download failed: " + dlErr?.message);
-
-  const pdfBase64 = arrayBufferToBase64(await fileData.arrayBuffer());
+  const pdfUrl = signedUrl || await buildSignedPdfUrl(supabase, supabaseUrl, storagePath);
 
   console.log(`Chunk: extracting pages ${chunkStart}-${chunkEnd}`);
 
@@ -298,7 +286,7 @@ async function processChunk(opts: {
         {
           role: "user",
           content: [
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${pdfBase64}` } },
+            { type: "image_url", image_url: { url: pdfUrl } },
             {
               type: "text",
               text: `Extract ALL products from pages ${chunkStart} to ${chunkEnd} of this PDF.
@@ -440,6 +428,19 @@ Return ONLY valid JSON.`,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  return encodeBase64(new Uint8Array(buffer));
+async function buildSignedPdfUrl(
+  supabase: any,
+  supabaseUrl: string,
+  storagePath: string,
+): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from("catalogs")
+    .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+
+  if (error || !data?.signedUrl) {
+    throw new Error("Cannot create signed URL for PDF: " + (error?.message || "unknown"));
+  }
+
+  if (data.signedUrl.startsWith("http")) return data.signedUrl;
+  return `${supabaseUrl}${data.signedUrl}`;
 }
