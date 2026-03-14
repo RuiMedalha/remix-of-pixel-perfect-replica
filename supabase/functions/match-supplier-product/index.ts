@@ -126,11 +126,11 @@ Deno.serve(async (req) => {
 
         let aiPick = null;
         if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const raw = (aiData.choices?.[0]?.message?.content || "").replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+          const routeData = await aiResponse.json();
+          const raw = (routeData.result?.choices?.[0]?.message?.content || "").replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
           try { aiPick = JSON.parse(raw); } catch { /* ignore */ }
         } else {
-          await aiResponse.text(); // consume body
+          await aiResponse.text();
         }
 
         if (aiPick && aiPick.best_match_index !== null && aiPick.best_match_index !== undefined && aiPick.confidence_score >= 0.6) {
