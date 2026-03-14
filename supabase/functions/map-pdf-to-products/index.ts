@@ -149,6 +149,7 @@ serve(async (req) => {
       await supabase.from("pdf_extractions").update({
         status: "done",
         completed_at: new Date().toISOString(),
+        detected_products: structuredRows,
       }).eq("id", extractionId);
 
       return new Response(JSON.stringify({
