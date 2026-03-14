@@ -610,7 +610,6 @@ export default function PDFExtractionPage() {
                         <p className="text-[10px] text-muted-foreground text-center mt-2">
                           Podes sair desta página — a extração continua em segundo plano.
                         </p>
-                        </p>
                       </div>
                     </>
                   )}
