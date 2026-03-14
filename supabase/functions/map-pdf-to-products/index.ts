@@ -80,17 +80,20 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { extractionId, sendToIngestion, workspaceId } = await req.json();
+    const { extractionId, sendToIngestion, workspaceId, mergeStrategy } = await req.json();
     if (!extractionId) throw new Error("extractionId required");
 
     // Get all pages with their vision results (products extracted by AI)
-    const { data: pages } = await supabase
+    const { data: allPages } = await supabase
       .from("pdf_pages")
-      .select("id, page_number, vision_result, page_context")
+      .select("id, page_number, confidence_score, vision_result, page_context")
       .eq("extraction_id", extractionId)
       .order("page_number");
 
-    if (!pages?.length) throw new Error("No pages found");
+    if (!allPages?.length) throw new Error("No pages found");
+
+    // Auto-resume can create repeated rows for the same page_number: keep best row per page
+    const pages = pickBestPageRows(allPages);
 
     const structuredRows: any[] = [];
 
