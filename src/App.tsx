@@ -42,6 +42,7 @@ import PromptGovernancePage from "./pages/PromptGovernancePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
 import ProductIdentityPage from "./pages/ProductIdentityPage";
 import AiGovernancePage from "./pages/AiGovernancePage";
+import AiProviderCenterPage from "./pages/AiProviderCenterPage";
 import SupplierIntelligencePage from "./pages/SupplierIntelligencePage";
 import CanonicalAssemblyPage from "./pages/CanonicalAssemblyPage";
 import ConflictCenterPage from "./pages/ConflictCenterPage";
