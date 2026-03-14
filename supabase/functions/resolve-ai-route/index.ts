@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { taskType, workspaceId, messages, systemPrompt, options } = await req.json();
+    const { taskType, workspaceId, messages, systemPrompt, options, modelOverride } = await req.json();
     if (!taskType || !workspaceId) throw new Error("taskType and workspaceId required");
 
     // 1. Resolve routing rule
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
 
     // 2. Resolve provider + prompt (from route or defaults)
     let provider = route?.provider;
-    let model = route?.model_override || route?.recommended_model || provider?.default_model;
+    let model = modelOverride || route?.model_override || route?.recommended_model || provider?.default_model;
 
     let prompt = systemPrompt || "";
     if (route?.prompt_template_id) {
@@ -93,6 +93,9 @@ Deno.serve(async (req) => {
             messages: finalMessages,
             ...(options?.tools ? { tools: options.tools, tool_choice: options.tool_choice } : {}),
             ...(options?.max_tokens ? { max_tokens: options.max_tokens } : {}),
+            ...(options?.modalities ? { modalities: options.modalities } : {}),
+            ...(options?.temperature != null ? { temperature: options.temperature } : {}),
+            ...(options?.response_format ? { response_format: options.response_format } : {}),
           }),
         });
         if (!resp.ok) {

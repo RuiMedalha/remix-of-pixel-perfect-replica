@@ -704,27 +704,24 @@ async function extractPdfText(fileData: Blob, fileName: string): Promise<string>
   }
   const base64 = btoa(binary);
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: `És um extrator de conteúdo de documentos técnicos e catálogos de produtos. Extrai TODO o texto relevante do PDF, incluindo nomes de produtos, especificações técnicas, tabelas de preços, descrições e códigos de referência. Mantém a estrutura organizada. Responde APENAS com o texto extraído.`,
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `Extrai todo o conteúdo relevante deste documento: "${fileName}".` },
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
-          ],
-        },
-      ],
+      taskType: "pdf_text_extraction",
+      workspaceId: "system",
+      modelOverride: "google/gemini-2.5-flash",
+      systemPrompt: `És um extrator de conteúdo de documentos técnicos e catálogos de produtos. Extrai TODO o texto relevante do PDF, incluindo nomes de produtos, especificações técnicas, tabelas de preços, descrições e códigos de referência. Mantém a estrutura organizada. Responde APENAS com o texto extraído.`,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: `Extrai todo o conteúdo relevante deste documento: "${fileName}".` },
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
+        ],
+      }],
     }),
   });
 
@@ -734,32 +731,27 @@ async function extractPdfText(fileData: Blob, fileName: string): Promise<string>
     throw new Error("Erro ao extrair texto do PDF: " + aiResponse.status);
   }
 
-  const aiData = await aiResponse.json();
+  const aiWrapper = await aiResponse.json();
+  const aiData = aiWrapper.result || aiWrapper;
   return (aiData.choices?.[0]?.message?.content || "").substring(0, 50000);
 }
 
 async function extractPdfTextViaUrl(fileName: string, fileSize: number): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: `O utilizador carregou um catálogo técnico demasiado grande. Gera informação útil sobre a marca/categoria baseado no nome do ficheiro.`,
-        },
-        {
-          role: "user",
-          content: `O ficheiro "${fileName}" (${(fileSize / 1024 / 1024).toFixed(1)}MB) é demasiado grande. Gera contexto útil.`,
-        },
-      ],
+      taskType: "pdf_text_extraction",
+      workspaceId: "system",
+      modelOverride: "google/gemini-2.5-flash",
+      systemPrompt: `O utilizador carregou um catálogo técnico demasiado grande. Gera informação útil sobre a marca/categoria baseado no nome do ficheiro.`,
+      messages: [{
+        role: "user",
+        content: `O ficheiro "${fileName}" (${(fileSize / 1024 / 1024).toFixed(1)}MB) é demasiado grande. Gera contexto útil.`,
+      }],
     }),
   });
 
@@ -768,7 +760,8 @@ async function extractPdfTextViaUrl(fileName: string, fileSize: number): Promise
     return `Catálogo: ${fileName} - ficheiro demasiado grande para extração automática.`;
   }
 
-  const aiData = await aiResponse.json();
+  const aiWrapper = await aiResponse.json();
+  const aiData = aiWrapper.result || aiWrapper;
   const content = aiData.choices?.[0]?.message?.content || "";
   return `[Contexto gerado para catálogo grande: ${fileName}]\n\n${content}`.substring(0, 50000);
 }
@@ -809,24 +802,25 @@ REGRAS DE EXTRAÇÃO:
 
 Responde APENAS com a tool call.`;
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `Extrai TODOS os produtos deste catálogo PDF: "${fileName}". Analisa cada página, identifica coleções/modelos nos cabeçalhos e extrai cada linha de produto.` },
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
-          ],
-        },
-      ],
+      taskType: "pdf_product_extraction",
+      workspaceId: "system",
+      modelOverride: "google/gemini-2.5-pro",
+      systemPrompt,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: `Extrai TODOS os produtos deste catálogo PDF: "${fileName}". Analisa cada página, identifica coleções/modelos nos cabeçalhos e extrai cada linha de produto.` },
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
+        ],
+      }],
+      options: {
       tools: [
         {
           type: "function",

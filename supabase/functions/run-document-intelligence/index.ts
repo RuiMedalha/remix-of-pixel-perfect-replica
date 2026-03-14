@@ -6,97 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-interface ProviderConfig {
-  id: string;
-  provider_name: string;
-  provider_type: string;
-  default_model: string | null;
-  priority_order: number;
-  supports_vision: boolean;
-  timeout_seconds: number;
-  config: Record<string, any>;
-}
-
-async function callProvider(
-  provider: ProviderConfig,
-  text: string,
-  lovableKey: string,
-): Promise<{ success: boolean; result: any; model: string; error?: string }> {
-  const model = provider.default_model || "google/gemini-2.5-flash";
-
-  const aiPrompt = `Analyze this PDF page text. Extract ALL tables with semantic column classification (sku, title, price, description, dimensions, capacity, material, weight, unknown). Classify table type (product_table, technical_specs, pricing_table, accessories). Detect zones, sections, language and supplier.
-
-Text:
-${text.substring(0, 12000)}`;
-
-  let apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (provider.provider_type === "lovable_gateway") {
-    headers["Authorization"] = `Bearer ${lovableKey}`;
-  } else if (provider.provider_type === "gemini_direct") {
-    const apiKey = provider.config?.api_key;
-    if (!apiKey) return { success: false, result: null, model, error: "No API key configured" };
-    apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    // For direct Gemini, use different format
-    try {
-      const resp = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: aiPrompt }] }],
-          generationConfig: { responseMimeType: "application/json" },
-        }),
-      });
-      if (!resp.ok) {
-        const errText = await resp.text();
-        return { success: false, result: null, model, error: `Gemini API ${resp.status}: ${errText.substring(0, 200)}` };
-      }
-      const data = await resp.json();
-      const text2 = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      return { success: true, result: JSON.parse(text2), model };
-    } catch (e) {
-      return { success: false, result: null, model, error: e.message };
-    }
-  } else if (provider.provider_type === "openai_direct") {
-    const apiKey = provider.config?.api_key;
-    if (!apiKey) return { success: false, result: null, model, error: "No API key configured" };
-    apiUrl = "https://api.openai.com/v1/chat/completions";
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  }
-
-  // Default: Lovable Gateway or OpenAI-compatible
-  headers["Authorization"] = headers["Authorization"] || `Bearer ${lovableKey}`;
-
-  try {
-    const resp = await fetch(apiUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: "You are a PDF data extraction expert. Extract tables with semantic column classification and confidence scores. Return JSON." },
-          { role: "user", content: aiPrompt },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      return { success: false, result: null, model, error: `API ${resp.status}: ${errText.substring(0, 200)}` };
-    }
-
-    const data = await resp.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
-    return { success: true, result: JSON.parse(content), model };
-  } catch (e) {
-    return { success: false, result: null, model, error: e.message };
-  }
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -104,7 +13,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const { extractionId, pageId, mode, manualProvider } = await req.json();
@@ -138,89 +46,76 @@ serve(async (req) => {
       targetPageIds = (pages || []).map((p: any) => p.id);
     }
 
-    // Get providers sorted by priority
-    const { data: providers } = await supabase
-      .from("document_ai_providers")
-      .select("*")
-      .eq("workspace_id", workspaceId)
-      .eq("is_active", true)
-      .order("priority_order");
-
-    let activeProviders: ProviderConfig[] = (providers || []) as any[];
-
-    // If no providers configured, use default Lovable Gateway
-    if (activeProviders.length === 0) {
-      activeProviders = [{
-        id: "default",
-        provider_name: "Lovable AI Gateway",
-        provider_type: "lovable_gateway",
-        default_model: "google/gemini-2.5-flash",
-        priority_order: 1,
-        supports_vision: true,
-        timeout_seconds: 120,
-        config: {},
-      }];
-    }
-
-    // Mode selection
-    const selectedMode = mode || "auto";
-    if (selectedMode === "manual" && manualProvider) {
-      activeProviders = activeProviders.filter(p => p.provider_type === manualProvider);
-      if (activeProviders.length === 0) {
-        throw new Error(`Provider ${manualProvider} not found or not active`);
-      }
-    } else if (selectedMode === "cost_optimized") {
-      activeProviders.sort((a, b) => (a.config?.cost_rank || 99) - (b.config?.cost_rank || 99));
-    } else if (selectedMode === "quality_optimized") {
-      activeProviders.sort((a, b) => (a.config?.quality_rank || 99) - (b.config?.quality_rank || 99));
-    } else if (selectedMode === "fast") {
-      activeProviders.sort((a, b) => a.timeout_seconds - b.timeout_seconds);
-    }
-
-    let usedProvider = activeProviders[0];
+    let totalProcessed = 0;
+    let usedProvider = "Lovable AI Gateway";
+    let usedModel = "google/gemini-2.5-flash";
     let fallbackUsed = false;
     let fallbackProvider: string | null = null;
-    let totalProcessed = 0;
 
-    // Process each page
+    // Process each page via resolve-ai-route
     for (const pid of targetPageIds) {
       const { data: page } = await supabase.from("pdf_pages").select("raw_text").eq("id", pid).single();
       if (!page?.raw_text) continue;
 
-      let result: any = null;
-      let usedModel = "";
+      const aiPrompt = `Analyze this PDF page text. Extract ALL tables with semantic column classification (sku, title, price, description, dimensions, capacity, material, weight, unknown). Classify table type (product_table, technical_specs, pricing_table, accessories). Detect zones, sections, language and supplier.
 
-      // Try providers in order (fallback chain)
-      for (const provider of activeProviders) {
-        const res = await callProvider(provider, page.raw_text, lovableKey);
-        if (res.success) {
-          result = res.result;
-          usedModel = res.model;
-          if (provider.id !== usedProvider.id) {
-            fallbackUsed = true;
-            fallbackProvider = provider.provider_name;
+Text:
+${(page.raw_text || "").substring(0, 12000)}`;
+
+      try {
+        const routeResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            taskType: "pdf_vision_parse",
+            workspaceId,
+            systemPrompt: "You are a PDF data extraction expert. Extract tables with semantic column classification and confidence scores. Return JSON.",
+            messages: [{ role: "user", content: aiPrompt }],
+            options: {
+              response_format: { type: "json_object" },
+            },
+          }),
+        });
+
+        if (routeResp.ok) {
+          const wrapper = await routeResp.json();
+          const aiData = wrapper.result || wrapper;
+          const content = aiData.choices?.[0]?.message?.content || "{}";
+          let result: any = {};
+          try { result = JSON.parse(content); } catch { /* keep empty */ }
+
+          // Update meta from route
+          if (wrapper.meta) {
+            usedProvider = wrapper.meta.usedProvider || usedProvider;
+            usedModel = wrapper.meta.usedModel || usedModel;
+            if (wrapper.meta.fallbackUsed) {
+              fallbackUsed = true;
+              fallbackProvider = wrapper.meta.usedProvider;
+            }
           }
-          usedProvider = provider;
-          break;
-        }
-        console.warn(`Provider ${provider.provider_name} failed: ${res.error}`);
-      }
 
-      if (result) {
-        await supabase.from("pdf_pages").update({
-          vision_result: result,
-          page_context: { ...result.page_context, provider: usedProvider.provider_name, model: usedModel },
-          confidence_score: result.confidence || 70,
-        }).eq("id", pid);
-        totalProcessed++;
+          await supabase.from("pdf_pages").update({
+            vision_result: result,
+            page_context: { ...result.page_context, provider: usedProvider, model: usedModel },
+            confidence_score: result.confidence || 70,
+          }).eq("id", pid);
+          totalProcessed++;
+        } else {
+          console.warn(`Route failed for page ${pid}: ${routeResp.status}`);
+        }
+      } catch (e) {
+        console.warn(`Error processing page ${pid}:`, e);
       }
     }
 
     // Update extraction metadata
     const updateData: any = {
-      provider_used: usedProvider.provider_name,
-      provider_model: usedProvider.default_model,
-      extraction_mode: selectedMode,
+      provider_used: usedProvider,
+      provider_model: usedModel,
+      extraction_mode: mode || "auto",
       fallback_used: fallbackUsed,
       fallback_provider: fallbackProvider,
     };
@@ -235,9 +130,9 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       pagesProcessed: totalProcessed,
-      provider: usedProvider.provider_name,
-      model: usedProvider.default_model,
-      mode: selectedMode,
+      provider: usedProvider,
+      model: usedModel,
+      mode: mode || "auto",
       fallbackUsed,
       fallbackProvider,
       processingTimeMs: Date.now() - startTime,

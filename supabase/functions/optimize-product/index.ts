@@ -706,44 +706,47 @@ Devolve os índices dos 6 excertos mais relevantes, priorizando:
 3. Fichas técnicas e tabelas de preços
 4. Informação genérica sobre a categoria`;
 
-            const rerankResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            const rerankResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
               method: "POST",
               headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
                 "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash-lite",
-                messages: [
-                  { role: "system", content: "Responde APENAS com a tool call. Seleciona os excertos mais relevantes." },
-                  { role: "user", content: rerankPrompt },
-                ],
-                tools: [{
-                  type: "function",
-                  function: {
-                    name: "select_chunks",
-                    description: "Seleciona os índices dos chunks mais relevantes",
-                    parameters: {
-                      type: "object",
-                      properties: {
-                        selected_indices: {
-                          type: "array",
-                          items: { type: "integer" },
-                          description: "Índices dos chunks selecionados (0-based)",
+                taskType: "knowledge_reranking",
+                workspaceId: workspaceId,
+                modelOverride: "google/gemini-2.5-flash-lite",
+                systemPrompt: "Responde APENAS com a tool call. Seleciona os excertos mais relevantes.",
+                messages: [{ role: "user", content: rerankPrompt }],
+                options: {
+                  tools: [{
+                    type: "function",
+                    function: {
+                      name: "select_chunks",
+                      description: "Seleciona os índices dos chunks mais relevantes",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          selected_indices: {
+                            type: "array",
+                            items: { type: "integer" },
+                            description: "Índices dos chunks selecionados (0-based)",
+                          },
+                          reasoning: { type: "string", description: "Breve justificação" },
                         },
-                        reasoning: { type: "string", description: "Breve justificação" },
+                        required: ["selected_indices"],
+                        additionalProperties: false,
                       },
-                      required: ["selected_indices"],
-                      additionalProperties: false,
                     },
-                  },
-                }],
-                tool_choice: { type: "function", function: { name: "select_chunks" } },
+                  }],
+                  tool_choice: { type: "function", function: { name: "select_chunks" } },
+                },
               }),
             });
 
             if (rerankResponse.ok) {
-              const rerankData = await rerankResponse.json();
+              const rerankWrapper = await rerankResponse.json();
+              const rerankData = rerankWrapper.result || rerankWrapper;
               const rerankCall = rerankData.choices?.[0]?.message?.tool_calls?.[0];
               if (rerankCall) {
                 const { selected_indices, reasoning } = JSON.parse(rerankCall.function.arguments);
@@ -1185,37 +1188,36 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           requiredFields.push("focus_keywords");
         }
 
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
           },
           body: JSON.stringify({
-            model: chosenModel,
-            messages: [
-              {
-                role: "system",
-                content: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.",
-              },
-              { role: "user", content: finalPrompt },
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "optimize_product",
-                  description: "Devolve os campos otimizados do produto",
-                  parameters: {
-                    type: "object",
-                    properties: toolProperties,
-                    required: requiredFields,
-                    additionalProperties: false,
+            taskType: "product_optimization",
+            workspaceId: workspaceId,
+            modelOverride: chosenModel,
+            systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.",
+            messages: [{ role: "user", content: finalPrompt }],
+            options: {
+              tools: [
+                {
+                  type: "function",
+                  function: {
+                    name: "optimize_product",
+                    description: "Devolve os campos otimizados do produto",
+                    parameters: {
+                      type: "object",
+                      properties: toolProperties,
+                      required: requiredFields,
+                      additionalProperties: false,
+                    },
                   },
                 },
-              },
-            ],
-            tool_choice: { type: "function", function: { name: "optimize_product" } },
+              ],
+              tool_choice: { type: "function", function: { name: "optimize_product" } },
+            },
           }),
         });
 
@@ -1235,7 +1237,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           return { id: product.id, status: "error" as const, error: errText };
         }
 
-        const aiData = await aiResponse.json();
+        const aiWrapper = await aiResponse.json();
+        const aiData = aiWrapper.result || aiWrapper;
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
         if (!toolCall) {
           await supabase.from("products").update({ status: "error" }).eq("id", product.id);
@@ -1501,58 +1504,58 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
                     childTitles[v.id] = freshChild?.optimized_title || freshChild?.original_title || v.original_title || "";
                   }
 
-                  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                  const aiResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
                     method: "POST",
                     headers: {
-                      Authorization: `Bearer ${LOVABLE_API_KEY}`,
                       "Content-Type": "application/json",
+                      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
                     },
                     body: JSON.stringify({
-                      model: "google/gemini-2.5-flash-lite",
-                      messages: [
-                        {
-                          role: "system",
-                          content: "You extract variation attributes from product titles. Compare the parent title with each child title to identify the differentiating attribute (e.g. Color, Size, Material, Capacity, Dimensions). Return structured data via the tool. CRITICAL: NEVER use EAN codes, barcodes, numeric references (8+ digit numbers), brand names, or SKU codes as attribute values. Only use meaningful physical attributes like size, color, capacity, material."
-                        },
-                        {
-                          role: "user",
-                          content: `Parent product title: "${parentTitleForAI}"\n\nChild variation titles:\n${Object.entries(childTitles).map(([id, t]) => `- ID ${id}: "${t}"`).join("\n")}\n\nExtract the variation attribute name and value for each child. The differentiating attribute should be a PHYSICAL characteristic (size, color, capacity, dimensions, etc.), NEVER an EAN code, barcode, reference number, or brand name.`
-                        }
-                      ],
-                      tools: [{
-                        type: "function",
-                        function: {
-                          name: "extract_variation_attributes",
-                          description: "Extract the variation attribute name and per-child values from title differences",
-                          parameters: {
-                            type: "object",
-                            properties: {
-                              attribute_name: { type: "string", description: "Name of the variation attribute in Portuguese (e.g. Cor, Tamanho, Material, Capacidade)" },
-                              confident: { type: "boolean", description: "true if the extraction is clear and unambiguous" },
-                              variations: {
-                                type: "array",
-                                items: {
-                                  type: "object",
-                                  properties: {
-                                    child_id: { type: "string" },
-                                    value: { type: "string", description: "The attribute value for this variation" }
-                                  },
-                                  required: ["child_id", "value"],
-                                  additionalProperties: false
-                                }
-                              }
-                            },
-                            required: ["attribute_name", "confident", "variations"],
-                            additionalProperties: false
-                          }
-                        }
+                      taskType: "variation_attribute_extraction",
+                      workspaceId: workspaceId,
+                      modelOverride: "google/gemini-2.5-flash-lite",
+                      systemPrompt: "You extract variation attributes from product titles. Compare the parent title with each child title to identify the differentiating attribute (e.g. Color, Size, Material, Capacity, Dimensions). Return structured data via the tool. CRITICAL: NEVER use EAN codes, barcodes, numeric references (8+ digit numbers), brand names, or SKU codes as attribute values. Only use meaningful physical attributes like size, color, capacity, material.",
+                      messages: [{
+                        role: "user",
+                        content: `Parent product title: "${parentTitleForAI}"\n\nChild variation titles:\n${Object.entries(childTitles).map(([id, t]) => `- ID ${id}: "${t}"`).join("\n")}\n\nExtract the variation attribute name and value for each child. The differentiating attribute should be a PHYSICAL characteristic (size, color, capacity, dimensions, etc.), NEVER an EAN code, barcode, reference number, or brand name.`
                       }],
-                      tool_choice: { type: "function", function: { name: "extract_variation_attributes" } }
+                      options: {
+                        tools: [{
+                          type: "function",
+                          function: {
+                            name: "extract_variation_attributes",
+                            description: "Extract the variation attribute name and per-child values from title differences",
+                            parameters: {
+                              type: "object",
+                              properties: {
+                                attribute_name: { type: "string", description: "Name of the variation attribute in Portuguese (e.g. Cor, Tamanho, Material, Capacidade)" },
+                                confident: { type: "boolean", description: "true if the extraction is clear and unambiguous" },
+                                variations: {
+                                  type: "array",
+                                  items: {
+                                    type: "object",
+                                    properties: {
+                                      child_id: { type: "string" },
+                                      value: { type: "string", description: "The attribute value for this variation" }
+                                    },
+                                    required: ["child_id", "value"],
+                                    additionalProperties: false
+                                  }
+                                }
+                              },
+                              required: ["attribute_name", "confident", "variations"],
+                              additionalProperties: false
+                            }
+                          }
+                        }],
+                        tool_choice: { type: "function", function: { name: "extract_variation_attributes" } },
+                      },
                     }),
                   });
 
                   if (aiResponse.ok) {
-                    const aiData = await aiResponse.json();
+                    const aiWrapper = await aiResponse.json();
+                    const aiData = aiWrapper.result || aiWrapper;
                     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
                     if (toolCall?.function?.arguments) {
                       const extracted = JSON.parse(toolCall.function.arguments);
