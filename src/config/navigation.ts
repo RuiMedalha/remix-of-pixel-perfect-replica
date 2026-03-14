@@ -33,6 +33,7 @@ import {
   Fingerprint,
   Gauge,
   Building2,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
@@ -128,6 +129,7 @@ export const navGroups: NavGroup[] = [
       { title: "Product Identity", icon: Fingerprint, route: "/product-identity" },
       { title: "AI Governance", icon: Gauge, route: "/ai-governance" },
       { title: "Supplier Intelligence", icon: Building2, route: "/supplier-intelligence" },
+      { title: "Canonical Assembly", icon: Layers, route: "/canonical-assembly" },
     ],
   },
   {
