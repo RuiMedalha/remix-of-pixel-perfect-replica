@@ -116,6 +116,7 @@ function ProtectedRoutes() {
           <Route path="/execution-planner" element={<ExecutionPlannerPage />} />
           <Route path="/cost-intelligence" element={<CostDashboardPage />} />
           <Route path="/control-tower" element={<CatalogOperationsControlTowerPage />} />
+          <Route path="/supplier-playbooks" element={<SupplierPlaybooksPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
