@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 
 export function useCatalogWorkflows() {
