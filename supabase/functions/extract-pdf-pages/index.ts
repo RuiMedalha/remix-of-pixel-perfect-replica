@@ -155,7 +155,7 @@ Return ONLY valid JSON.`,
       chunks.push({ start: group[0], end: group[group.length - 1] });
     }
 
-    console.log(`Dispatching ${chunks.length} chunks for ${totalPages} pages (concurrency=${MAX_CHUNK_CONCURRENCY})`);
+    console.log(`Dispatching ${chunks.length} chunks for ${missingPages.length} missing pages (${alreadyDone.size} already done, concurrency=${MAX_CHUNK_CONCURRENCY})`);
 
     // Process chunks with bounded concurrency to prevent worker pressure
     const results: Array<{ chunk: { start: number; end: number }; ok: boolean; result: any }> = [];
