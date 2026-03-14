@@ -737,27 +737,21 @@ async function extractPdfText(fileData: Blob, fileName: string): Promise<string>
 }
 
 async function extractPdfTextViaUrl(fileName: string, fileSize: number): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: `O utilizador carregou um catálogo técnico demasiado grande. Gera informação útil sobre a marca/categoria baseado no nome do ficheiro.`,
-        },
-        {
-          role: "user",
-          content: `O ficheiro "${fileName}" (${(fileSize / 1024 / 1024).toFixed(1)}MB) é demasiado grande. Gera contexto útil.`,
-        },
-      ],
+      taskType: "pdf_text_extraction",
+      workspaceId: "system",
+      modelOverride: "google/gemini-2.5-flash",
+      systemPrompt: `O utilizador carregou um catálogo técnico demasiado grande. Gera informação útil sobre a marca/categoria baseado no nome do ficheiro.`,
+      messages: [{
+        role: "user",
+        content: `O ficheiro "${fileName}" (${(fileSize / 1024 / 1024).toFixed(1)}MB) é demasiado grande. Gera contexto útil.`,
+      }],
     }),
   });
 
@@ -766,7 +760,8 @@ async function extractPdfTextViaUrl(fileName: string, fileSize: number): Promise
     return `Catálogo: ${fileName} - ficheiro demasiado grande para extração automática.`;
   }
 
-  const aiData = await aiResponse.json();
+  const aiWrapper = await aiResponse.json();
+  const aiData = aiWrapper.result || aiWrapper;
   const content = aiData.choices?.[0]?.message?.content || "";
   return `[Contexto gerado para catálogo grande: ${fileName}]\n\n${content}`.substring(0, 50000);
 }
