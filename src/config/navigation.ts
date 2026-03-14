@@ -37,7 +37,7 @@ import {
   Scale,
   Send,
   Route,
-  Tower,
+  TowerControl,
   type LucideIcon,
 } from "lucide-react";
 
