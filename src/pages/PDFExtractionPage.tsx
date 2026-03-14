@@ -74,15 +74,13 @@ const tableTypeLabels: Record<string, string> = {
   spare_parts: "Peças",
 };
 
-// Wizard steps
-type WizardStep = "upload" | "analysis" | "engine" | "mapping" | "preview" | "ingestion";
+// Wizard steps — simplified flow
+type WizardStep = "upload" | "extracting" | "review" | "ingestion";
 
 const WIZARD_STEPS: { key: WizardStep; label: string; icon: React.ElementType }[] = [
   { key: "upload", label: "Upload", icon: Upload },
-  { key: "analysis", label: "Análise", icon: Scan },
-  { key: "engine", label: "Motor AI", icon: Brain },
-  { key: "mapping", label: "Mapeamento", icon: MapPin },
-  { key: "preview", label: "Preview", icon: Package },
+  { key: "extracting", label: "Extração AI", icon: Brain },
+  { key: "review", label: "Revisão", icon: Package },
   { key: "ingestion", label: "Ingestão", icon: Database },
 ];
 
