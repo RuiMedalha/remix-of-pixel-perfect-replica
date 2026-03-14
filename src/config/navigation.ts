@@ -135,6 +135,7 @@ export const navGroups: NavGroup[] = [
       { title: "Canonical Assembly", icon: Layers, route: "/canonical-assembly" },
       { title: "Conflict Center", icon: Scale, route: "/conflict-center" },
       { title: "Channel Payloads", icon: Send, route: "/channel-payloads" },
+      { title: "Execution Planner", icon: Route, route: "/execution-planner" },
     ],
   },
   {

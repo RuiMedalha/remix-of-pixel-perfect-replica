@@ -239,3 +239,21 @@ verify_jwt = false
 
 [functions.resolve-step-dependencies]
 verify_jwt = false
+
+[functions.create-execution-plan]
+verify_jwt = false
+
+[functions.route-ai-executor]
+verify_jwt = false
+
+[functions.run-execution-step]
+verify_jwt = false
+
+[functions.handle-execution-fallback]
+verify_jwt = false
+
+[functions.evaluate-execution-plan]
+verify_jwt = false
+
+[functions.update-model-capability-matrix]
+verify_jwt = false
