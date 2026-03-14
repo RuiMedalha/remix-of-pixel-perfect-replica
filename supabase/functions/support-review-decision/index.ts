@@ -106,11 +106,11 @@ ${review_item.notes || "None"}`;
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      throw new Error(`AI Gateway error: ${aiResponse.status} - ${errText}`);
+      throw new Error(`AI Route error: ${aiResponse.status} - ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const content = (aiData.choices?.[0]?.message?.content || "")
+    const routeData = await aiResponse.json();
+    const content = (routeData.result?.choices?.[0]?.message?.content || "")
       .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
     let result;
