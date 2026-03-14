@@ -30,7 +30,7 @@ export function useProductIdentity() {
   const variationPolicies = useQuery({
     queryKey: ["variation-policies", wsId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("variation_policies").select("*").eq("workspace_id", wsId!).order("created_at");
+      const { data, error } = await (supabase.from("variation_policies") as any).select("*").eq("workspace_id", wsId!).order("created_at");
       if (error) throw error;
       return data;
     },
