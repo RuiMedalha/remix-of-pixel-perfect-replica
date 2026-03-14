@@ -262,17 +262,11 @@ async function invokeChunkExtraction(opts: {
 async function processChunk(opts: {
   supabase: any; supabaseUrl: string; serviceKey: string; lovableKey: string;
   extractionId: string; chunkStart: number; chunkEnd: number;
-  storagePath: string; overviewData: any;
+  storagePath: string; overviewData: any; signedUrl?: string;
 }) {
-  const { supabase, lovableKey, extractionId, chunkStart, chunkEnd, storagePath, overviewData } = opts;
+  const { supabase, supabaseUrl, lovableKey, extractionId, chunkStart, chunkEnd, storagePath, overviewData, signedUrl } = opts;
 
-  // Download the PDF in this worker's own memory
-  const { data: fileData, error: dlErr } = await supabase.storage
-    .from("catalogs")
-    .download(storagePath);
-  if (dlErr || !fileData) throw new Error("Chunk download failed: " + dlErr?.message);
-
-  const pdfBase64 = arrayBufferToBase64(await fileData.arrayBuffer());
+  const pdfUrl = signedUrl || await buildSignedPdfUrl(supabase, supabaseUrl, storagePath);
 
   console.log(`Chunk: extracting pages ${chunkStart}-${chunkEnd}`);
 
