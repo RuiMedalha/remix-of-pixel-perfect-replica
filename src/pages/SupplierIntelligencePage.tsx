@@ -101,7 +101,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
             {matchingRules.data?.length ? (
               <Table><TableHeader><TableRow><TableHead>Regra</TableHead><TableHead>Tipo</TableHead><TableHead>Peso</TableHead><TableHead>Ativo</TableHead></TableRow></TableHeader>
                 <TableBody>{matchingRules.data.map((mr: any) => (
-                  <TableRow key={mr.id}><TableCell>{mr.rule_name}</TableCell><TableCell><Badge variant="outline">{mr.match_type}</Badge></TableCell><TableCell>{mr.rule_weight}</TableCell><TableCell>{mr.is_active ? <CheckCircle className="h-4 w-4 text-green-500" /> : <AlertCircle className="h-4 w-4 text-muted-foreground" />}</TableCell></TableRow>
+                  <TableRow key={mr.id}><TableCell>{mr.rule_name}</TableCell><TableCell><Badge variant="outline">{mr.match_type}</Badge></TableCell><TableCell>{mr.rule_weight}</TableCell><TableCell>{mr.is_active ? <CheckCircle className="h-4 w-4 text-primary" /> : <AlertCircle className="h-4 w-4 text-muted-foreground" />}</TableCell></TableRow>
                 ))}</TableBody></Table>
             ) : <p className="text-sm text-muted-foreground">Sem regras de matching.</p>}
           </CardContent></Card>
