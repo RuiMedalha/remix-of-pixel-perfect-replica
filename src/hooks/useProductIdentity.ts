@@ -11,7 +11,7 @@ export function useProductIdentity() {
   const identityRules = useQuery({
     queryKey: ["product-identity-rules", wsId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("product_identity_rules").select("*").eq("workspace_id", wsId!).order("created_at");
+      const { data, error } = await (supabase.from("product_identity_rules") as any).select("*").eq("workspace_id", wsId!).order("created_at");
       if (error) throw error;
       return data;
     },
