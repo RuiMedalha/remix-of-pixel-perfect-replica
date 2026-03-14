@@ -35,19 +35,55 @@ import { SendToIngestionPanel } from "@/components/document-intelligence/SendToI
 
 // Flatten nested product structures like [{products: [...], section_title: "..."}] into flat product arrays
 function flattenProducts(items: any[]): any[] {
-  if (!Array.isArray(items)) return [];
   const flat: any[] = [];
-  for (const item of items) {
-    if (item && Array.isArray(item.products)) {
-      // This is a section object — flatten its products and carry section_title as category
-      for (const p of item.products) {
-        flat.push({ ...p, category: p.category || item.section_title });
-      }
-    } else if (item && typeof item === "object" && !Array.isArray(item)) {
-      flat.push(item);
+
+  const walk = (candidate: any, parentSection?: string) => {
+    if (candidate == null) return;
+
+    if (Array.isArray(candidate)) {
+      candidate.forEach((entry) => walk(entry, parentSection));
+      return;
+    }
+
+    if (typeof candidate !== "object") return;
+
+    // Section wrapper shape: { section_title, products }
+    if (Array.isArray(candidate.products)) {
+      const section = typeof candidate.section_title === "string" ? candidate.section_title : parentSection;
+      candidate.products.forEach((entry: any) => walk(entry, section));
+      return;
+    }
+
+    flat.push({ ...candidate, category: candidate.category || parentSection });
+  };
+
+  walk(items);
+  return flat;
+}
+
+function toDisplayText(value: unknown, fallback = "—"): string {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+
+  if (Array.isArray(value)) {
+    const joined = value
+      .map((entry) => toDisplayText(entry, ""))
+      .filter(Boolean)
+      .join(", ");
+    return joined || fallback;
+  }
+
+  if (typeof value === "object") {
+    const sectionTitle = (value as any)?.section_title;
+    if (typeof sectionTitle === "string" || typeof sectionTitle === "number") return String(sectionTitle);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return fallback;
     }
   }
-  return flat;
+
+  return fallback;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -765,14 +801,14 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                               </CardTitle>
                               <div className="flex items-center gap-2">
                                 {pageCtx?.page_type && (
-                                  <Badge variant="outline" className="text-xs">{pageCtx.page_type}</Badge>
+                                  <Badge variant="outline" className="text-xs">{toDisplayText(pageCtx.page_type, "N/A")}</Badge>
                                 )}
                                 {pageCtx?.section_title && (
-                                  <Badge variant="secondary" className="text-xs">{pageCtx.section_title}</Badge>
+                                  <Badge variant="secondary" className="text-xs">{toDisplayText(pageCtx.section_title, "Secção")}</Badge>
                                 )}
                                 {pageCtx?.language && (
                                   <Badge variant="outline" className="text-xs flex items-center gap-1">
-                                    <Languages className="h-3 w-3" /> {typeof pageCtx.language === "string" ? pageCtx.language : pageCtx.language?.language}
+                                    <Languages className="h-3 w-3" /> {toDisplayText(typeof pageCtx.language === "string" ? pageCtx.language : pageCtx.language?.language, "—")}
                                   </Badge>
                                 )}
                                 <Badge variant="outline">Confiança: {page.confidence_score}%</Badge>
@@ -805,15 +841,15 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                   <TableBody>
                                     {products.slice(0, 10).map((prod: any, pi: number) => (
                                       <TableRow key={pi}>
-                                        <TableCell className="text-xs font-mono">{prod.sku || "—"}</TableCell>
+                                        <TableCell className="text-xs font-mono">{toDisplayText(prod.sku)}</TableCell>
                                         <TableCell className="text-xs">
-                                          <div className="font-medium">{prod.title || "—"}</div>
-                                          {prod.description && (
-                                            <div className="text-muted-foreground text-[10px] mt-0.5 truncate max-w-xs">{prod.description}</div>
+                                          <div className="font-medium">{toDisplayText(prod.title)}</div>
+                                          {toDisplayText(prod.description, "") && (
+                                            <div className="text-muted-foreground text-[10px] mt-0.5 truncate max-w-xs">{toDisplayText(prod.description, "")}</div>
                                           )}
                                         </TableCell>
                                         <TableCell className="text-xs">{prod.price ? `${prod.currency || "€"}${prod.price}` : "—"}</TableCell>
-                                        <TableCell className="text-xs">{prod.category || pageCtx?.section_title || "—"}</TableCell>
+                                        <TableCell className="text-xs">{toDisplayText(prod.category ?? pageCtx?.section_title)}</TableCell>
                                         <TableCell>
                                           <div className="flex items-center gap-1">
                                             {(prod.confidence || 0) >= 80 && <CheckCircle className="h-3 w-3 text-primary" />}
@@ -1021,10 +1057,10 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                         <CardHeader><CardTitle className="text-sm">Secções Detetadas</CardTitle></CardHeader>
                         <CardContent>
                           <div className="space-y-1">
-                            {(sections || []).map((s: any) => (
-                              <div key={s.id} className="flex items-center justify-between text-xs border-b border-border py-1">
-                                <span className="font-medium">{s.section_title}</span>
-                                <Badge variant="outline" className="text-xs">Confiança: {s.confidence}%</Badge>
+                            {(sections || []).map((s: any, index: number) => (
+                              <div key={s.id || index} className="flex items-center justify-between text-xs border-b border-border py-1">
+                                <span className="font-medium">{toDisplayText(s.section_title)}</span>
+                                <Badge variant="outline" className="text-xs">Confiança: {toDisplayText(s.confidence, "0")}%</Badge>
                               </div>
                             ))}
                           </div>
