@@ -495,19 +495,26 @@ Return ONLY valid JSON.`,
     }).select("id").single();
 
     if (pageRecord && products.length > 0) {
-      const headers = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_description"];
-      const colTypes = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_url"];
+      const headers = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_description", "image_alt_text", "image_type", "image_count"];
+      const colTypes = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_url", "alt_text", "image_type", "count"];
 
-      const tableRows = products.map((prod: any, ri: number) => ({
-        row_index: ri,
-        cells: headers.map((h, ci) => {
-          let value = "";
-          if (h === "price") value = prod.price ? `${prod.currency || "€"}${prod.price}` : "";
-          else if (h === "image_description") value = prod.image_description || "";
-          else value = (prod[h] ?? "").toString();
-          return { value, confidence: prod.confidence || 70, source: "ai_vision", header: h, semantic_type: colTypes[ci], validation_passed: !!value };
-        }),
-      }));
+      const tableRows = products.map((prod: any, ri: number) => {
+        const images = prod.images || [];
+        const primaryImage = images[0] || {};
+        return {
+          row_index: ri,
+          cells: headers.map((h, ci) => {
+            let value = "";
+            if (h === "price") value = prod.price ? `${prod.currency || "€"}${prod.price}` : "";
+            else if (h === "image_description") value = primaryImage.image_description || prod.image_description || "";
+            else if (h === "image_alt_text") value = primaryImage.alt_text || prod.image_description?.substring(0, 125) || "";
+            else if (h === "image_type") value = primaryImage.image_type || "";
+            else if (h === "image_count") value = images.length.toString();
+            else value = (prod[h] ?? "").toString();
+            return { value, confidence: prod.confidence || 70, source: "ai_vision", header: h, semantic_type: colTypes[ci], validation_passed: !!value };
+          }),
+        };
+      });
 
       const columnClassifications = headers.map((h, i) => ({
         index: i, header: h, semantic_type: colTypes[i], confidence: 85, source: "ai_vision",
