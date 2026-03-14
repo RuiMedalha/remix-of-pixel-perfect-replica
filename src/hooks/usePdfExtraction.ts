@@ -107,6 +107,48 @@ export function useVisionParsePage() {
   });
 }
 
+export function useDeletePdfExtraction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (extractionId: string) => {
+      // Delete child records first (cascade may handle some, but be explicit)
+      const { data: pages } = await supabase
+        .from("pdf_pages")
+        .select("id")
+        .eq("extraction_id", extractionId);
+
+      if (pages?.length) {
+        const pageIds = pages.map((p) => p.id);
+        // Get table IDs for these pages
+        const { data: tables } = await supabase
+          .from("pdf_tables")
+          .select("id")
+          .in("page_id", pageIds);
+
+        if (tables?.length) {
+          const tableIds = tables.map((t) => t.id);
+          await supabase.from("pdf_table_rows").delete().in("table_id", tableIds);
+          await supabase.from("pdf_tables").delete().in("page_id", pageIds);
+        }
+        await supabase.from("pdf_pages").delete().eq("extraction_id", extractionId);
+      }
+
+      // Delete metrics
+      await supabase.from("pdf_extraction_metrics" as any).delete().eq("extraction_id", extractionId);
+
+      // Delete extraction
+      const { error } = await supabase.from("pdf_extractions").delete().eq("id", extractionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Extração eliminada");
+      queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
+    },
+    onError: (e: Error) => toast.error("Erro ao eliminar: " + e.message),
+  });
+}
+
 export function useMapPdfToProducts() {
   const queryClient = useQueryClient();
   const { activeWorkspace } = useWorkspaceContext();
