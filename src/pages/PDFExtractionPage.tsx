@@ -35,19 +35,55 @@ import { SendToIngestionPanel } from "@/components/document-intelligence/SendToI
 
 // Flatten nested product structures like [{products: [...], section_title: "..."}] into flat product arrays
 function flattenProducts(items: any[]): any[] {
-  if (!Array.isArray(items)) return [];
   const flat: any[] = [];
-  for (const item of items) {
-    if (item && Array.isArray(item.products)) {
-      // This is a section object — flatten its products and carry section_title as category
-      for (const p of item.products) {
-        flat.push({ ...p, category: p.category || item.section_title });
-      }
-    } else if (item && typeof item === "object" && !Array.isArray(item)) {
-      flat.push(item);
+
+  const walk = (candidate: any, parentSection?: string) => {
+    if (candidate == null) return;
+
+    if (Array.isArray(candidate)) {
+      candidate.forEach((entry) => walk(entry, parentSection));
+      return;
+    }
+
+    if (typeof candidate !== "object") return;
+
+    // Section wrapper shape: { section_title, products }
+    if (Array.isArray(candidate.products)) {
+      const section = typeof candidate.section_title === "string" ? candidate.section_title : parentSection;
+      candidate.products.forEach((entry: any) => walk(entry, section));
+      return;
+    }
+
+    flat.push({ ...candidate, category: candidate.category || parentSection });
+  };
+
+  walk(items);
+  return flat;
+}
+
+function toDisplayText(value: unknown, fallback = "—"): string {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+
+  if (Array.isArray(value)) {
+    const joined = value
+      .map((entry) => toDisplayText(entry, ""))
+      .filter(Boolean)
+      .join(", ");
+    return joined || fallback;
+  }
+
+  if (typeof value === "object") {
+    const sectionTitle = (value as any)?.section_title;
+    if (typeof sectionTitle === "string" || typeof sectionTitle === "number") return String(sectionTitle);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return fallback;
     }
   }
-  return flat;
+
+  return fallback;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
