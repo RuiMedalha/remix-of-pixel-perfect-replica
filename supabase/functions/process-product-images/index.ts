@@ -202,15 +202,17 @@ Deno.serve(async (req) => {
               const padPrompt = `Take this product image and place it centered on a pure white square background. Maintain the original proportions without any cropping or distortion. Add equal white padding on all sides so the final image is perfectly square. The product should occupy about 80% of the frame. Clean, professional e-commerce style. Do not add any text, watermarks or extra elements.`;
 
               const aiResp = await fetch(
-                "https://ai.gateway.lovable.dev/v1/chat/completions",
+                `${supabaseUrl}/functions/v1/resolve-ai-route`,
                 {
                   method: "POST",
                   headers: {
-                    Authorization: `Bearer ${lovableKey}`,
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${serviceKey}`,
                   },
                   body: JSON.stringify({
-                    model: "google/gemini-3.1-flash-image-preview",
+                    taskType: "image_optimization",
+                    workspaceId,
+                    modelOverride: "google/gemini-3.1-flash-image-preview",
                     messages: [
                       {
                         role: "user",
@@ -223,7 +225,9 @@ Deno.serve(async (req) => {
                         ],
                       },
                     ],
-                    modalities: ["image", "text"],
+                    options: {
+                      modalities: ["image", "text"],
+                    },
                   }),
                 }
               );
