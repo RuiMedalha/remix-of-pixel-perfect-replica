@@ -170,125 +170,6 @@ export default function PDFExtractionPage() {
     setWizardStep("review");
   }
 
-  // Step 2: Analysis done, move to engine recommendation
-  const handleAnalysisComplete = () => {
-    if (wizardExtraction?.engine_recommendation) {
-      setSelectedEngine(wizardExtraction.engine_recommendation.recommended || "lovable_gateway");
-    }
-    setWizardStep("engine");
-  };
-
-  // Step 3: Run extraction with selected engine
-  const handleRunExtraction = async () => {
-    if (!wizardExtractionId) return;
-    try {
-      await runDocIntel.mutateAsync({
-        extractionId: wizardExtractionId,
-        mode: selectedEngine === "lovable_gateway" ? "auto" : "manual",
-        manualProvider: selectedEngine,
-      });
-      // Build mapping columns from extraction results
-      buildMappingFromExtraction();
-      setWizardStep("mapping");
-    } catch {}
-  };
-
-  // Build column mappings from extracted products (vision_result.products)
-  const buildMappingFromExtraction = async () => {
-    if (!wizardExtractionId) return;
-    const { data: pages } = await supabase
-      .from("pdf_pages")
-      .select("vision_result")
-      .eq("extraction_id", wizardExtractionId);
-
-    const allHeaders = new Set<string>();
-    const sampleData: Record<string, string[]> = {};
-
-    // Extract from vision_result.products (AI vision output)
-    (pages || []).forEach((p: any) => {
-      const products = (p.vision_result as any)?.products || [];
-      products.forEach((prod: any) => {
-        Object.keys(prod).forEach((key) => {
-          if (key === "confidence" || key === "images") return;
-          allHeaders.add(key);
-          if (!sampleData[key]) sampleData[key] = [];
-          if (prod[key] != null && sampleData[key].length < 3) {
-            const val = typeof prod[key] === "object" ? JSON.stringify(prod[key]) : String(prod[key]);
-            sampleData[key].push(val);
-          }
-        });
-      });
-
-      // Also check tables structure if present
-      const tables = (p.vision_result as any)?.tables || [];
-      tables.forEach((t: any) => {
-        (t.headers || []).forEach((h: string) => {
-          allHeaders.add(h);
-          if (!sampleData[h]) sampleData[h] = [];
-          (t.rows || []).slice(0, 3).forEach((r: any) => {
-            const idx = (t.headers || []).indexOf(h);
-            if (idx >= 0 && r[idx]) sampleData[h].push(String(r[idx]));
-          });
-        });
-      });
-    });
-
-    const autoMap: Record<string, string> = {
-      sku: "sku", title: "product_name", description: "description",
-      price: "price", category: "category", dimensions: "dimension",
-      weight: "weight", material: "material", color_options: "attribute",
-      technical_specs: "technical_specs", image_description: "image",
-    };
-
-    const mappings = Array.from(allHeaders).map((h) => {
-      const lower = h.toLowerCase();
-      let mapped = autoMap[h] || "attribute";
-      if (!autoMap[h]) {
-        if (lower.includes("sku") || lower === "ref") mapped = "sku";
-        else if (lower.includes("nome") || lower.includes("title") || lower.includes("designação")) mapped = "product_name";
-        else if (lower.includes("preço") || lower.includes("price") || lower === "pvp") mapped = "price";
-        else if (lower.includes("desc")) mapped = "description";
-        else if (lower.includes("potência") || lower.includes("power")) mapped = "power";
-        else if (lower.includes("peso") || lower.includes("weight")) mapped = "weight";
-        else if (lower.includes("dim")) mapped = "dimension";
-        else if (lower.includes("categ")) mapped = "category";
-      }
-      return {
-        header: h,
-        mappedTo: mapped,
-        confidence: mapped !== "attribute" ? 85 : 50,
-        sampleValues: sampleData[h] || [],
-      };
-    });
-
-    setColumnMappings(mappings);
-
-    // Also trigger map-pdf-to-products to populate detected_products
-    if (wizardExtractionId) {
-      mapToProducts.mutate({ extractionId: wizardExtractionId });
-    }
-  };
-
-  const handleMappingChange = (header: string, mappedTo: string) => {
-    setColumnMappings((prev) =>
-      prev.map((c) => c.header === header ? { ...c, mappedTo, confidence: 100 } : c)
-    );
-  };
-
-  const handleSaveMappings = async () => {
-    if (!wizardExtractionId) return;
-    await saveMappingRules.mutateAsync({
-      extractionId: wizardExtractionId,
-      rules: columnMappings.map((c, i) => ({
-        field_label: c.header,
-        mapped_to: c.mappedTo,
-        confidence: c.confidence,
-        column_index: i,
-      })),
-    });
-    setWizardStep("preview");
-  };
-
   const handleSendToIngestion = async (config: { mergeStrategy: string; dupFields: string }) => {
     if (!wizardExtractionId) return;
     await sendToIngestion.mutateAsync({
@@ -296,7 +177,6 @@ export default function PDFExtractionPage() {
       mergeStrategy: config.mergeStrategy,
       dupFields: config.dupFields,
     });
-    setWizardStep("ingestion");
   };
 
   const resetWizard = () => {
