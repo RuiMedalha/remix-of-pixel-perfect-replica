@@ -365,3 +365,6 @@ verify_jwt = false
 
 [functions.validate-product-data]
 verify_jwt = false
+
+[functions.optimize-product-seo]
+verify_jwt = false
