@@ -590,4 +590,125 @@ const IngestionHubPage = () => {
   );
 };
 
+// ─── Job Detail Dialog with pagination ───
+function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; items: any[]; onClose: () => void }) {
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
+  if (!job) return null;
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const visibleItems = items.slice(startIndex, startIndex + pageSize);
+  const st = statusLabels[job.status] || statusLabels.queued;
+
+  const insertCount = items.filter(i => i.action === "insert").length;
+  const updateCount = items.filter(i => i.action === "merge" || i.action === "update").length;
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Database className="h-4 w-4 text-primary" />
+            {job.file_name || `Job ${job.id.slice(0, 8)}`}
+            <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+          {/* Stats */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {[
+              { l: "Total", v: job.total_rows, c: "" },
+              { l: "Novos", v: job.status === "dry_run" ? insertCount : job.imported_rows, c: "text-primary" },
+              { l: "Atualizações", v: job.status === "dry_run" ? updateCount : job.updated_rows, c: "text-primary" },
+              { l: "Ignorados", v: job.skipped_rows, c: "text-muted-foreground" },
+              { l: "Duplicados", v: job.duplicate_rows, c: "text-amber-600" },
+              { l: "Erros", v: job.failed_rows, c: "text-destructive" },
+            ].map(s => (
+              <div key={s.l} className="bg-muted/50 rounded-lg p-2.5 text-center">
+                <p className={`text-xl font-bold ${s.c}`}>{s.v}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.l}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Items table */}
+          {items.length > 0 && (
+            <ScrollArea className="flex-1 min-h-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="text-xs font-semibold w-10">#</TableHead>
+                    <TableHead className="text-xs font-semibold">Status</TableHead>
+                    <TableHead className="text-xs font-semibold">Ação</TableHead>
+                    <TableHead className="text-xs font-semibold">SKU</TableHead>
+                    <TableHead className="text-xs font-semibold">Título</TableHead>
+                    <TableHead className="text-xs font-semibold">Erro</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleItems.map(item => (
+                    <TableRow key={item.id}>
+                      <TableCell className="text-xs font-mono">{item.source_row_index + 1}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn("text-[10px]",
+                          item.status === "processed" ? "border-primary/50 text-primary" :
+                          item.status === "error" ? "border-destructive text-destructive" :
+                          item.status === "mapped" ? "border-primary/30 text-primary" :
+                          item.status === "skipped" ? "border-muted text-muted-foreground" : ""
+                        )}>{item.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={cn("text-[10px]",
+                          item.action === "insert" ? "bg-primary/10 text-primary" :
+                          item.action === "merge" || item.action === "update" ? "bg-accent text-accent-foreground" :
+                          item.action === "skip" ? "bg-muted text-muted-foreground" : ""
+                        )}>
+                          {item.action === "insert" ? "➕ Novo" :
+                           item.action === "merge" || item.action === "update" ? "🔄 Atualizar" :
+                           item.action === "skip" ? "⏭ Ignorar" : item.action || "—"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">{item.mapped_data?.sku || item.source_data?.sku || "—"}</TableCell>
+                      <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
+                      <TableCell className="text-xs text-destructive max-w-[200px] truncate">{item.error_message || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+
+          {/* Pagination */}
+          {items.length > pageSize && (
+            <div className="flex items-center justify-between border-t pt-3">
+              <p className="text-xs text-muted-foreground">
+                {startIndex + 1}–{Math.min(startIndex + pageSize, items.length)} de {items.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(1)} disabled={safePage === 1}>
+                  <ChevronsLeft className="h-3 w-3" />
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1}>
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <span className="text-xs text-muted-foreground px-2 font-medium">{safePage} / {totalPages}</span>
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(totalPages)} disabled={safePage === totalPages}>
+                  <ChevronsRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default IngestionHubPage;
