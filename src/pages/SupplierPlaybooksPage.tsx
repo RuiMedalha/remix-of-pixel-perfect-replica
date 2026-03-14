@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSupplierPlaybooks } from "@/hooks/useSupplierPlaybooks";
+import { usePlaybookEngine } from "@/hooks/usePlaybookEngine";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { BookOpen, Play, CheckCircle, Loader2, Plug, FlaskConical, Rocket } from "lucide-react";
+import { BookOpen, Play, CheckCircle, Loader2, Plug, FlaskConical, Rocket, Zap, FileText, Trash2 } from "lucide-react";
+import { AutoPlaybookDraftPanel } from "@/components/playbook-engine/AutoPlaybookDraftPanel";
+import { PlaybookCorrectionsPanel } from "@/components/playbook-engine/PlaybookCorrectionsPanel";
 
 const PLAYBOOK_TYPES = [
   { value: "manufacturer_catalog", label: "Catálogo Fabricante" },
@@ -23,6 +26,7 @@ const PLAYBOOK_TYPES = [
 
 export default function SupplierPlaybooksPage() {
   const { playbooks, connectorSetups, createPlaybook, testConnector, activatePlaybook } = useSupplierPlaybooks();
+  const { playbookDrafts, overrides, applyCorrections, promoteDraft, deleteDraft } = usePlaybookEngine();
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("excel_only");
 
@@ -57,11 +61,20 @@ export default function SupplierPlaybooksPage() {
     );
   };
 
+  const handleApplyInstruction = (instruction: string) => {
+    applyCorrections.mutate({ instruction }, {
+      onError: (e) => toast.error(e.message),
+    });
+  };
+
+  const drafts = playbookDrafts.data || [];
+  const supplierOverrides = overrides.data || [];
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Supplier Playbooks</h1>
-        <p className="text-muted-foreground">Onboarding guiado e playbooks reutilizáveis para fornecedores</p>
+        <p className="text-muted-foreground">Onboarding guiado, playbooks automáticos e reutilizáveis para fornecedores</p>
       </div>
 
       <Card>
@@ -86,11 +99,37 @@ export default function SupplierPlaybooksPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="playbooks">
+      <Tabs defaultValue="drafts">
         <TabsList>
+          <TabsTrigger value="drafts" className="gap-1"><Zap className="w-3 h-3" /> Auto-Drafts ({drafts.length})</TabsTrigger>
           <TabsTrigger value="playbooks">Playbooks ({playbooks.data?.length || 0})</TabsTrigger>
+          <TabsTrigger value="corrections" className="gap-1"><FileText className="w-3 h-3" /> Correções ({supplierOverrides.length})</TabsTrigger>
           <TabsTrigger value="connectors">Conectores ({connectorSetups.data?.length || 0})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="drafts" className="space-y-3 mt-4">
+          {playbookDrafts.isLoading ? (
+            <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
+          ) : drafts.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                <Zap className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>Nenhum playbook auto-gerado</p>
+                <p className="text-xs mt-1">Carregue um ficheiro no Ingestion Hub para gerar automaticamente</p>
+              </CardContent>
+            </Card>
+          ) : (
+            drafts.map((d: any) => (
+              <AutoPlaybookDraftPanel
+                key={d.id}
+                draft={d}
+                onPromote={(id) => promoteDraft.mutate(id)}
+                onDelete={(id) => deleteDraft.mutate(id)}
+                isPromoting={promoteDraft.isPending}
+              />
+            ))
+          )}
+        </TabsContent>
 
         <TabsContent value="playbooks">
           <Card>
@@ -132,6 +171,15 @@ export default function SupplierPlaybooksPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="corrections" className="mt-4">
+          <PlaybookCorrectionsPanel
+            overrides={supplierOverrides}
+            onApplyInstruction={handleApplyInstruction}
+            onApplyCorrection={(c) => applyCorrections.mutate({ corrections: [c] })}
+            isApplying={applyCorrections.isPending}
+          />
         </TabsContent>
 
         <TabsContent value="connectors">

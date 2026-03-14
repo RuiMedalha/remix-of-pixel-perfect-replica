@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo } from "react";
-import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook } from "lucide-react";
+import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,7 +12,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, type IngestionJob } from "@/hooks/useIngestion";
-import { ColumnMapper } from "@/components/ColumnMapper";
+import { usePlaybookEngine } from "@/hooks/usePlaybookEngine";
+import { SupplierAutoDetectionPanel } from "@/components/playbook-engine/SupplierAutoDetectionPanel";
+import { SmartColumnInferencePreview } from "@/components/playbook-engine/SmartColumnInferencePreview";
+import { ImportPreviewBeforeRun } from "@/components/playbook-engine/ImportPreviewBeforeRun";
+import { PlaybookCorrectionsPanel } from "@/components/playbook-engine/PlaybookCorrectionsPanel";
+import { IngestionJobActionsDropdown } from "@/components/playbook-engine/IngestionJobActionsDropdown";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -50,6 +55,7 @@ const IngestionHubPage = () => {
   const { data: jobs, isLoading } = useIngestionJobs();
   const parseIngestion = useParseIngestion();
   const runJob = useRunIngestionJob();
+  const { autoDetect, inferMapping, generateDraft, applyCorrections, overrides } = usePlaybookEngine();
 
   const [activeTab, setActiveTab] = useState("import");
   const [dragOver, setDragOver] = useState(false);
@@ -62,6 +68,12 @@ const IngestionHubPage = () => {
   const [mergeStrategy, setMergeStrategy] = useState("merge");
   const [dupFields, setDupFields] = useState("sku");
 
+  // Auto-detection state
+  const [currentDetection, setCurrentDetection] = useState<any>(null);
+  const [currentInference, setCurrentInference] = useState<any>(null);
+  const [showReview, setShowReview] = useState(false);
+  const [showCorrections, setShowCorrections] = useState(false);
+
   // Preview state
   const [previewJobId, setPreviewJobId] = useState<string | null>(null);
   const [previewResult, setPreviewResult] = useState<any>(null);
@@ -73,23 +85,83 @@ const IngestionHubPage = () => {
 
   const handleFile = useCallback(async (file: File) => {
     setFileName(file.name);
+    setCurrentDetection(null);
+    setCurrentInference(null);
+    setShowReview(false);
     const ext = file.name.split(".").pop()?.toLowerCase();
+
+    let headers: string[] = [];
+    let rows: any[] = [];
 
     if (ext === "csv") {
       const text = await file.text();
       const lines = text.split("\n").filter(l => l.trim());
       if (lines.length === 0) return;
       const sep = lines[0].includes(";") ? ";" : ",";
-      const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ""));
-      const rows = lines.slice(1).map(line => {
+      headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ""));
+      rows = lines.slice(1).map(line => {
         const vals = line.split(sep).map(v => v.trim().replace(/^"|"$/g, ""));
         const obj: Record<string, string> = {};
         headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
         return obj;
       });
-      setParsedHeaders(headers);
-      setParsedData(rows);
-      // Auto-map
+    } else if (ext === "xlsx" || ext === "xls") {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
+      if (data.length === 0) return;
+      headers = Object.keys(data[0]);
+      rows = data;
+    } else if (ext === "json") {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      rows = Array.isArray(parsed) ? parsed : [parsed];
+      if (rows.length === 0) return;
+      headers = Object.keys(rows[0]);
+    } else {
+      toast.error("Formato não suportado. Use CSV, XLSX ou JSON.");
+      return;
+    }
+
+    setParsedHeaders(headers);
+    setParsedData(rows);
+
+    // 1. Auto-detect supplier
+    try {
+      const detResult = await autoDetect.mutateAsync({
+        file_name: file.name,
+        headers,
+        sample_data: rows.slice(0, 50),
+        source_type: ext || "excel",
+      });
+      setCurrentDetection(detResult.detection);
+
+      // 2. Infer column mapping
+      const infResult = await inferMapping.mutateAsync({
+        supplier_id: detResult.matched_supplier_id || undefined,
+        detection_id: detResult.detection?.id,
+        headers,
+        sample_data: rows.slice(0, 50),
+        file_name: file.name,
+      });
+      setCurrentInference(infResult);
+
+      // Apply inferred mapping
+      if (infResult.mapping) {
+        setFieldMappings(infResult.mapping);
+      }
+
+      // 3. Generate playbook draft
+      await generateDraft.mutateAsync({
+        supplier_id: detResult.matched_supplier_id || undefined,
+        detection_id: detResult.detection?.id,
+        inference_id: infResult.inference?.id,
+      });
+
+      setShowReview(true);
+    } catch (e) {
+      // Fallback to basic auto-mapping if engine fails
       const autoMap: Record<string, string> = {};
       headers.forEach(h => {
         const lower = h.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -101,40 +173,8 @@ const IngestionHubPage = () => {
         else if (lower.includes("image") || lower.includes("imagem") || lower.includes("foto")) autoMap[h] = "image_urls";
       });
       setFieldMappings(autoMap);
-    } else if (ext === "xlsx" || ext === "xls") {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
-      if (data.length === 0) return;
-      const headers = Object.keys(data[0]);
-      setParsedHeaders(headers);
-      setParsedData(data);
-      // Auto-map same as CSV
-      const autoMap: Record<string, string> = {};
-      headers.forEach(h => {
-        const lower = h.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (lower.includes("sku") || lower === "ref") autoMap[h] = "sku";
-        else if (lower.includes("title") || lower.includes("titulo") || lower.includes("nome") || lower === "name") autoMap[h] = "original_title";
-        else if (lower.includes("desc") && !lower.includes("short")) autoMap[h] = "original_description";
-        else if (lower.includes("price") || lower.includes("preco") || lower === "pvp") autoMap[h] = "original_price";
-        else if (lower.includes("categ")) autoMap[h] = "category";
-        else if (lower.includes("image") || lower.includes("foto")) autoMap[h] = "image_urls";
-      });
-      setFieldMappings(autoMap);
-    } else if (ext === "json") {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      const rows = Array.isArray(parsed) ? parsed : [parsed];
-      if (rows.length === 0) return;
-      const headers = Object.keys(rows[0]);
-      setParsedHeaders(headers);
-      setParsedData(rows);
-      setFieldMappings({});
-    } else {
-      toast.error("Formato não suportado. Use CSV, XLSX ou JSON.");
     }
-  }, []);
+  }, [autoDetect, inferMapping, generateDraft]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -177,16 +217,33 @@ const IngestionHubPage = () => {
         duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
         mode: "live",
       });
-      // Run the job
       await runJob.mutateAsync(result.jobId);
       resetForm();
     } catch {}
   };
 
   const handleRunExistingJob = async (jobId: string) => {
-    try {
-      await runJob.mutateAsync(jobId);
-    } catch {}
+    try { await runJob.mutateAsync(jobId); } catch {}
+  };
+
+  const handleJobAction = (action: string, jobId: string) => {
+    switch (action) {
+      case "view":
+        const job = jobs?.find(j => j.id === jobId);
+        if (job) setDetailJob(job);
+        break;
+      case "run":
+        handleRunExistingJob(jobId);
+        break;
+      case "delete":
+        toast.info("Delete ainda não implementado");
+        break;
+      case "clone":
+        toast.info("Clone ainda não implementado");
+        break;
+      default:
+        toast.info(`Ação "${action}" pendente`);
+    }
   };
 
   const resetForm = () => {
@@ -196,6 +253,10 @@ const IngestionHubPage = () => {
     setFieldMappings({});
     setPreviewResult(null);
     setPreviewJobId(null);
+    setCurrentDetection(null);
+    setCurrentInference(null);
+    setShowReview(false);
+    setShowCorrections(false);
   };
 
   const mappedCount = Object.keys(fieldMappings).length;
@@ -204,7 +265,7 @@ const IngestionHubPage = () => {
     <div className="p-3 sm:p-6 lg:p-8 space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Ingestion Hub</h1>
-        <p className="text-muted-foreground mt-1">Importe, mapeie e valide dados de catálogo de múltiplas fontes.</p>
+        <p className="text-muted-foreground mt-1">Importe, mapeie e valide dados de catálogo com deteção inteligente de fornecedores.</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -215,7 +276,6 @@ const IngestionHubPage = () => {
 
         <TabsContent value="import" className="space-y-6 mt-4">
           {!parsedData ? (
-            /* Drop zone */
             <Card
               className={cn("border-2 border-dashed transition-colors cursor-pointer",
                 dragOver ? "border-primary bg-accent" : "border-border hover:border-primary/50"
@@ -227,7 +287,10 @@ const IngestionHubPage = () => {
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <FileSpreadsheet className="w-12 h-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium mb-1">Arraste um ficheiro para importar</p>
-                <p className="text-sm text-muted-foreground mb-4">CSV, XLSX, XLS ou JSON</p>
+                <p className="text-sm text-muted-foreground mb-2">CSV, XLSX, XLS ou JSON</p>
+                <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
+                  <Zap className="w-3 h-3" /> Deteção automática de fornecedor e mapeamento inteligente
+                </p>
                 <Button variant="outline" asChild>
                   <label className="cursor-pointer">
                     Selecionar Ficheiro
@@ -237,7 +300,6 @@ const IngestionHubPage = () => {
               </CardContent>
             </Card>
           ) : (
-            /* Mapping & Preview */
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -247,206 +309,192 @@ const IngestionHubPage = () => {
                 <Button variant="ghost" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Cancelar</Button>
               </div>
 
-              {/* Settings row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs">Estratégia de Merge</Label>
-                  <Select value={mergeStrategy} onValueChange={setMergeStrategy}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="merge">Merge (insert + update)</SelectItem>
-                      <SelectItem value="insert_only">Apenas inserir novos</SelectItem>
-                      <SelectItem value="update_only">Apenas atualizar existentes</SelectItem>
-                      <SelectItem value="replace">Substituir completamente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Campos de detecção de duplicados</Label>
-                  <Input value={dupFields} onChange={e => setDupFields(e.target.value)} placeholder="sku, original_title" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Mapeamento</Label>
-                  <p className="text-sm text-muted-foreground">{mappedCount} de {parsedHeaders.length} colunas mapeadas</p>
-                </div>
-              </div>
+              {/* Auto-detection panel */}
+              <SupplierAutoDetectionPanel
+                detection={currentDetection}
+                isDetecting={autoDetect.isPending}
+              />
 
-              {/* Field mapping */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Mapeamento de Campos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {parsedHeaders.map(header => (
-                      <div key={header} className="flex items-center gap-2">
-                        <span className="text-xs font-mono bg-muted px-2 py-1 rounded truncate min-w-0 flex-shrink" title={header}>
-                          {header}
-                        </span>
-                        <ArrowRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                        <Select
-                          value={fieldMappings[header] || "__skip__"}
-                          onValueChange={v => {
-                            const next = { ...fieldMappings };
-                            if (v === "__skip__") delete next[header];
-                            else next[header] = v;
-                            setFieldMappings(next);
-                          }}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Ignorar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__skip__">— Ignorar —</SelectItem>
-                            {PRODUCT_FIELDS.map(f => (
-                              <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Data preview */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Pré-visualização (primeiras 5 linhas)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="w-full">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs w-10">#</TableHead>
-                          {parsedHeaders.slice(0, 8).map(h => (
-                            <TableHead key={h} className="text-xs">{h}</TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {parsedData.slice(0, 5).map((row, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
-                            {parsedHeaders.slice(0, 8).map(h => (
-                              <TableCell key={h} className="text-xs max-w-[200px] truncate">{String(row[h] ?? "")}</TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-
-              {/* Dry-run result */}
-              {previewResult && (
-                <Card className="border-amber-500/30 bg-amber-500/5">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Eye className="w-4 h-4 text-amber-600" />
-                      Resultado do Preview
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-green-600">{previewResult.inserts}</p>
-                        <p className="text-xs text-muted-foreground">Novos</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-blue-600">{previewResult.updates}</p>
-                        <p className="text-xs text-muted-foreground">Atualizações</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-muted-foreground">{previewResult.skips}</p>
-                        <p className="text-xs text-muted-foreground">Ignorados</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-amber-600">{previewResult.duplicates}</p>
-                        <p className="text-xs text-muted-foreground">Duplicados</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-foreground">{previewResult.totalRows}</p>
-                        <p className="text-xs text-muted-foreground">Total</p>
-                      </div>
+              {/* Smart inference with review toggle */}
+              {showReview ? (
+                <ImportPreviewBeforeRun
+                  detection={currentDetection}
+                  inference={currentInference}
+                  draft={null}
+                  parsedData={parsedData}
+                  fieldMappings={fieldMappings}
+                  onConfirmImport={handleLiveRun}
+                  onCorrectMapping={() => setShowReview(false)}
+                  onSaveDraft={() => { toast.success("Draft guardado"); }}
+                  onReprocess={() => handleFile(new File([], fileName))}
+                  isImporting={parseIngestion.isPending || runJob.isPending}
+                />
+              ) : (
+                <>
+                  {/* Settings row */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Estratégia de Merge</Label>
+                      <Select value={mergeStrategy} onValueChange={setMergeStrategy}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="merge">Merge (insert + update)</SelectItem>
+                          <SelectItem value="insert_only">Apenas inserir novos</SelectItem>
+                          <SelectItem value="update_only">Apenas atualizar existentes</SelectItem>
+                          <SelectItem value="replace">Substituir completamente</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Campos de detecção de duplicados</Label>
+                      <Input value={dupFields} onChange={e => setDupFields(e.target.value)} placeholder="sku, original_title" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Mapeamento</Label>
+                      <p className="text-sm text-muted-foreground">{mappedCount} de {parsedHeaders.length} colunas mapeadas</p>
+                    </div>
+                  </div>
 
-                    {previewResult.groups?.length > 0 && (
-                      <div className="mt-4 border-t border-border pt-3">
-                        <p className="text-xs font-medium mb-2">Grupos de variações detectados:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {previewResult.groups.map((g: any) => (
-                            <Badge key={g.key} variant="outline" className="text-xs">
-                              {g.key} ({g.count} items)
-                            </Badge>
-                          ))}
+                  {/* Smart column inference */}
+                  <SmartColumnInferencePreview
+                    inference={currentInference}
+                    headers={parsedHeaders}
+                    sampleData={parsedData || []}
+                    fieldMappings={fieldMappings}
+                    onMappingChange={setFieldMappings}
+                  />
+
+                  {/* Corrections panel */}
+                  {showCorrections && (
+                    <PlaybookCorrectionsPanel
+                      supplierId={currentDetection?.matched_supplier_id}
+                      overrides={(overrides.data || []).filter((o: any) => o.supplier_id === currentDetection?.matched_supplier_id)}
+                      onApplyInstruction={(instruction) => {
+                        applyCorrections.mutate({
+                          supplier_id: currentDetection?.matched_supplier_id,
+                          instruction,
+                        });
+                      }}
+                      onApplyCorrection={(c) => {
+                        applyCorrections.mutate({
+                          supplier_id: currentDetection?.matched_supplier_id,
+                          corrections: [c],
+                        });
+                      }}
+                      isApplying={applyCorrections.isPending}
+                    />
+                  )}
+
+                  {/* Dry-run result */}
+                  {previewResult && (
+                    <Card className="border-amber-500/30 bg-amber-500/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Eye className="w-4 h-4 text-amber-600" />
+                          Resultado do Preview
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-green-600">{previewResult.inserts}</p>
+                            <p className="text-xs text-muted-foreground">Novos</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-blue-600">{previewResult.updates}</p>
+                            <p className="text-xs text-muted-foreground">Atualizações</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-muted-foreground">{previewResult.skips}</p>
+                            <p className="text-xs text-muted-foreground">Ignorados</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-amber-600">{previewResult.duplicates}</p>
+                            <p className="text-xs text-muted-foreground">Duplicados</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-foreground">{previewResult.totalRows}</p>
+                            <p className="text-xs text-muted-foreground">Total</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
 
-                    {/* Preview items table */}
-                    {previewItems && previewItems.length > 0 && (
-                      <div className="mt-4 border-t border-border pt-3">
-                        <p className="text-xs font-medium mb-2">Detalhes por linha:</p>
-                        <ScrollArea className="max-h-64">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="text-xs">#</TableHead>
-                                <TableHead className="text-xs">Ação</TableHead>
-                                <TableHead className="text-xs">SKU</TableHead>
-                                <TableHead className="text-xs">Título</TableHead>
-                                <TableHead className="text-xs">Match</TableHead>
-                                <TableHead className="text-xs">Grupo</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {previewItems.slice(0, 20).map((item) => (
-                                <TableRow key={item.id}>
-                                  <TableCell className="text-xs">{item.source_row_index + 1}</TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className={cn("text-[10px]",
-                                      item.action === "insert" ? "border-green-500 text-green-600" :
-                                      item.action === "update" || item.action === "merge" ? "border-blue-500 text-blue-600" :
-                                      "border-muted text-muted-foreground"
-                                    )}>
-                                      {item.action}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="text-xs font-mono">{item.mapped_data?.sku || "—"}</TableCell>
-                                  <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
-                                  <TableCell className="text-xs">{item.match_confidence ? `${item.match_confidence}%` : "—"}</TableCell>
-                                  <TableCell className="text-xs">
-                                    {item.parent_group_key ? (
-                                      <Badge variant="secondary" className="text-[10px]">
-                                        {item.is_parent ? "Parent" : "Child"}: {item.parent_group_key}
-                                      </Badge>
-                                    ) : "—"}
-                                  </TableCell>
-                                </TableRow>
+                        {previewResult.groups?.length > 0 && (
+                          <div className="mt-4 border-t border-border pt-3">
+                            <p className="text-xs font-medium mb-2">Grupos de variações detectados:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {previewResult.groups.map((g: any) => (
+                                <Badge key={g.key} variant="outline" className="text-xs">{g.key} ({g.count} items)</Badge>
                               ))}
-                            </TableBody>
-                          </Table>
-                        </ScrollArea>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+                            </div>
+                          </div>
+                        )}
 
-              {/* Actions */}
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={handleDryRun} disabled={parseIngestion.isPending || mappedCount === 0}>
-                  {parseIngestion.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Eye className="w-4 h-4 mr-1" />}
-                  Preview (Dry Run)
-                </Button>
-                <Button onClick={handleLiveRun} disabled={parseIngestion.isPending || runJob.isPending || mappedCount === 0}>
-                  {(parseIngestion.isPending || runJob.isPending) ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
-                  Importar Agora
-                </Button>
-              </div>
+                        {previewItems && previewItems.length > 0 && (
+                          <div className="mt-4 border-t border-border pt-3">
+                            <p className="text-xs font-medium mb-2">Detalhes por linha:</p>
+                            <ScrollArea className="max-h-64">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-xs">#</TableHead>
+                                    <TableHead className="text-xs">Ação</TableHead>
+                                    <TableHead className="text-xs">SKU</TableHead>
+                                    <TableHead className="text-xs">Título</TableHead>
+                                    <TableHead className="text-xs">Match</TableHead>
+                                    <TableHead className="text-xs">Grupo</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {previewItems.slice(0, 20).map((item) => (
+                                    <TableRow key={item.id}>
+                                      <TableCell className="text-xs">{item.source_row_index + 1}</TableCell>
+                                      <TableCell>
+                                        <Badge variant="outline" className={cn("text-[10px]",
+                                          item.action === "insert" ? "border-green-500 text-green-600" :
+                                          item.action === "update" || item.action === "merge" ? "border-blue-500 text-blue-600" :
+                                          "border-muted text-muted-foreground"
+                                        )}>{item.action}</Badge>
+                                      </TableCell>
+                                      <TableCell className="text-xs font-mono">{item.mapped_data?.sku || "—"}</TableCell>
+                                      <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
+                                      <TableCell className="text-xs">{item.match_confidence ? `${item.match_confidence}%` : "—"}</TableCell>
+                                      <TableCell className="text-xs">
+                                        {item.parent_group_key ? (
+                                          <Badge variant="secondary" className="text-[10px]">
+                                            {item.is_parent ? "Parent" : "Child"}: {item.parent_group_key}
+                                          </Badge>
+                                        ) : "—"}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </ScrollArea>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3 flex-wrap">
+                    <Button variant="outline" onClick={() => setShowReview(true)} disabled={mappedCount === 0}>
+                      <Eye className="w-4 h-4 mr-1" /> Rever Antes de Importar
+                    </Button>
+                    <Button variant="outline" onClick={handleDryRun} disabled={parseIngestion.isPending || mappedCount === 0}>
+                      {parseIngestion.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Eye className="w-4 h-4 mr-1" />}
+                      Preview (Dry Run)
+                    </Button>
+                    <Button onClick={handleLiveRun} disabled={parseIngestion.isPending || runJob.isPending || mappedCount === 0}>
+                      {(parseIngestion.isPending || runJob.isPending) ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
+                      Importar Agora
+                    </Button>
+                    <Button variant="ghost" onClick={() => setShowCorrections(!showCorrections)}>
+                      Correções
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </TabsContent>
@@ -469,9 +517,9 @@ const IngestionHubPage = () => {
               {jobs.map(job => {
                 const st = statusLabels[job.status] || statusLabels.queued;
                 return (
-                  <Card key={job.id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setDetailJob(job)}>
+                  <Card key={job.id} className="hover:border-primary/30 transition-colors">
                     <CardContent className="flex items-center gap-4 py-3">
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailJob(job)}>
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium truncate">{job.file_name || `Job ${job.id.slice(0, 8)}`}</p>
                           <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
@@ -482,11 +530,14 @@ const IngestionHubPage = () => {
                           {job.created_at && ` · ${format(new Date(job.created_at), "dd/MM HH:mm")}`}
                         </p>
                       </div>
-                      {job.status === "dry_run" && (
-                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleRunExistingJob(job.id); }}>
-                          <Play className="w-3 h-3 mr-1" /> Executar
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {job.status === "dry_run" && (
+                          <Button size="sm" variant="outline" onClick={() => handleRunExistingJob(job.id)}>
+                            <Play className="w-3 h-3 mr-1" /> Executar
+                          </Button>
+                        )}
+                        <IngestionJobActionsDropdown job={job} onAction={handleJobAction} />
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -548,11 +599,8 @@ const IngestionHubPage = () => {
                             <Badge variant="outline" className={cn("text-[10px]",
                               item.status === "processed" ? "border-green-500 text-green-600" :
                               item.status === "error" ? "border-destructive text-destructive" :
-                              item.status === "skipped" ? "border-muted text-muted-foreground" :
-                              ""
-                            )}>
-                              {item.status}
-                            </Badge>
+                              item.status === "skipped" ? "border-muted text-muted-foreground" : ""
+                            )}>{item.status}</Badge>
                           </TableCell>
                           <TableCell className="text-xs">{item.action || "—"}</TableCell>
                           <TableCell className="text-xs font-mono">{item.mapped_data?.sku || item.source_data?.sku || "—"}</TableCell>
