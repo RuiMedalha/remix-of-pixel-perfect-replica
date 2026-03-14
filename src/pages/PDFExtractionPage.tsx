@@ -490,8 +490,8 @@ export default function PDFExtractionPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Document Intelligence</h1>
-          <p className="text-muted-foreground">Extração enterprise de dados de catálogos PDF com preview, validação e integração com Ingestion Hub</p>
+          <h1 className="text-2xl font-bold text-foreground">Extração de Catálogos PDF</h1>
+          <p className="text-muted-foreground">Extraia automaticamente produtos de catálogos PDF com inteligência artificial avançada</p>
         </div>
       </div>
 
