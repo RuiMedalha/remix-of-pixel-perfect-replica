@@ -36,6 +36,7 @@ import {
   Layers,
   Scale,
   Send,
+  Route,
   type LucideIcon,
 } from "lucide-react";
 
