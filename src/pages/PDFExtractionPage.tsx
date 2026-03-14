@@ -512,6 +512,15 @@ export default function PDFExtractionPage() {
                           </div>
                         )}
 
+                        {canProceedToReview && (
+                          <div className="flex justify-center mt-1">
+                            <Button size="sm" variant="secondary" onClick={() => setWizardStep("review")}>
+                              <ArrowRight className="h-3 w-3 mr-1" />
+                              Continuar para revisão
+                            </Button>
+                          </div>
+                        )}
+
                         <p className="text-[10px] text-muted-foreground text-center mt-2">
                           Podes sair desta página — a extração continua em segundo plano.
                         </p>
