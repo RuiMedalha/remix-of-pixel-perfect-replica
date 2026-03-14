@@ -14,6 +14,7 @@ export function useSupplierPlaybooks() {
         .from("supplier_playbooks")
         .select("*")
         .eq("workspace_id", wsId!)
+        .is("archived_at" as any, null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
