@@ -219,7 +219,23 @@ Return ONLY valid JSON.`,
 
   } catch (e) {
     console.error("extract-pdf-pages error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+
+    try {
+      const body = await req.clone().json();
+      if (body?.extractionId && !body?.chunkMode) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, serviceKey);
+        await supabase
+          .from("pdf_extractions")
+          .update({ status: "error" })
+          .eq("id", body.extractionId);
+      }
+    } catch {
+      // ignore update failures in error path
+    }
+
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
