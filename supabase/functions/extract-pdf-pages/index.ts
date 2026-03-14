@@ -227,6 +227,7 @@ async function invokeChunkExtraction(opts: {
   chunk: { start: number; end: number };
   storagePath: string;
   overviewData: any;
+  signedUrl?: string;
 }) {
   const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData } = opts;
 
