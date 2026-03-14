@@ -229,7 +229,7 @@ async function invokeChunkExtraction(opts: {
   overviewData: any;
   signedUrl?: string;
 }) {
-  const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData } = opts;
+  const { supabaseUrl, serviceKey, extractionId, chunk, storagePath, overviewData, signedUrl } = opts;
 
   try {
     const response = await fetch(`${supabaseUrl}/functions/v1/extract-pdf-pages`, {
