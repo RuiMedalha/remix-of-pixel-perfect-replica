@@ -383,3 +383,12 @@ verify_jwt = false
 
 [functions.collect-demand-data]
 verify_jwt = false
+
+[functions.run-intelligence-pipeline]
+verify_jwt = false
+
+[functions.send-intelligence-alert]
+verify_jwt = false
+
+[functions.scheduled-intelligence-run]
+verify_jwt = false

@@ -1,4 +1,5 @@
 import { Package, CheckCircle, Clock, Activity, Loader2, Brain, BookOpen, Globe, Database, Search, Layers, BarChart3, TrendingUp, AlertTriangle, Tag, Cpu, ImageIcon } from "lucide-react";
+import { IntelligenceDashboardPanel } from "@/components/IntelligenceDashboardPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,9 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Intelligence Dashboard */}
+      <IntelligenceDashboardPanel />
 
       {/* Credits Card */}
       <Card>
