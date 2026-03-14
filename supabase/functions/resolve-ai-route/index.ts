@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
 
     // 2. Resolve provider + prompt (from route or defaults)
     let provider = route?.provider;
-    let model = route?.model_override || route?.recommended_model || provider?.default_model;
+    let model = modelOverride || route?.model_override || route?.recommended_model || provider?.default_model;
 
     let prompt = systemPrompt || "";
     if (route?.prompt_template_id) {
