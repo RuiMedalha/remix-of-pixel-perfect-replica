@@ -93,6 +93,9 @@ Deno.serve(async (req) => {
             messages: finalMessages,
             ...(options?.tools ? { tools: options.tools, tool_choice: options.tool_choice } : {}),
             ...(options?.max_tokens ? { max_tokens: options.max_tokens } : {}),
+            ...(options?.modalities ? { modalities: options.modalities } : {}),
+            ...(options?.temperature != null ? { temperature: options.temperature } : {}),
+            ...(options?.response_format ? { response_format: options.response_format } : {}),
           }),
         });
         if (!resp.ok) {
