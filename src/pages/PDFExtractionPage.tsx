@@ -223,6 +223,8 @@ export default function PDFExtractionPage() {
     return realProgress.productCount;
   })();
 
+  const extractionStatus = wizardExtraction?.status;
+
   // Detect stalled extraction and auto-resume
   const [autoResumeAttempts, setAutoResumeAttempts] = useState(0);
   const [lastResumeTime, setLastResumeTime] = useState(0);
