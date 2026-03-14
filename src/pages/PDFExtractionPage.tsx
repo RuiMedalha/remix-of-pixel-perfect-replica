@@ -226,18 +226,35 @@ export default function PDFExtractionPage() {
   // Detect stalled extraction and auto-resume
   const [autoResumeAttempts, setAutoResumeAttempts] = useState(0);
   const [lastResumeTime, setLastResumeTime] = useState(0);
+  const [lastProgressAt, setLastProgressAt] = useState(Date.now());
+  const [lastExtractedCount, setLastExtractedCount] = useState(0);
   const MAX_AUTO_RESUMES = 5;
+
+  const extractionCompletedByProgress =
+    realProgress.totalPages > 0 && realProgress.extractedPages >= realProgress.totalPages;
+  const canProceedToReview = wizardProductCount > 0 || realProgress.extractedPages > 0;
+
+  useEffect(() => {
+    setLastProgressAt(Date.now());
+    setLastExtractedCount(0);
+  }, [wizardExtractionId]);
+
+  useEffect(() => {
+    if (realProgress.extractedPages > lastExtractedCount) {
+      setLastExtractedCount(realProgress.extractedPages);
+      setLastProgressAt(Date.now());
+    }
+  }, [realProgress.extractedPages, lastExtractedCount]);
 
   const isStalled = useMemo(() => {
     if (!wizardExtraction) return false;
     const status = wizardExtraction.status;
     if (!["extracting", "processing"].includes(status)) return false;
-    const createdAt = new Date(wizardExtraction.created_at).getTime();
-    const elapsed = Date.now() - createdAt;
     const totalPages = wizardExtraction.total_pages || 0;
     const extracted = realProgress.extractedPages;
-    return elapsed > 180000 && extracted > 0 && extracted < totalPages;
-  }, [wizardExtraction, realProgress.extractedPages]);
+    const elapsedSinceProgress = Date.now() - lastProgressAt;
+    return elapsedSinceProgress > 180000 && extracted > 0 && extracted < totalPages;
+  }, [wizardExtraction, realProgress.extractedPages, lastProgressAt]);
 
   // Auto-resume: when stalled is detected, automatically trigger resume (up to MAX attempts)
   useEffect(() => {
