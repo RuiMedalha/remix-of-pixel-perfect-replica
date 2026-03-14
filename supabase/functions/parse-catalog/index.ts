@@ -802,24 +802,25 @@ REGRAS DE EXTRAÇÃO:
 
 Responde APENAS com a tool call.`;
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `Extrai TODOS os produtos deste catálogo PDF: "${fileName}". Analisa cada página, identifica coleções/modelos nos cabeçalhos e extrai cada linha de produto.` },
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
-          ],
-        },
-      ],
+      taskType: "pdf_product_extraction",
+      workspaceId: "system",
+      modelOverride: "google/gemini-2.5-pro",
+      systemPrompt,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: `Extrai TODOS os produtos deste catálogo PDF: "${fileName}". Analisa cada página, identifica coleções/modelos nos cabeçalhos e extrai cada linha de produto.` },
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
+        ],
+      }],
+      options: {
       tools: [
         {
           type: "function",
