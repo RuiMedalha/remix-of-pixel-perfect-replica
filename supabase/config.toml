@@ -362,3 +362,6 @@ verify_jwt = false
 
 [functions.analyze-product-image]
 verify_jwt = false
+
+[functions.validate-product-data]
+verify_jwt = false
