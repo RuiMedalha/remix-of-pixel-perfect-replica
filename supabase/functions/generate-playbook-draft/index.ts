@@ -119,31 +119,84 @@ Deno.serve(async (req) => {
       simpleMapping[h] = (m as any).field || (m as any);
     }
 
-    const { data: draft, error } = await supabase
-      .from("supplier_playbook_drafts")
-      .insert({
-        workspace_id,
-        supplier_id: sid || null,
-        detection_id: detection_id || null,
-        playbook_name: playbookName,
-        playbook_config: {
-          source_type: detection?.source_type || "excel",
-          merge_strategy: "merge",
-          duplicate_detection: ["sku"],
-        },
-        column_mapping: simpleMapping,
-        matching_rules: matchingRules,
-        grouping_rules: groupingRules,
-        taxonomy_suggestion: taxonomySuggestion,
-        image_strategy: imageStrategy,
-        validation_profile: validationProfile,
-        confidence_score: overallConfidence,
-        needs_review_fields: needsReviewFields,
-        auto_generated: true,
-        status: "draft",
-      })
-      .select()
-      .single();
+    // Check for existing draft for same supplier/file to update instead of duplicate
+    let existingDraft = null;
+    if (sid) {
+      const { data: existing } = await supabase
+        .from("supplier_playbook_drafts")
+        .select("id, version_number")
+        .eq("workspace_id", workspace_id)
+        .eq("supplier_id", sid)
+        .eq("status", "draft")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (existing && existing.length > 0) existingDraft = existing[0];
+    }
+
+    let draft;
+    let error;
+
+    if (existingDraft) {
+      // Update existing draft
+      const result = await supabase
+        .from("supplier_playbook_drafts")
+        .update({
+          playbook_name: playbookName,
+          playbook_config: {
+            source_type: detection?.source_type || "excel",
+            merge_strategy: "merge",
+            duplicate_detection: ["sku"],
+          },
+          column_mapping: simpleMapping,
+          matching_rules: matchingRules,
+          grouping_rules: groupingRules,
+          taxonomy_suggestion: taxonomySuggestion,
+          image_strategy: imageStrategy,
+          validation_profile: validationProfile,
+          confidence_score: overallConfidence,
+          needs_review_fields: needsReviewFields,
+          ingestion_job_id: ingestion_job_id || null,
+          uploaded_file_id: uploaded_file_id || null,
+          version_number: (existingDraft.version_number || 1) + 1,
+        })
+        .eq("id", existingDraft.id)
+        .select()
+        .single();
+      draft = result.data;
+      error = result.error;
+    } else {
+      // Create new draft
+      const result = await supabase
+        .from("supplier_playbook_drafts")
+        .insert({
+          workspace_id,
+          supplier_id: sid || null,
+          detection_id: detection_id || null,
+          playbook_name: playbookName,
+          playbook_config: {
+            source_type: detection?.source_type || "excel",
+            merge_strategy: "merge",
+            duplicate_detection: ["sku"],
+          },
+          column_mapping: simpleMapping,
+          matching_rules: matchingRules,
+          grouping_rules: groupingRules,
+          taxonomy_suggestion: taxonomySuggestion,
+          image_strategy: imageStrategy,
+          validation_profile: validationProfile,
+          confidence_score: overallConfidence,
+          needs_review_fields: needsReviewFields,
+          auto_generated: true,
+          status: "draft",
+          ingestion_job_id: ingestion_job_id || null,
+          uploaded_file_id: uploaded_file_id || null,
+          version_number: 1,
+        })
+        .select()
+        .single();
+      draft = result.data;
+      error = result.error;
+    }
 
     if (error) throw error;
 
