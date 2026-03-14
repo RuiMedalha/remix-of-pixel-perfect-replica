@@ -529,7 +529,7 @@ Return ONLY valid JSON.`,
         col_count: headers.length,
         table_type: "product_table",
         column_classifications: columnClassifications,
-        vision_source_data: { products },
+        vision_source_data: { products, images: pageImages },
       }).select("id").single();
 
       if (tableRec) {
