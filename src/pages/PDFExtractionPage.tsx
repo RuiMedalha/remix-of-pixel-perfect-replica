@@ -535,6 +535,19 @@ export default function PDFExtractionPage() {
                                 </>
                               )}
                               <ExtractionActionsDropdown extraction={ext} onViewDetails={setSelectedExtraction} />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  if (confirm("Eliminar esta extração e todos os dados associados?")) {
+                                    deleteExtraction.mutate(ext.id);
+                                  }
+                                }}
+                                disabled={deleteExtraction.isPending}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
