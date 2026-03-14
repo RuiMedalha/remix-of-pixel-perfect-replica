@@ -1057,10 +1057,10 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                         <CardHeader><CardTitle className="text-sm">Secções Detetadas</CardTitle></CardHeader>
                         <CardContent>
                           <div className="space-y-1">
-                            {(sections || []).map((s: any) => (
-                              <div key={s.id} className="flex items-center justify-between text-xs border-b border-border py-1">
-                                <span className="font-medium">{s.section_title}</span>
-                                <Badge variant="outline" className="text-xs">Confiança: {s.confidence}%</Badge>
+                            {(sections || []).map((s: any, index: number) => (
+                              <div key={s.id || index} className="flex items-center justify-between text-xs border-b border-border py-1">
+                                <span className="font-medium">{toDisplayText(s.section_title)}</span>
+                                <Badge variant="outline" className="text-xs">Confiança: {toDisplayText(s.confidence, "0")}%</Badge>
                               </div>
                             ))}
                           </div>
