@@ -116,6 +116,12 @@ export default function PDFExtractionPage() {
   const { data: wizardExtraction } = useQuery({
     queryKey: ["wizard-extraction", wizardExtractionId],
     enabled: !!wizardExtractionId,
+    refetchInterval: (query) => {
+      const ext = query.state.data as any;
+      // Keep polling if extraction is in progress or detected_products not yet populated
+      if (ext && ["queued", "extracting", "processing"].includes(ext.status)) return 3000;
+      return false;
+    },
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pdf_extractions")
@@ -126,6 +132,22 @@ export default function PDFExtractionPage() {
       return data as any;
     },
   });
+
+  // Get pages to count products from vision_result as fallback
+  const { data: wizardPages } = usePdfPages(wizardExtractionId);
+  
+  // Compute product count: prefer detected_products, fallback to counting from pages
+  const wizardProductCount = (() => {
+    const dp = wizardExtraction?.detected_products as any[];
+    if (dp?.length) return dp.length;
+    if (!wizardPages) return 0;
+    let count = 0;
+    wizardPages.forEach((p: any) => {
+      const products = (p.vision_result as any)?.products || [];
+      count += products.filter((prod: any) => prod.title || prod.sku).length;
+    });
+    return count;
+  })();
 
   // Step 1: Start extraction
   const handleStartWizard = async () => {
@@ -168,7 +190,7 @@ export default function PDFExtractionPage() {
     } catch {}
   };
 
-  // Build column mappings from extracted tables
+  // Build column mappings from extracted products (vision_result.products)
   const buildMappingFromExtraction = async () => {
     if (!wizardExtractionId) return;
     const { data: pages } = await supabase
@@ -179,7 +201,22 @@ export default function PDFExtractionPage() {
     const allHeaders = new Set<string>();
     const sampleData: Record<string, string[]> = {};
 
+    // Extract from vision_result.products (AI vision output)
     (pages || []).forEach((p: any) => {
+      const products = (p.vision_result as any)?.products || [];
+      products.forEach((prod: any) => {
+        Object.keys(prod).forEach((key) => {
+          if (key === "confidence" || key === "images") return;
+          allHeaders.add(key);
+          if (!sampleData[key]) sampleData[key] = [];
+          if (prod[key] != null && sampleData[key].length < 3) {
+            const val = typeof prod[key] === "object" ? JSON.stringify(prod[key]) : String(prod[key]);
+            sampleData[key].push(val);
+          }
+        });
+      });
+
+      // Also check tables structure if present
       const tables = (p.vision_result as any)?.tables || [];
       tables.forEach((t: any) => {
         (t.headers || []).forEach((h: string) => {
@@ -193,28 +230,40 @@ export default function PDFExtractionPage() {
       });
     });
 
-    const autoMap: Record<string, string> = {};
-    allHeaders.forEach((h) => {
+    const autoMap: Record<string, string> = {
+      sku: "sku", title: "product_name", description: "description",
+      price: "price", category: "category", dimensions: "dimension",
+      weight: "weight", material: "material", color_options: "attribute",
+      technical_specs: "technical_specs", image_description: "image",
+    };
+
+    const mappings = Array.from(allHeaders).map((h) => {
       const lower = h.toLowerCase();
-      if (lower.includes("sku") || lower === "ref") autoMap[h] = "sku";
-      else if (lower.includes("nome") || lower.includes("title") || lower.includes("designação")) autoMap[h] = "product_name";
-      else if (lower.includes("preço") || lower.includes("price") || lower === "pvp") autoMap[h] = "price";
-      else if (lower.includes("desc")) autoMap[h] = "description";
-      else if (lower.includes("potência") || lower.includes("power")) autoMap[h] = "power";
-      else if (lower.includes("peso") || lower.includes("weight")) autoMap[h] = "weight";
-      else if (lower.includes("dim")) autoMap[h] = "dimension";
-      else if (lower.includes("categ")) autoMap[h] = "category";
-      else autoMap[h] = "attribute";
+      let mapped = autoMap[h] || "attribute";
+      if (!autoMap[h]) {
+        if (lower.includes("sku") || lower === "ref") mapped = "sku";
+        else if (lower.includes("nome") || lower.includes("title") || lower.includes("designação")) mapped = "product_name";
+        else if (lower.includes("preço") || lower.includes("price") || lower === "pvp") mapped = "price";
+        else if (lower.includes("desc")) mapped = "description";
+        else if (lower.includes("potência") || lower.includes("power")) mapped = "power";
+        else if (lower.includes("peso") || lower.includes("weight")) mapped = "weight";
+        else if (lower.includes("dim")) mapped = "dimension";
+        else if (lower.includes("categ")) mapped = "category";
+      }
+      return {
+        header: h,
+        mappedTo: mapped,
+        confidence: mapped !== "attribute" ? 85 : 50,
+        sampleValues: sampleData[h] || [],
+      };
     });
 
-    setColumnMappings(
-      Array.from(allHeaders).map((h) => ({
-        header: h,
-        mappedTo: autoMap[h] || "attribute",
-        confidence: autoMap[h] && autoMap[h] !== "attribute" ? 85 : 50,
-        sampleValues: sampleData[h] || [],
-      }))
-    );
+    setColumnMappings(mappings);
+
+    // Also trigger map-pdf-to-products to populate detected_products
+    if (wizardExtractionId) {
+      mapToProducts.mutate({ extractionId: wizardExtractionId });
+    }
   };
 
   const handleMappingChange = (header: string, mappedTo: string) => {
@@ -410,7 +459,7 @@ export default function PDFExtractionPage() {
             <div className="space-y-4">
               <DataPreviewTable
                 products={(wizardExtraction?.detected_products as any[]) || []}
-                columns={columnMappings.map((c) => c.header)}
+                columns={columnMappings.length > 0 ? columnMappings.map((c) => c.header) : undefined}
               />
               <div className="flex gap-3">
                 <Button onClick={() => setWizardStep("ingestion")}>
@@ -427,7 +476,7 @@ export default function PDFExtractionPage() {
           {wizardStep === "ingestion" && (
             <div className="space-y-4">
               <SendToIngestionPanel
-                productCount={(wizardExtraction?.detected_products as any[])?.length || 0}
+                productCount={wizardProductCount}
                 onSendToIngestion={handleSendToIngestion}
                 isSending={sendToIngestion.isPending}
                 alreadySent={wizardExtraction?.sent_to_ingestion}

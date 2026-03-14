@@ -149,6 +149,7 @@ serve(async (req) => {
       await supabase.from("pdf_extractions").update({
         status: "done",
         completed_at: new Date().toISOString(),
+        detected_products: structuredRows,
       }).eq("id", extractionId);
 
       return new Response(JSON.stringify({
@@ -159,7 +160,11 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    await supabase.from("pdf_extractions").update({ status: "reviewing" }).eq("id", extractionId);
+    // Always save detected_products back to the extraction record
+    await supabase.from("pdf_extractions").update({ 
+      status: "reviewing",
+      detected_products: structuredRows,
+    }).eq("id", extractionId);
 
     return new Response(JSON.stringify({
       success: true,
