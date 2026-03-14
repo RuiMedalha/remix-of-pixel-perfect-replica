@@ -40,6 +40,7 @@ import {
   Terminal,
   Route,
   TowerControl,
+  GitMerge,
   type LucideIcon,
 } from "lucide-react";
 
