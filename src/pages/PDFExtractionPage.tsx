@@ -201,9 +201,23 @@ export default function PDFExtractionPage() {
   const hasDetectedProducts = ((wizardExtraction?.detected_products as any[])?.length || 0) > 0;
   
   // Auto-advance to review when extraction is done
-  if (wizardStep === "extracting" && extractionStatus === "reviewing" && hasDetectedProducts) {
+  if (wizardStep === "extracting" && extractionStatus === "reviewing" && (hasDetectedProducts || realProgress.productCount > 0)) {
     setWizardStep("review");
   }
+
+  // Resume a stalled extraction
+  const handleResumeExtraction = async () => {
+    if (!wizardExtractionId) return;
+    toast.info("A retomar extração...");
+    supabase.functions.invoke("extract-pdf-pages", {
+      body: { extractionId: wizardExtractionId },
+    }).then(() => {
+      toast.success("Extração retomada com sucesso");
+    }).catch((err) => {
+      console.error("Resume error:", err);
+      toast.error("Erro ao retomar extração");
+    });
+  };
 
   const handleSendToIngestion = async (config: { mergeStrategy: string; dupFields: string }) => {
     if (!wizardExtractionId) return;
