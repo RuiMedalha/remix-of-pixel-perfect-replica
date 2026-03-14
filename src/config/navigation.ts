@@ -37,6 +37,7 @@ import {
   Scale,
   Send,
   BookOpen,
+  Terminal,
   Route,
   TowerControl,
   type LucideIcon,
