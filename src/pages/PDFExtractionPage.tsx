@@ -167,20 +167,42 @@ export default function PDFExtractionPage() {
     return realProgress.productCount;
   })();
 
-  // Detect stalled extraction (no progress for 60s while status is still extracting)
-  const [extractionStartedAt] = useState(() => Date.now());
+  // Detect stalled extraction and auto-resume
+  const [autoResumeAttempts, setAutoResumeAttempts] = useState(0);
+  const [lastResumeTime, setLastResumeTime] = useState(0);
+  const MAX_AUTO_RESUMES = 5;
+
   const isStalled = useMemo(() => {
     if (!wizardExtraction) return false;
     const status = wizardExtraction.status;
     if (!["extracting", "processing"].includes(status)) return false;
-    // If created_at is > 2 min ago and processed_pages hasn't changed from what pdf_pages shows
     const createdAt = new Date(wizardExtraction.created_at).getTime();
     const elapsed = Date.now() - createdAt;
     const totalPages = wizardExtraction.total_pages || 0;
     const extracted = realProgress.extractedPages;
-    // Consider stalled if: has been running > 3 min AND not all pages done AND < totalPages
     return elapsed > 180000 && extracted > 0 && extracted < totalPages;
   }, [wizardExtraction, realProgress.extractedPages]);
+
+  // Auto-resume: when stalled is detected, automatically trigger resume (up to MAX attempts)
+  useEffect(() => {
+    if (!isStalled || !wizardExtractionId) return;
+    if (autoResumeAttempts >= MAX_AUTO_RESUMES) return;
+    // Don't resume more than once per 90s
+    if (Date.now() - lastResumeTime < 90000) return;
+
+    console.log(`Auto-resuming extraction (attempt ${autoResumeAttempts + 1}/${MAX_AUTO_RESUMES})`);
+    toast.info(`A retomar extração automaticamente (tentativa ${autoResumeAttempts + 1})...`);
+    setAutoResumeAttempts(prev => prev + 1);
+    setLastResumeTime(Date.now());
+
+    supabase.functions.invoke("extract-pdf-pages", {
+      body: { extractionId: wizardExtractionId },
+    }).then(() => {
+      toast.success("Extração retomada com sucesso");
+    }).catch((err) => {
+      console.error("Auto-resume error:", err);
+    });
+  }, [isStalled, wizardExtractionId, autoResumeAttempts, lastResumeTime]);
 
   // Step 1: Start extraction — goes straight to extracting
   const handleStartWizard = async () => {
@@ -189,6 +211,8 @@ export default function PDFExtractionPage() {
       const result = await startExtraction.mutateAsync(selectedFileId);
       setWizardExtractionId(result.extractionId);
       setWizardStep("extracting");
+      setAutoResumeAttempts(0);
+      setLastResumeTime(0);
     } catch {}
   };
 
@@ -205,10 +229,12 @@ export default function PDFExtractionPage() {
     setWizardStep("review");
   }
 
-  // Resume a stalled extraction
+  // Resume a stalled extraction (manual)
   const handleResumeExtraction = async () => {
     if (!wizardExtractionId) return;
     toast.info("A retomar extração...");
+    setAutoResumeAttempts(0);
+    setLastResumeTime(Date.now());
     supabase.functions.invoke("extract-pdf-pages", {
       body: { extractionId: wizardExtractionId },
     }).then(() => {
