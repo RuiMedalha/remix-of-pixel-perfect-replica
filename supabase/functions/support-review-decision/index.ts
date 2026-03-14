@@ -12,10 +12,9 @@ Deno.serve(async (req) => {
     const { workspace_id, review_item } = await req.json();
     if (!workspace_id || !review_item) throw new Error("workspace_id and review_item are required");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Gather context: product, conflict, previous agent runs
     let productData = null;
