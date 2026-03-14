@@ -21,6 +21,18 @@ export function useSupplierIntelligence() {
     },
   });
 
+  const qualityScores = useQuery({
+    queryKey: ["supplier-quality-scores", wsId],
+    enabled: !!wsId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("supplier_data_quality_scores") as any)
+        .select("*")
+        .eq("workspace_id", wsId);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
   const createSupplier = useMutation({
     mutationFn: async (payload: { supplier_name: string; supplier_code?: string; base_url?: string }) => {
       const { data, error } = await (supabase.from("supplier_profiles") as any)
@@ -43,7 +55,56 @@ export function useSupplierIntelligence() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["supplier-profiles"] }); toast.success("Fornecedor atualizado"); },
   });
 
-  return { suppliers, createSupplier, updateSupplier, wsId };
+  const detectStructure = useMutation({
+    mutationFn: async (payload: { supplier_id: string; columns: string[]; file_type?: string; source_file_id?: string }) => {
+      const { data, error } = await supabase.functions.invoke("detect-supplier-structure", { body: payload });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-schema-profiles"] });
+      qc.invalidateQueries({ queryKey: ["supplier-mapping-suggestions"] });
+      toast.success("Estrutura detetada com sucesso");
+    },
+  });
+
+  const learnPatterns = useMutation({
+    mutationFn: async (supplier_id: string) => {
+      const { data, error } = await supabase.functions.invoke("learn-supplier-patterns-v2", { body: { supplier_id, workspace_id: wsId } });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["supplier-patterns"] });
+      toast.success(`${data.patterns_detected} padrões detetados`);
+    },
+  });
+
+  const calculateQuality = useMutation({
+    mutationFn: async (supplier_id: string) => {
+      const { data, error } = await supabase.functions.invoke("calculate-supplier-quality", { body: { supplier_id, workspace_id: wsId } });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-quality-scores"] });
+      toast.success("Quality score atualizado");
+    },
+  });
+
+  const buildKnowledgeGraph = useMutation({
+    mutationFn: async (supplier_id: string) => {
+      const { data, error } = await supabase.functions.invoke("build-supplier-knowledge-graph", { body: { supplier_id, workspace_id: wsId } });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["supplier-knowledge-graph"] });
+      toast.success(`Knowledge graph: ${data.edges_created} ligações criadas`);
+    },
+  });
+
+  return { suppliers, qualityScores, createSupplier, updateSupplier, detectStructure, learnPatterns, calculateQuality, buildKnowledgeGraph, wsId };
 }
 
 export function useSupplierDetail(supplierId: string | null) {
@@ -135,5 +196,49 @@ export function useSupplierDetail(supplierId: string | null) {
     },
   });
 
-  return { sourceProfiles, fieldTrust, matchingRules, groupingRules, taxonomyMappings, learningEvents, benchmarks, promptProfiles };
+  const schemaProfiles = useQuery({
+    queryKey: ["supplier-schema-profiles", supplierId],
+    enabled: !!supplierId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("supplier_schema_profiles") as any)
+        .select("*").eq("supplier_id", supplierId).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const patterns = useQuery({
+    queryKey: ["supplier-patterns", supplierId],
+    enabled: !!supplierId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("supplier_patterns") as any)
+        .select("*").eq("supplier_id", supplierId).order("confidence", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const mappingSuggestions = useQuery({
+    queryKey: ["supplier-mapping-suggestions", supplierId],
+    enabled: !!supplierId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("supplier_mapping_suggestions") as any)
+        .select("*").eq("supplier_id", supplierId).order("confidence", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const knowledgeGraph = useQuery({
+    queryKey: ["supplier-knowledge-graph", supplierId],
+    enabled: !!supplierId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("supplier_knowledge_graph") as any)
+        .select("*").eq("supplier_id", supplierId).order("weight", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  return { sourceProfiles, fieldTrust, matchingRules, groupingRules, taxonomyMappings, learningEvents, benchmarks, promptProfiles, schemaProfiles, patterns, mappingSuggestions, knowledgeGraph };
 }
