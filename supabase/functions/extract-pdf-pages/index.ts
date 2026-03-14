@@ -51,18 +51,9 @@ serve(async (req) => {
     if (!fileRecord?.storage_path) throw new Error("No file storage_path");
     const storagePth = fileRecord.storage_path;
 
-    // Download PDF — keep only what we need for overview
-    const { data: fileData, error: dlErr } = await supabase.storage
-      .from("catalogs")
-      .download(storagePth);
-    if (dlErr || !fileData) throw new Error("Cannot download file: " + dlErr?.message);
-
-    const pdfBuffer = await fileData.arrayBuffer();
-    const pdfSizeMB = pdfBuffer.byteLength / (1024 * 1024);
-    console.log(`PDF loaded: ${pdfSizeMB.toFixed(2)} MB`);
-
-    // For the overview we send the PDF once — use a lightweight prompt
-    const pdfBase64 = arrayBufferToBase64(pdfBuffer);
+    // Use signed URL instead of loading PDF binary into worker memory
+    const signedPdfUrl = await buildSignedPdfUrl(supabase, supabaseUrl, storagePth);
+    console.log("PDF signed URL created for extraction orchestration");
 
     const overviewResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
