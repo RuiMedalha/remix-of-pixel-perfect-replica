@@ -408,8 +408,46 @@ export default function PDFExtractionPage() {
     });
   };
 
+  const persistReviewDraft = async (options?: { silent?: boolean }) => {
+    if (!wizardExtractionId || !reviewDraftProducts) return;
+
+    setIsSavingReviewDraft(true);
+    try {
+      const { error } = await supabase
+        .from("pdf_extractions")
+        .update({ status: "reviewing", detected_products: reviewDraftProducts })
+        .eq("id", wizardExtractionId);
+
+      if (error) throw error;
+
+      setReviewDraftProducts(null);
+      if (!options?.silent) toast.success("Alterações guardadas na revisão");
+    } catch (error: any) {
+      toast.error(`Erro ao guardar revisão: ${error?.message || "erro desconhecido"}`);
+      throw error;
+    } finally {
+      setIsSavingReviewDraft(false);
+    }
+  };
+
+  const handleProceedToIngestion = async () => {
+    if (hasReviewDraftChanges) {
+      try {
+        await persistReviewDraft({ silent: true });
+      } catch {
+        return;
+      }
+    }
+    setWizardStep("ingestion");
+  };
+
   const handleSendToIngestion = async (config: { mergeStrategy: string; dupFields: string }) => {
     if (!wizardExtractionId) return;
+
+    if (hasReviewDraftChanges) {
+      await persistReviewDraft({ silent: true });
+    }
+
     await sendToIngestion.mutateAsync({
       extractionId: wizardExtractionId,
       mergeStrategy: config.mergeStrategy,
@@ -417,11 +455,28 @@ export default function PDFExtractionPage() {
     });
   };
 
+  const openExtractionInWizard = (ext: any) => {
+    setWizardExtractionId(ext.id);
+    setActiveTab("wizard");
+
+    if (["queued", "extracting", "processing", "error"].includes(ext.status)) {
+      setWizardStep("extracting");
+      return;
+    }
+
+    if (ext.sent_to_ingestion) {
+      setWizardStep("ingestion");
+      return;
+    }
+
+    setWizardStep("review");
+  };
+
   const resetWizard = () => {
     setWizardStep("upload");
     setWizardExtractionId(null);
     setSelectedFileId("");
-    
+    setReviewDraftProducts(null);
   };
 
   // Quick extraction from history table
