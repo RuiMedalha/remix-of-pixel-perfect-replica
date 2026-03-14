@@ -69,19 +69,24 @@ export function DataPreviewTable({ products, columns: columnsProp }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
-                {columns.slice(0, 6).map((col) => (
-                  <TableHead key={col} className="text-xs">{col}</TableHead>
+                {columns.slice(0, 7).map((col) => (
+                  <TableHead key={col} className="text-xs">{DISPLAY_LABELS[col] || col}</TableHead>
                 ))}
                 <TableHead className="text-xs">Confiança</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.slice(0, 30).map((product, i) => (
+              {products.slice(0, 50).map((product, i) => (
                 <TableRow key={i} className={(product._confidence || 100) < 60 ? "bg-destructive/5" : ""}>
-                  {columns.slice(0, 6).map((col) => (
-                    <TableCell key={col} className="text-xs max-w-32 truncate">
-                      {product[col] || <span className="text-muted-foreground italic">vazio</span>}
-                    </TableCell>
+                  {columns.slice(0, 7).map((col) => {
+                    let val = product[col];
+                    if (val != null && typeof val === "object") val = JSON.stringify(val);
+                    return (
+                      <TableCell key={col} className="text-xs max-w-40 truncate">
+                        {val || <span className="text-muted-foreground italic">—</span>}
+                      </TableCell>
+                    );
+                  })}
                   ))}
                   <TableCell>
                     <div className="flex items-center gap-1">
