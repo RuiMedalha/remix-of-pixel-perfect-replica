@@ -407,18 +407,31 @@ export default function PDFExtractionPage() {
                           </div>
                         </div>
 
-                        {/* Stalled warning */}
+                        {/* Stalled warning — auto-resume active */}
                         {isStalled && (
-                          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center space-y-2">
+                          <div className={`border rounded-lg p-3 text-center space-y-2 ${
+                            autoResumeAttempts >= MAX_AUTO_RESUMES 
+                              ? "bg-destructive/10 border-destructive/20" 
+                              : "bg-primary/5 border-primary/20"
+                          }`}>
                             <div className="flex items-center justify-center gap-2">
-                              <AlertTriangle className="h-4 w-4 text-destructive" />
-                              <p className="text-xs font-medium text-destructive">Extração parece ter parado</p>
+                              {autoResumeAttempts >= MAX_AUTO_RESUMES ? (
+                                <>
+                                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                                  <p className="text-xs font-medium text-destructive">Auto-retoma esgotada ({MAX_AUTO_RESUMES} tentativas)</p>
+                                </>
+                              ) : (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                  <p className="text-xs font-medium text-primary">A retomar automaticamente (tentativa {autoResumeAttempts}/{MAX_AUTO_RESUMES})</p>
+                                </>
+                              )}
                             </div>
                             <p className="text-[10px] text-muted-foreground">
-                              Processadas {realProgress.extractedPages} de {realProgress.totalPages} páginas. A função pode ter expirado.
+                              {realProgress.extractedPages} de {realProgress.totalPages} páginas processadas — {realProgress.totalPages - realProgress.extractedPages} restantes
                             </p>
-                            <Button size="sm" onClick={handleResumeExtraction}>
-                              <ArrowRight className="h-3 w-3 mr-1" /> Retomar de onde parou
+                            <Button size="sm" variant={autoResumeAttempts >= MAX_AUTO_RESUMES ? "default" : "outline"} onClick={handleResumeExtraction}>
+                              <ArrowRight className="h-3 w-3 mr-1" /> Retomar manualmente
                             </Button>
                           </div>
                         )}
