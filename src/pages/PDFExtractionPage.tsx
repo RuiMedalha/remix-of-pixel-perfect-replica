@@ -171,7 +171,7 @@ export default function PDFExtractionPage() {
     // Count products from vision_result
     let productCount = 0;
     pages.forEach((p: any) => {
-      const products = (p.vision_result as any)?.products || [];
+      const products = flattenProducts((p.vision_result as any)?.products || []);
       productCount += products.filter((prod: any) => prod.title || prod.sku).length;
     });
     return { extractedPages, errorPages, totalPages, pct, productCount };
