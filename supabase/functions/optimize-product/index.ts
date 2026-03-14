@@ -706,39 +706,41 @@ Devolve os índices dos 6 excertos mais relevantes, priorizando:
 3. Fichas técnicas e tabelas de preços
 4. Informação genérica sobre a categoria`;
 
-            const rerankResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            const rerankResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
               method: "POST",
               headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
                 "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash-lite",
-                messages: [
-                  { role: "system", content: "Responde APENAS com a tool call. Seleciona os excertos mais relevantes." },
-                  { role: "user", content: rerankPrompt },
-                ],
-                tools: [{
-                  type: "function",
-                  function: {
-                    name: "select_chunks",
-                    description: "Seleciona os índices dos chunks mais relevantes",
-                    parameters: {
-                      type: "object",
-                      properties: {
-                        selected_indices: {
-                          type: "array",
-                          items: { type: "integer" },
-                          description: "Índices dos chunks selecionados (0-based)",
+                taskType: "knowledge_reranking",
+                workspaceId: workspaceId,
+                modelOverride: "google/gemini-2.5-flash-lite",
+                systemPrompt: "Responde APENAS com a tool call. Seleciona os excertos mais relevantes.",
+                messages: [{ role: "user", content: rerankPrompt }],
+                options: {
+                  tools: [{
+                    type: "function",
+                    function: {
+                      name: "select_chunks",
+                      description: "Seleciona os índices dos chunks mais relevantes",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          selected_indices: {
+                            type: "array",
+                            items: { type: "integer" },
+                            description: "Índices dos chunks selecionados (0-based)",
+                          },
+                          reasoning: { type: "string", description: "Breve justificação" },
                         },
-                        reasoning: { type: "string", description: "Breve justificação" },
+                        required: ["selected_indices"],
+                        additionalProperties: false,
                       },
-                      required: ["selected_indices"],
-                      additionalProperties: false,
                     },
-                  },
-                }],
-                tool_choice: { type: "function", function: { name: "select_chunks" } },
+                  }],
+                  tool_choice: { type: "function", function: { name: "select_chunks" } },
+                },
               }),
             });
 
