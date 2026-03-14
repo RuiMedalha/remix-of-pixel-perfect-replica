@@ -19,18 +19,10 @@ Deno.serve(async (req) => {
 
     const lang = language || "pt";
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are a Product Description Generator for a B2B HORECA e-commerce catalog.
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const systemPrompt = `You are a Product Description Generator for a B2B HORECA e-commerce catalog.
 
 Write in ${lang === "pt" ? "European Portuguese" : lang === "es" ? "Spanish" : lang === "fr" ? "French" : "English"}.
 
@@ -59,11 +51,9 @@ Respond with valid JSON only, no markdown fences:
   "long_description": "string (HTML)",
   "seo_keywords": ["string"],
   "confidence_score": 0.0-1.0
-}`,
-          },
-          {
-            role: "user",
-            content: `Generate descriptions for this product:
+}`;
+
+    const userPrompt = `Generate descriptions for this product:
 
 Title: ${product.title || product.original_title || "N/A"}
 Brand: ${product.brand || "N/A"}
@@ -71,20 +61,30 @@ Category: ${product.category || "N/A"}
 Current Description: ${product.description || product.original_description || "N/A"}
 Technical Specs: ${product.technical_specs || "N/A"}
 Attributes: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}
-Price: ${product.price || product.original_price || "N/A"}`,
-          },
-        ],
-        temperature: 0.4,
-        max_tokens: 2048,
+Price: ${product.price || product.original_price || "N/A"}`;
+
+    // Use centralized resolve-ai-route
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({
+        taskType: "description_generation",
+        workspaceId: workspace_id,
+        systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        options: { max_tokens: 2048 },
       }),
     });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      throw new Error(`AI Gateway error: ${aiResponse.status} - ${errText}`);
+      throw new Error(`AI Route error: ${aiResponse.status} - ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
+    const routeData = await aiResponse.json();
     const content = (aiData.choices?.[0]?.message?.content || "")
       .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
