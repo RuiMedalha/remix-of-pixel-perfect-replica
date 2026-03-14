@@ -731,7 +731,8 @@ async function extractPdfText(fileData: Blob, fileName: string): Promise<string>
     throw new Error("Erro ao extrair texto do PDF: " + aiResponse.status);
   }
 
-  const aiData = await aiResponse.json();
+  const aiWrapper = await aiResponse.json();
+  const aiData = aiWrapper.result || aiWrapper;
   return (aiData.choices?.[0]?.message?.content || "").substring(0, 50000);
 }
 
