@@ -26,10 +26,25 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
       .single();
 
-    // 2. Resolve provider (from route or first active)
+    // 2. Resolve provider + prompt (from route or defaults)
     let provider = route?.provider;
     let model = route?.model_override || route?.recommended_model || provider?.default_model;
-    let prompt = route?.prompt?.content || systemPrompt || "";
+
+    let prompt = systemPrompt || "";
+    if (route?.prompt_template_id) {
+      const { data: activePromptVersion } = await supabase
+        .from("prompt_versions")
+        .select("prompt_text")
+        .eq("template_id", route.prompt_template_id)
+        .eq("is_active", true)
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      prompt = activePromptVersion?.prompt_text || route?.prompt?.base_prompt || prompt;
+    } else {
+      prompt = route?.prompt?.base_prompt || prompt;
+    }
 
     if (!provider) {
       const { data: defaultProvider } = await supabase
