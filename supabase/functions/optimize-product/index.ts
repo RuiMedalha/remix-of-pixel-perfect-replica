@@ -1504,58 +1504,58 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
                     childTitles[v.id] = freshChild?.optimized_title || freshChild?.original_title || v.original_title || "";
                   }
 
-                  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                  const aiResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
                     method: "POST",
                     headers: {
-                      Authorization: `Bearer ${LOVABLE_API_KEY}`,
                       "Content-Type": "application/json",
+                      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
                     },
                     body: JSON.stringify({
-                      model: "google/gemini-2.5-flash-lite",
-                      messages: [
-                        {
-                          role: "system",
-                          content: "You extract variation attributes from product titles. Compare the parent title with each child title to identify the differentiating attribute (e.g. Color, Size, Material, Capacity, Dimensions). Return structured data via the tool. CRITICAL: NEVER use EAN codes, barcodes, numeric references (8+ digit numbers), brand names, or SKU codes as attribute values. Only use meaningful physical attributes like size, color, capacity, material."
-                        },
-                        {
-                          role: "user",
-                          content: `Parent product title: "${parentTitleForAI}"\n\nChild variation titles:\n${Object.entries(childTitles).map(([id, t]) => `- ID ${id}: "${t}"`).join("\n")}\n\nExtract the variation attribute name and value for each child. The differentiating attribute should be a PHYSICAL characteristic (size, color, capacity, dimensions, etc.), NEVER an EAN code, barcode, reference number, or brand name.`
-                        }
-                      ],
-                      tools: [{
-                        type: "function",
-                        function: {
-                          name: "extract_variation_attributes",
-                          description: "Extract the variation attribute name and per-child values from title differences",
-                          parameters: {
-                            type: "object",
-                            properties: {
-                              attribute_name: { type: "string", description: "Name of the variation attribute in Portuguese (e.g. Cor, Tamanho, Material, Capacidade)" },
-                              confident: { type: "boolean", description: "true if the extraction is clear and unambiguous" },
-                              variations: {
-                                type: "array",
-                                items: {
-                                  type: "object",
-                                  properties: {
-                                    child_id: { type: "string" },
-                                    value: { type: "string", description: "The attribute value for this variation" }
-                                  },
-                                  required: ["child_id", "value"],
-                                  additionalProperties: false
-                                }
-                              }
-                            },
-                            required: ["attribute_name", "confident", "variations"],
-                            additionalProperties: false
-                          }
-                        }
+                      taskType: "variation_attribute_extraction",
+                      workspaceId: workspaceId,
+                      modelOverride: "google/gemini-2.5-flash-lite",
+                      systemPrompt: "You extract variation attributes from product titles. Compare the parent title with each child title to identify the differentiating attribute (e.g. Color, Size, Material, Capacity, Dimensions). Return structured data via the tool. CRITICAL: NEVER use EAN codes, barcodes, numeric references (8+ digit numbers), brand names, or SKU codes as attribute values. Only use meaningful physical attributes like size, color, capacity, material.",
+                      messages: [{
+                        role: "user",
+                        content: `Parent product title: "${parentTitleForAI}"\n\nChild variation titles:\n${Object.entries(childTitles).map(([id, t]) => `- ID ${id}: "${t}"`).join("\n")}\n\nExtract the variation attribute name and value for each child. The differentiating attribute should be a PHYSICAL characteristic (size, color, capacity, dimensions, etc.), NEVER an EAN code, barcode, reference number, or brand name.`
                       }],
-                      tool_choice: { type: "function", function: { name: "extract_variation_attributes" } }
+                      options: {
+                        tools: [{
+                          type: "function",
+                          function: {
+                            name: "extract_variation_attributes",
+                            description: "Extract the variation attribute name and per-child values from title differences",
+                            parameters: {
+                              type: "object",
+                              properties: {
+                                attribute_name: { type: "string", description: "Name of the variation attribute in Portuguese (e.g. Cor, Tamanho, Material, Capacidade)" },
+                                confident: { type: "boolean", description: "true if the extraction is clear and unambiguous" },
+                                variations: {
+                                  type: "array",
+                                  items: {
+                                    type: "object",
+                                    properties: {
+                                      child_id: { type: "string" },
+                                      value: { type: "string", description: "The attribute value for this variation" }
+                                    },
+                                    required: ["child_id", "value"],
+                                    additionalProperties: false
+                                  }
+                                }
+                              },
+                              required: ["attribute_name", "confident", "variations"],
+                              additionalProperties: false
+                            }
+                          }
+                        }],
+                        tool_choice: { type: "function", function: { name: "extract_variation_attributes" } },
+                      },
                     }),
                   });
 
                   if (aiResponse.ok) {
-                    const aiData = await aiResponse.json();
+                    const aiWrapper = await aiResponse.json();
+                    const aiData = aiWrapper.result || aiWrapper;
                     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
                     if (toolCall?.function?.arguments) {
                       const extracted = JSON.parse(toolCall.function.arguments);
