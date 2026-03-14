@@ -190,7 +190,7 @@ export default function PDFExtractionPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pdf_pages")
-        .select("id, page_number, status, vision_result")
+        .select("id, page_number, status, confidence_score, vision_result")
         .eq("extraction_id", wizardExtractionId!)
         .order("page_number");
       if (error) throw error;
@@ -198,30 +198,73 @@ export default function PDFExtractionPage() {
     },
   });
 
-  const realProgress = useMemo(() => {
+  // Keep only the best record per page_number (auto-resume may create duplicates)
+  const latestWizardPages = useMemo(() => {
     const pages = wizardPages || [];
+    const bestByPage = new Map<number, any>();
+
+    const meaningfulCount = (page: any) =>
+      flattenProducts((page?.vision_result as any)?.products || []).filter(
+        (prod: any) => prod?.title || prod?.sku || prod?.description || prod?.price != null,
+      ).length;
+
+    for (const page of pages) {
+      const pageNumber = Number(page?.page_number);
+      if (!Number.isFinite(pageNumber)) continue;
+
+      const current = bestByPage.get(pageNumber);
+      if (!current) {
+        bestByPage.set(pageNumber, page);
+        continue;
+      }
+
+      const currentProducts = meaningfulCount(current);
+      const nextProducts = meaningfulCount(page);
+      const currentConfidence = Number(current?.confidence_score || 0);
+      const nextConfidence = Number(page?.confidence_score || 0);
+
+      if (
+        nextProducts > currentProducts ||
+        (nextProducts === currentProducts && nextConfidence > currentConfidence)
+      ) {
+        bestByPage.set(pageNumber, page);
+      }
+    }
+
+    return [...bestByPage.values()].sort((a, b) => (a?.page_number || 0) - (b?.page_number || 0));
+  }, [wizardPages]);
+
+  const realProgress = useMemo(() => {
+    const pages = latestWizardPages;
     const totalPages = wizardExtraction?.total_pages || 0;
-    // Deduplicate by page_number — auto-resume may create duplicate records
     const uniqueExtracted = new Set(pages.filter((p: any) => p.status === "extracted").map((p: any) => p.page_number));
     const uniqueErrors = new Set(pages.filter((p: any) => p.status === "error").map((p: any) => p.page_number));
     const extractedPages = Math.min(uniqueExtracted.size, totalPages);
     const errorPages = Math.min(uniqueErrors.size, totalPages);
     const pct = totalPages > 0 ? Math.min(100, Math.round((extractedPages / totalPages) * 100)) : 0;
-    // Count products from vision_result
+
     let productCount = 0;
     pages.forEach((p: any) => {
       const products = flattenProducts((p.vision_result as any)?.products || []);
-      productCount += products.filter((prod: any) => prod.title || prod.sku).length;
+      productCount += products.filter((prod: any) => prod?.title || prod?.sku || prod?.description || prod?.price != null).length;
     });
-    return { extractedPages, errorPages, totalPages, pct, productCount };
-  }, [wizardPages, wizardExtraction?.total_pages]);
 
-  // Compute product count: prefer detected_products, fallback to counting from pages
-  const wizardProductCount = (() => {
-    const dp = flattenProducts((wizardExtraction?.detected_products as any[]) || []);
-    if (dp.length) return dp.length;
-    return realProgress.productCount;
-  })();
+    return { extractedPages, errorPages, totalPages, pct, productCount };
+  }, [latestWizardPages, wizardExtraction?.total_pages]);
+
+  // Products shown in review: prefer compiled extraction rows, fallback to normalized page-level vision data
+  const reviewProducts = useMemo(() => {
+    const compiled = flattenProducts((wizardExtraction?.detected_products as any[]) || []);
+    if (compiled.length > 0) return compiled;
+
+    const fromPages: any[] = [];
+    latestWizardPages.forEach((page: any) => {
+      fromPages.push(...flattenProducts((page?.vision_result as any)?.products || []));
+    });
+    return fromPages;
+  }, [wizardExtraction?.detected_products, latestWizardPages]);
+
+  const wizardProductCount = reviewProducts.length > 0 ? reviewProducts.length : realProgress.productCount;
 
   const extractionStatus = wizardExtraction?.status;
 
@@ -552,7 +595,7 @@ export default function PDFExtractionPage() {
               </Card>
 
               <DataPreviewTable
-                products={flattenProducts((wizardExtraction?.detected_products as any[]) || [])}
+                products={reviewProducts}
                 columns={undefined}
               />
 
