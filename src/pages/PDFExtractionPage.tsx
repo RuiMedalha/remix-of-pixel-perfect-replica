@@ -91,6 +91,7 @@ export default function PDFExtractionPage() {
   const { data: files } = useUploadedFiles();
   const startExtraction = useStartPdfExtraction();
   const mapToProducts = useMapPdfToProducts();
+  const deleteExtraction = useDeletePdfExtraction();
   const runDocIntel = useRunDocumentIntelligence();
   const analyzeLayout = useAnalyzePdfLayout();
   const saveMappingRules = useSaveExtractionMappingRules();
