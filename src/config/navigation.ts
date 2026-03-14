@@ -37,6 +37,7 @@ import {
   Scale,
   Send,
   Route,
+  TowerControl,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,6 +65,7 @@ export const navGroups: NavGroup[] = [
     defaultOpen: true,
     items: [
       { title: "Dashboard", icon: LayoutDashboard, route: "/" },
+      { title: "Control Tower", icon: TowerControl, route: "/control-tower" },
       { title: "Revisão", icon: ClipboardList, route: "/revisao" },
       { title: "Membros", icon: UserCog, route: "/membros" },
     ],

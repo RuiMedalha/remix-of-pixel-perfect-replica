@@ -4466,6 +4466,182 @@ export type Database = {
           },
         ]
       }
+      control_tower_alerts: {
+        Row: {
+          alert_scope: Database["public"]["Enums"]["ct_alert_scope_enum"]
+          alert_type: string
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          message: string | null
+          resolved_at: string | null
+          severity: number | null
+          status: Database["public"]["Enums"]["ct_alert_status_enum"] | null
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          alert_scope?: Database["public"]["Enums"]["ct_alert_scope_enum"]
+          alert_type: string
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message?: string | null
+          resolved_at?: string | null
+          severity?: number | null
+          status?: Database["public"]["Enums"]["ct_alert_status_enum"] | null
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          alert_scope?: Database["public"]["Enums"]["ct_alert_scope_enum"]
+          alert_type?: string
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message?: string | null
+          resolved_at?: string | null
+          severity?: number | null
+          status?: Database["public"]["Enums"]["ct_alert_status_enum"] | null
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_tower_alerts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      control_tower_snapshots: {
+        Row: {
+          created_at: string | null
+          id: string
+          snapshot_payload: Json | null
+          snapshot_type: Database["public"]["Enums"]["ct_snapshot_type_enum"]
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          snapshot_payload?: Json | null
+          snapshot_type?: Database["public"]["Enums"]["ct_snapshot_type_enum"]
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          snapshot_payload?: Json | null
+          snapshot_type?: Database["public"]["Enums"]["ct_snapshot_type_enum"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_tower_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      control_tower_views: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          filter_config: Json | null
+          id: string
+          is_default: boolean | null
+          layout_config: Json | null
+          updated_at: string | null
+          view_name: string
+          view_type: Database["public"]["Enums"]["ct_view_type_enum"]
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          filter_config?: Json | null
+          id?: string
+          is_default?: boolean | null
+          layout_config?: Json | null
+          updated_at?: string | null
+          view_name: string
+          view_type?: Database["public"]["Enums"]["ct_view_type_enum"]
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          filter_config?: Json | null
+          id?: string
+          is_default?: boolean | null
+          layout_config?: Json | null
+          updated_at?: string | null
+          view_name?: string
+          view_type?: Database["public"]["Enums"]["ct_view_type_enum"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_tower_views_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      control_tower_widgets: {
+        Row: {
+          created_at: string | null
+          data_source: string | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+          widget_config: Json | null
+          widget_name: string
+          widget_type: Database["public"]["Enums"]["ct_widget_type_enum"]
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_source?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          widget_config?: Json | null
+          widget_name: string
+          widget_type?: Database["public"]["Enums"]["ct_widget_type_enum"]
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data_source?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          widget_config?: Json | null
+          widget_name?: string
+          widget_type?: Database["public"]["Enums"]["ct_widget_type_enum"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_tower_widgets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_alerts: {
         Row: {
           alert_type: Database["public"]["Enums"]["cost_alert_type_enum"]
@@ -12109,6 +12285,33 @@ export type Database = {
         | "product"
         | "pdf_batch"
         | "asset_batch"
+      ct_alert_scope_enum:
+        | "workspace"
+        | "supplier"
+        | "job"
+        | "product"
+        | "channel"
+        | "asset"
+        | "review_queue"
+      ct_alert_status_enum: "open" | "acknowledged" | "resolved"
+      ct_snapshot_type_enum: "hourly" | "daily" | "manual" | "pre_release"
+      ct_view_type_enum:
+        | "operations"
+        | "supplier"
+        | "review"
+        | "quality"
+        | "publish"
+        | "costs"
+        | "executions"
+      ct_widget_type_enum:
+        | "kpi_card"
+        | "status_board"
+        | "queue_list"
+        | "timeline"
+        | "chart"
+        | "table"
+        | "heatmap"
+        | "alert_list"
       decision_priority_level: "low" | "medium" | "high" | "critical"
       decision_signal_type:
         | "quality_issue"
@@ -13217,6 +13420,36 @@ export const Constants = {
         "product",
         "pdf_batch",
         "asset_batch",
+      ],
+      ct_alert_scope_enum: [
+        "workspace",
+        "supplier",
+        "job",
+        "product",
+        "channel",
+        "asset",
+        "review_queue",
+      ],
+      ct_alert_status_enum: ["open", "acknowledged", "resolved"],
+      ct_snapshot_type_enum: ["hourly", "daily", "manual", "pre_release"],
+      ct_view_type_enum: [
+        "operations",
+        "supplier",
+        "review",
+        "quality",
+        "publish",
+        "costs",
+        "executions",
+      ],
+      ct_widget_type_enum: [
+        "kpi_card",
+        "status_board",
+        "queue_list",
+        "timeline",
+        "chart",
+        "table",
+        "heatmap",
+        "alert_list",
       ],
       decision_priority_level: ["low", "medium", "high", "critical"],
       decision_signal_type: [

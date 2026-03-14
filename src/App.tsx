@@ -48,6 +48,7 @@ import ConflictCenterPage from "./pages/ConflictCenterPage";
 import ChannelPayloadBuilderPage from "./pages/ChannelPayloadBuilderPage";
 import ExecutionPlannerPage from "./pages/ExecutionPlannerPage";
 import CostDashboardPage from "./pages/CostDashboardPage";
+import CatalogOperationsControlTowerPage from "./pages/CatalogOperationsControlTowerPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -113,6 +114,7 @@ function ProtectedRoutes() {
           <Route path="/channel-payloads" element={<ChannelPayloadBuilderPage />} />
           <Route path="/execution-planner" element={<ExecutionPlannerPage />} />
           <Route path="/cost-intelligence" element={<CostDashboardPage />} />
+          <Route path="/control-tower" element={<CatalogOperationsControlTowerPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
