@@ -820,45 +820,46 @@ Responde APENAS com a tool call.`;
         ],
       }],
       options: {
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "extract_products",
-            description: "Devolve os produtos extraídos do catálogo com coleções, variações e especificações técnicas",
-            parameters: {
-              type: "object",
-              properties: {
-                products: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      title: { type: "string", description: "Título completo: {Item} {Coleção} {Marca}" },
-                      description: { type: "string", description: "Descrição longa do produto ou coleção" },
-                      short_description: { type: "string", description: "Descrição curta" },
-                      price: { type: "string", description: "Preço com ponto decimal (ex: 2.68)" },
-                      sku: { type: "string", description: "Código de referência" },
-                      category: { type: "string", description: "Categoria do produto" },
-                      supplier_ref: { type: "string", description: "Referência do fornecedor" },
-                      brand: { type: "string", description: "Marca (ex: JAY, Lacor)" },
-                      model: { type: "string", description: "Nome da coleção/modelo (ex: Mica, Gema)" },
-                      technical_specs: { type: "string", description: "Especificações técnicas formatadas (ex: L: 202mm | e: 4.0mm)" },
-                      product_type: { type: "string", enum: ["simple", "variable", "variation"], description: "Tipo de produto" },
-                      parent_title: { type: "string", description: "Título do produto pai para variações" },
-                      image_urls: { type: "array", items: { type: "string" }, description: "URLs de imagens" },
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "extract_products",
+              description: "Devolve os produtos extraídos do catálogo com coleções, variações e especificações técnicas",
+              parameters: {
+                type: "object",
+                properties: {
+                  products: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        title: { type: "string", description: "Título completo: {Item} {Coleção} {Marca}" },
+                        description: { type: "string", description: "Descrição longa do produto ou coleção" },
+                        short_description: { type: "string", description: "Descrição curta" },
+                        price: { type: "string", description: "Preço com ponto decimal (ex: 2.68)" },
+                        sku: { type: "string", description: "Código de referência" },
+                        category: { type: "string", description: "Categoria do produto" },
+                        supplier_ref: { type: "string", description: "Referência do fornecedor" },
+                        brand: { type: "string", description: "Marca (ex: JAY, Lacor)" },
+                        model: { type: "string", description: "Nome da coleção/modelo (ex: Mica, Gema)" },
+                        technical_specs: { type: "string", description: "Especificações técnicas formatadas (ex: L: 202mm | e: 4.0mm)" },
+                        product_type: { type: "string", enum: ["simple", "variable", "variation"], description: "Tipo de produto" },
+                        parent_title: { type: "string", description: "Título do produto pai para variações" },
+                        image_urls: { type: "array", items: { type: "string" }, description: "URLs de imagens" },
+                      },
+                      required: ["title"],
                     },
-                    required: ["title"],
                   },
                 },
+                required: ["products"],
+                additionalProperties: false,
               },
-              required: ["products"],
-              additionalProperties: false,
             },
           },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "extract_products" } },
+        ],
+        tool_choice: { type: "function", function: { name: "extract_products" } },
+      },
     }),
   });
 
