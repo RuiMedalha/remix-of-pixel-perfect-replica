@@ -3443,6 +3443,33 @@ export type Database = {
           },
         ]
       }
+      channel_cost_profiles: {
+        Row: {
+          average_cost_per_publish: number | null
+          average_cost_per_sync: number | null
+          average_payload_build_cost: number | null
+          channel_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          average_cost_per_publish?: number | null
+          average_cost_per_sync?: number | null
+          average_payload_build_cost?: number | null
+          channel_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          average_cost_per_publish?: number | null
+          average_cost_per_sync?: number | null
+          average_payload_build_cost?: number | null
+          channel_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       channel_feed_profiles: {
         Row: {
           attribute_blacklist: string[] | null
@@ -4432,6 +4459,141 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "conflict_resolution_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_alerts: {
+        Row: {
+          alert_type: Database["public"]["Enums"]["cost_alert_type_enum"]
+          created_at: string
+          current_value: number
+          id: string
+          message: string
+          resolved_at: string | null
+          severity: string
+          status: Database["public"]["Enums"]["cost_alert_status_enum"]
+          threshold_value: number
+          workspace_id: string
+        }
+        Insert: {
+          alert_type: Database["public"]["Enums"]["cost_alert_type_enum"]
+          created_at?: string
+          current_value?: number
+          id?: string
+          message: string
+          resolved_at?: string | null
+          severity?: string
+          status?: Database["public"]["Enums"]["cost_alert_status_enum"]
+          threshold_value?: number
+          workspace_id: string
+        }
+        Update: {
+          alert_type?: Database["public"]["Enums"]["cost_alert_type_enum"]
+          created_at?: string
+          current_value?: number
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          severity?: string
+          status?: Database["public"]["Enums"]["cost_alert_status_enum"]
+          threshold_value?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_alerts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_forecasts: {
+        Row: {
+          created_at: string
+          estimated_cost: number
+          forecast_confidence: number | null
+          forecast_payload: Json | null
+          forecast_type: Database["public"]["Enums"]["forecast_type_enum"]
+          id: string
+          scope_id: string | null
+          scope_type: Database["public"]["Enums"]["cost_scope_type_enum"]
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_cost?: number
+          forecast_confidence?: number | null
+          forecast_payload?: Json | null
+          forecast_type?: Database["public"]["Enums"]["forecast_type_enum"]
+          id?: string
+          scope_id?: string | null
+          scope_type?: Database["public"]["Enums"]["cost_scope_type_enum"]
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          estimated_cost?: number
+          forecast_confidence?: number | null
+          forecast_payload?: Json | null
+          forecast_type?: Database["public"]["Enums"]["forecast_type_enum"]
+          id?: string
+          scope_id?: string | null
+          scope_type?: Database["public"]["Enums"]["cost_scope_type_enum"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_forecasts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_optimization_rules: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          optimization_action: Json | null
+          rule_name: string
+          scope_type: Database["public"]["Enums"]["cost_scope_type_enum"]
+          trigger_condition: Json | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          optimization_action?: Json | null
+          rule_name: string
+          scope_type?: Database["public"]["Enums"]["cost_scope_type_enum"]
+          trigger_condition?: Json | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          optimization_action?: Json | null
+          rule_name?: string
+          scope_type?: Database["public"]["Enums"]["cost_scope_type_enum"]
+          trigger_condition?: Json | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_optimization_rules_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -6679,6 +6841,57 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      optimization_savings_logs: {
+        Row: {
+          action_type: string
+          actual_saving: number | null
+          created_at: string
+          estimated_saving: number
+          id: string
+          rule_id: string | null
+          saving_scope: string | null
+          saving_scope_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          action_type: string
+          actual_saving?: number | null
+          created_at?: string
+          estimated_saving?: number
+          id?: string
+          rule_id?: string | null
+          saving_scope?: string | null
+          saving_scope_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          action_type?: string
+          actual_saving?: number | null
+          created_at?: string
+          estimated_saving?: number
+          id?: string
+          rule_id?: string | null
+          saving_scope?: string | null
+          saving_scope_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_savings_logs_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "cost_optimization_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimization_savings_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -9545,6 +9758,47 @@ export type Database = {
           },
         ]
       }
+      supplier_cost_profiles: {
+        Row: {
+          average_cost_per_import: number | null
+          average_cost_per_pdf_page: number | null
+          average_cost_per_product: number | null
+          average_review_rate: number | null
+          cost_efficiency_score: number | null
+          id: string
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          average_cost_per_import?: number | null
+          average_cost_per_pdf_page?: number | null
+          average_cost_per_product?: number | null
+          average_review_rate?: number | null
+          cost_efficiency_score?: number | null
+          id?: string
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          average_cost_per_import?: number | null
+          average_cost_per_pdf_page?: number | null
+          average_cost_per_product?: number | null
+          average_review_rate?: number | null
+          cost_efficiency_score?: number | null
+          id?: string
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_cost_profiles_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_decision_memory: {
         Row: {
           created_at: string | null
@@ -10480,6 +10734,85 @@ export type Database = {
           },
         ]
       }
+      usage_cost_records: {
+        Row: {
+          agent_id: string | null
+          channel_id: string | null
+          cost_category: Database["public"]["Enums"]["cost_category_enum"]
+          cost_metadata: Json | null
+          created_at: string
+          currency: string
+          id: string
+          job_id: string | null
+          job_type: string
+          model_name: string | null
+          product_id: string | null
+          supplier_id: string | null
+          total_cost: number
+          unit_cost: number
+          units_consumed: number
+          workspace_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          channel_id?: string | null
+          cost_category?: Database["public"]["Enums"]["cost_category_enum"]
+          cost_metadata?: Json | null
+          created_at?: string
+          currency?: string
+          id?: string
+          job_id?: string | null
+          job_type?: string
+          model_name?: string | null
+          product_id?: string | null
+          supplier_id?: string | null
+          total_cost?: number
+          unit_cost?: number
+          units_consumed?: number
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          channel_id?: string | null
+          cost_category?: Database["public"]["Enums"]["cost_category_enum"]
+          cost_metadata?: Json | null
+          created_at?: string
+          currency?: string
+          id?: string
+          job_id?: string | null
+          job_type?: string
+          model_name?: string | null
+          product_id?: string | null
+          supplier_id?: string | null
+          total_cost?: number
+          unit_cost?: number
+          units_consumed?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_cost_records_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usage_cost_records_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usage_cost_records_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -10759,6 +11092,50 @@ export type Database = {
             foreignKeyName: "workspace_ai_settings_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_budgets: {
+        Row: {
+          budget_limit: number
+          budget_period: Database["public"]["Enums"]["budget_period_enum"]
+          budget_type: Database["public"]["Enums"]["budget_type_enum"]
+          created_at: string
+          hard_limit_enabled: boolean
+          id: string
+          updated_at: string
+          warning_threshold_percent: number
+          workspace_id: string
+        }
+        Insert: {
+          budget_limit?: number
+          budget_period?: Database["public"]["Enums"]["budget_period_enum"]
+          budget_type?: Database["public"]["Enums"]["budget_type_enum"]
+          created_at?: string
+          hard_limit_enabled?: boolean
+          id?: string
+          updated_at?: string
+          warning_threshold_percent?: number
+          workspace_id: string
+        }
+        Update: {
+          budget_limit?: number
+          budget_period?: Database["public"]["Enums"]["budget_period_enum"]
+          budget_type?: Database["public"]["Enums"]["budget_type_enum"]
+          created_at?: string
+          hard_limit_enabled?: boolean
+          id?: string
+          updated_at?: string
+          warning_threshold_percent?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_budgets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
@@ -11057,6 +11434,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "workspace_supplier_configs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_usage_profiles: {
+        Row: {
+          created_at: string
+          default_execution_mode: Database["public"]["Enums"]["execution_mode_enum"]
+          id: string
+          max_cost_per_asset: number | null
+          max_cost_per_job: number | null
+          max_cost_per_pdf_page: number | null
+          max_cost_per_product: number | null
+          profile_name: string
+          review_before_expensive_run: boolean
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_execution_mode?: Database["public"]["Enums"]["execution_mode_enum"]
+          id?: string
+          max_cost_per_asset?: number | null
+          max_cost_per_job?: number | null
+          max_cost_per_pdf_page?: number | null
+          max_cost_per_product?: number | null
+          profile_name?: string
+          review_before_expensive_run?: boolean
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          default_execution_mode?: Database["public"]["Enums"]["execution_mode_enum"]
+          id?: string
+          max_cost_per_asset?: number | null
+          max_cost_per_job?: number | null
+          max_cost_per_pdf_page?: number | null
+          max_cost_per_product?: number | null
+          profile_name?: string
+          review_before_expensive_run?: boolean
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_usage_profiles_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -11553,6 +11980,14 @@ export type Database = {
         | "completed"
         | "failed"
         | "skipped"
+      budget_period_enum: "monthly" | "quarterly" | "yearly"
+      budget_type_enum:
+        | "ai"
+        | "scraping"
+        | "images"
+        | "translation"
+        | "publishing"
+        | "global"
       bundle_type_enum:
         | "frequently_bought_together"
         | "accessory_bundle"
@@ -11646,6 +12081,34 @@ export type Database = {
         | "unit_fix"
         | "grouping_fix"
         | "image_fix"
+      cost_alert_status_enum: "open" | "acknowledged" | "resolved"
+      cost_alert_type_enum:
+        | "budget_warning"
+        | "budget_exceeded"
+        | "cost_spike"
+        | "inefficient_supplier"
+        | "inefficient_channel"
+        | "high_review_cost"
+      cost_category_enum:
+        | "ai_text"
+        | "ai_vision"
+        | "ocr"
+        | "scraping"
+        | "image_processing"
+        | "translation"
+        | "payload_build"
+        | "publish_api"
+        | "sync_api"
+        | "storage"
+        | "review_ops"
+      cost_scope_type_enum:
+        | "workspace"
+        | "supplier"
+        | "channel"
+        | "job"
+        | "product"
+        | "pdf_batch"
+        | "asset_batch"
       decision_priority_level: "low" | "medium" | "high" | "critical"
       decision_signal_type:
         | "quality_issue"
@@ -11749,6 +12212,12 @@ export type Database = {
         | "internal_api"
         | "retailer_feed"
       field_validation_status: "valid" | "invalid" | "unvalidated"
+      forecast_type_enum:
+        | "job_forecast"
+        | "import_forecast"
+        | "supplier_forecast"
+        | "channel_forecast"
+        | "workspace_forecast"
       gap_type_enum:
         | "missing_product_family"
         | "missing_variation"
@@ -12605,6 +13074,15 @@ export const Constants = {
         "failed",
         "skipped",
       ],
+      budget_period_enum: ["monthly", "quarterly", "yearly"],
+      budget_type_enum: [
+        "ai",
+        "scraping",
+        "images",
+        "translation",
+        "publishing",
+        "global",
+      ],
       bundle_type_enum: [
         "frequently_bought_together",
         "accessory_bundle",
@@ -12708,6 +13186,37 @@ export const Constants = {
         "unit_fix",
         "grouping_fix",
         "image_fix",
+      ],
+      cost_alert_status_enum: ["open", "acknowledged", "resolved"],
+      cost_alert_type_enum: [
+        "budget_warning",
+        "budget_exceeded",
+        "cost_spike",
+        "inefficient_supplier",
+        "inefficient_channel",
+        "high_review_cost",
+      ],
+      cost_category_enum: [
+        "ai_text",
+        "ai_vision",
+        "ocr",
+        "scraping",
+        "image_processing",
+        "translation",
+        "payload_build",
+        "publish_api",
+        "sync_api",
+        "storage",
+        "review_ops",
+      ],
+      cost_scope_type_enum: [
+        "workspace",
+        "supplier",
+        "channel",
+        "job",
+        "product",
+        "pdf_batch",
+        "asset_batch",
       ],
       decision_priority_level: ["low", "medium", "high", "critical"],
       decision_signal_type: [
@@ -12824,6 +13333,13 @@ export const Constants = {
         "retailer_feed",
       ],
       field_validation_status: ["valid", "invalid", "unvalidated"],
+      forecast_type_enum: [
+        "job_forecast",
+        "import_forecast",
+        "supplier_forecast",
+        "channel_forecast",
+        "workspace_forecast",
+      ],
       gap_type_enum: [
         "missing_product_family",
         "missing_variation",
