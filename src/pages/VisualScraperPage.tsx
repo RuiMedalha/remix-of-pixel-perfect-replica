@@ -942,6 +942,31 @@ export default function VisualScraperPage() {
     toast.success(`${links.length} URLs de categoria adicionadas`);
   };
 
+  /* ── Drill into a single category URL from the fields panel ── */
+  const handleDrillCategoryField = async (fieldUrl: string, fieldName: string) => {
+    const resolvedUrl = fieldUrl.startsWith("http") ? fieldUrl : `${new URL(currentUrl).origin}${fieldUrl}`;
+    setLoading(true);
+    try {
+      const { links, nextPages } = await extractLinksFromPage(resolvedUrl);
+      setCurrentLinks(links);
+      setLayers([{
+        label: fieldName || resolvedUrl,
+        links,
+        sourceUrl: resolvedUrl,
+        hasPagination: nextPages.length > 0,
+        paginationUrls: nextPages,
+      }]);
+      // Keep only extraction fields, remove used category URLs
+      setFields(prev => prev.filter(f => f.purpose === "field"));
+      setStep("categories");
+      const cats = links.filter(l => l.linkType === "categoria" || l.linkType === "grupo").length;
+      const prods = links.filter(l => l.linkType === "produto").length;
+      toast.success(`${fieldName}: ${links.length} links (${cats} categorias · ${prods} produtos)`);
+    } catch (err: any) {
+      toast.error("Erro ao explorar categoria", { description: err.message });
+    } finally { setLoading(false); }
+  };
+
   const handleUseProductUrls = () => {
     const prodFields = fields.filter(f => f.purpose === "product_url" && f.preview);
     if (prodFields.length === 0) { toast.error("Nenhum URL de produto selecionado."); return; }
@@ -1409,7 +1434,24 @@ export default function VisualScraperPage() {
                           </>
                         )}
 
-                        {(f.purpose === "category_url" || f.purpose === "product_url") && (
+                        {f.purpose === "category_url" && (
+                          <div className="flex items-center gap-1">
+                            <p className="text-[9px] font-mono text-muted-foreground/60 truncate flex-1" title={f.selector}>{f.selector}</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-5 text-[9px] px-1.5 shrink-0"
+                              onClick={() => handleDrillCategoryField(f.preview, f.name)}
+                              disabled={loading || !f.preview}
+                              title="Entrar nesta categoria e ver sub-links"
+                            >
+                              {loading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <ChevronRight className="w-2.5 h-2.5" />}
+                              Entrar
+                            </Button>
+                          </div>
+                        )}
+
+                        {f.purpose === "product_url" && (
                           <p className="text-[9px] font-mono text-muted-foreground/60 truncate" title={f.selector}>{f.selector}</p>
                         )}
                       </div>
