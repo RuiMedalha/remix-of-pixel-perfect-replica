@@ -361,12 +361,23 @@ export default function VisualScraperPage() {
     setLoading(true);
     try {
       const { links, nextPages } = await extractLinksFromPage(currentUrl);
+      const categoryCandidates = links.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+      const productCandidates = links.filter(l => l.linkType === "produto");
+
       setExtractedLinks(links);
       setLinkLayers([{ label: currentUrl, links, sourceUrls: [currentUrl] }]);
       setPaginationUrls(nextPages);
       setCrawledPages([currentUrl]);
       setStep("links");
-      toast.success(`${links.length} links encontrados. ${nextPages.length} páginas de paginação detetadas.`);
+
+      if (categoryCandidates.length > 0) {
+        setCategoryAgentSelection(Object.fromEntries(categoryCandidates.map(link => [link.url, true])));
+        setShowCategoryAgentDialog(true);
+      }
+
+      toast.success(
+        `${links.length} links encontrados (${categoryCandidates.length} categorias/grupos · ${productCandidates.length} produtos).`
+      );
     } catch (err: any) {
       toast.error("Erro ao extrair links", { description: err.message });
     } finally {
