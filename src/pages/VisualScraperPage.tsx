@@ -39,10 +39,13 @@ interface ExtractedRow {
   [key: string]: string;
 }
 
+type LinkType = "categoria" | "grupo" | "produto" | "outro";
+
 interface ExtractedLink {
   url: string;
   text: string;
   selected: boolean;
+  linkType: LinkType;
 }
 
 interface LinkLayer {
