@@ -166,6 +166,38 @@ export default function VisualScraperPage() {
     }
   };
 
+  // ── Smart link classification helpers ──
+  const PRODUCT_LINK_CLASSES = [
+    'productteaser', 'product-teaser', 'product-card', 'product-item',
+    'product-link', 'product-tile', 'woocommerce-loop-product__link',
+  ];
+  const CATEGORY_LINK_CLASSES = [
+    'categoryproductteaser', 'category-teaser', 'category-card', 'category-link',
+  ];
+  const NAV_CONTAINERS = ['nav', 'header', 'footer', '.menu', '.navbar', '.footer', '.header', '.breadcrumb', '.social'];
+
+  const classifyLink = (anchor: Element, doc: Document): 'product' | 'category' | 'navigation' | 'other' => {
+    const classes = (anchor.className || '').toLowerCase();
+    const href = (anchor.getAttribute('href') || '').toLowerCase();
+    
+    // Check if link itself has product/category class
+    if (PRODUCT_LINK_CLASSES.some(c => classes.includes(c))) return 'product';
+    if (CATEGORY_LINK_CLASSES.some(c => classes.includes(c))) return 'category';
+
+    // Check if inside a nav/footer container
+    const isInNav = !!anchor.closest('nav, header, footer, .menu, .navbar, .footer-menu, .header-menu, .Breadcrumb, .social-links, .GeographicRedirection');
+    if (isInNav) return 'navigation';
+
+    // Check if inside main content area
+    const isInMain = !!anchor.closest('main, #Main-wrapper, .NodeCategory, .NodeCategoriesList, .item-list, .products, .product-list, .catalog, [role="main"]');
+    if (isInMain) return 'product';
+
+    // URL heuristics - contact, legal pages etc.
+    if (/\/(contact|about|legal|privacy|terms|faq|blog|news|cart|checkout|account|login|search)/.test(href)) return 'navigation';
+
+    return 'other';
+  };
+
   // Extract links + detect pagination from a page
   const extractLinksFromPage = async (pageUrl: string): Promise<{ links: ExtractedLink[]; nextPages: string[] }> => {
     const { data: proxyData } = await supabase.functions.invoke("proxy-page", {
@@ -180,23 +212,35 @@ export default function VisualScraperPage() {
     const baseUrl = new URL(pageUrl);
     const links: ExtractedLink[] = [];
     const seen = new Set<string>();
+    let hasProductLinks = false;
 
     anchors.forEach(a => {
       try {
         let href = a.getAttribute("href") || "";
         if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
         const fullUrl = new URL(href, baseUrl.origin).href;
-        if (seen.has(fullUrl)) return;
+        if (seen.has(fullUrl) || fullUrl === pageUrl) return;
         seen.add(fullUrl);
-        if (new URL(fullUrl).hostname === baseUrl.hostname) {
-          links.push({
-            url: fullUrl,
-            text: (a.textContent || "").trim().substring(0, 120),
-            selected: false,
-          });
-        }
+        if (new URL(fullUrl).hostname !== baseUrl.hostname) return;
+
+        const linkType = classifyLink(a, doc);
+        if (linkType === 'navigation') return; // Skip nav/footer/header links entirely
+
+        const isContentLink = linkType === 'product' || linkType === 'category';
+        if (isContentLink) hasProductLinks = true;
+
+        links.push({
+          url: fullUrl,
+          text: (a.textContent || "").trim().replace(/\s+/g, ' ').substring(0, 120),
+          selected: isContentLink, // Auto-select product/category links
+        });
       } catch { /* ignore */ }
     });
+
+    // If we found content links, deselect the "other" ones
+    if (hasProductLinks) {
+      // Already handled: content links are selected, others are not
+    }
 
     // Detect pagination links (next page, page 2, 3, etc.)
     const paginationSelectors = [
@@ -211,7 +255,6 @@ export default function VisualScraperPage() {
     const nextPages: string[] = [];
     const seenPages = new Set<string>();
     
-    // Method 1: CSS selectors
     paginationSelectors.forEach(sel => {
       try {
         doc.querySelectorAll(sel).forEach(el => {
@@ -229,7 +272,6 @@ export default function VisualScraperPage() {
       } catch { /* ignore */ }
     });
 
-    // Method 2: Text-based detection for "Next", "NEXT", "›", "»", numbered pages
     if (nextPages.length === 0) {
       const allAnchors = doc.querySelectorAll("a[href]");
       allAnchors.forEach(a => {
@@ -587,20 +629,73 @@ export default function VisualScraperPage() {
       const doc = parser.parseFromString(htmlContent, "text/html");
 
       const commonSelectors: { name: string; selectors: string[]; type: SelectedField["type"]; isVariation?: boolean }[] = [
-        { name: "Título", selectors: ["h1.product_title", "h1.product-title", "h1[itemprop='name']", ".product-name h1", ".product_title", "h1.entry-title", "h1"], type: "text" },
+        // Title - WooCommerce + Drupal + generic
+        { name: "Título", selectors: [
+          "h1.product_title", "h1.product-title", "h1[itemprop='name']", ".product-name h1",
+          "h1.ProductTop-title", ".ProductTop-title", // Drupal commerce (Dynamic Mixers etc.)
+          ".product_title", "h1.entry-title", "h1",
+        ], type: "text" },
+        // Product Name / Model
+        { name: "Modelo", selectors: [
+          ".ProductTop-name", ".product-model", ".product-subtitle",
+        ], type: "text" },
+        // Range / Line
+        { name: "Gama", selectors: [
+          ".ProductTop-gamme", ".product-range", ".product-line",
+        ], type: "text" },
+        // Reference / SKU
+        { name: "Referência", selectors: [
+          ".ProductMain-features-ref", // Drupal (e.g., "Ref. TB120.2")
+          ".sku", "[itemprop='sku']", ".product_meta .sku", ".product-sku",
+          ".product-reference", ".ref-number",
+        ], type: "text" },
+        // Price
         { name: "Preço", selectors: [".price ins .amount", ".price .amount", "[itemprop='price']", ".product-price", ".current-price", ".woocommerce-Price-amount", ".price"], type: "text" },
         { name: "Preço Original", selectors: [".price del .amount", ".was-price", ".old-price", ".regular-price"], type: "text" },
-        { name: "SKU", selectors: [".sku", "[itemprop='sku']", ".product_meta .sku", ".product-sku"], type: "text" },
-        { name: "Descrição", selectors: [".woocommerce-product-details__short-description", "#tab-description", "[itemprop='description']", ".product-description", ".product-short-description"], type: "html" },
-        { name: "Imagem Principal", selectors: [".woocommerce-product-gallery__image img", ".product-image img", "[itemprop='image']", ".wp-post-image", ".product-main-image img", ".main-image img"], type: "image" },
-        { name: "Galeria Imagens", selectors: [".woocommerce-product-gallery__image:not(:first-child) img", ".product-thumbnails img", ".gallery-item img", ".product-gallery img"], type: "image", isVariation: true },
+        // Description
+        { name: "Descrição", selectors: [
+          ".ProductMain-desc-content", ".ProductMain-desc", // Drupal
+          ".woocommerce-product-details__short-description", "#tab-description",
+          "[itemprop='description']", ".product-description", ".product-short-description",
+        ], type: "html" },
+        // Main Image
+        { name: "Imagem Principal", selectors: [
+          ".ProductMain-images-slider-item img", ".ProductMain-images img", // Drupal
+          ".woocommerce-product-gallery__image img", ".product-image img",
+          "[itemprop='image']", ".wp-post-image", ".product-main-image img", ".main-image img",
+        ], type: "image" },
+        // Gallery
+        { name: "Galeria Imagens", selectors: [
+          ".ProductMain-images-slider-item:not(:first-child) img", // Drupal
+          ".woocommerce-product-gallery__image:not(:first-child) img",
+          ".product-thumbnails img", ".gallery-item img", ".product-gallery img",
+        ], type: "image", isVariation: true },
+        // Features / Specs
+        { name: "Características", selectors: [
+          ".Features-list", ".ProductMain-features-list table", // Drupal specs table
+          ".product-specs", ".specifications", ".tech-specs", "[itemprop='additionalProperty']",
+        ], type: "html" },
+        // Key benefits
+        { name: "Benefícios", selectors: [
+          ".ProductMain-quantity-list", ".product-benefits", ".key-features",
+        ], type: "html" },
+        // Capacity / Volume
+        { name: "Capacidade", selectors: [
+          ".ProductMain-quantity-title", ".product-capacity",
+        ], type: "text" },
+        // Category
         { name: "Categoria", selectors: [".posted_in a", "[itemprop='category']", ".product-category a", ".breadcrumb a:last-child", ".product_meta .posted_in a"], type: "text" },
+        // Brand
         { name: "Marca", selectors: ["[itemprop='brand']", ".product-brand", ".brand a", ".product_meta .brand"], type: "text" },
         { name: "Peso", selectors: [".product_weight", "[itemprop='weight']", ".weight-value"], type: "text" },
         { name: "Dimensões", selectors: [".product_dimensions", ".dimensions-value"], type: "text" },
         { name: "Stock", selectors: [".stock", ".availability", "[itemprop='availability']", ".in-stock", ".product-stock"], type: "text" },
         { name: "Variações", selectors: ["select[name^='attribute'] option:not([value=''])", ".variations select option:not([value=''])", ".swatch-anchor", ".product-variation-option"], type: "text", isVariation: true },
         { name: "EAN/GTIN", selectors: ["[itemprop='gtin13']", "[itemprop='gtin']", ".ean-value", ".barcode"], type: "text" },
+        // Documents / Downloads
+        { name: "Documentos", selectors: [
+          ".btn-download a", ".ProductDetails a[href$='.pdf']", "a[href$='.pdf']",
+        ], type: "link", isVariation: true },
       ];
 
       const detected: SelectedField[] = [];
