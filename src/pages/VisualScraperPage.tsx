@@ -710,20 +710,14 @@ export default function VisualScraperPage() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     if (results.length === 0) return;
-    const headers = Object.keys(results[0]);
-    const csv = [
-      headers.join(","),
-      ...results.map(row =>
-        headers.map(h => `"${(row[h] || "").replace(/"/g, '""')}"`).join(",")
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "scrape-results.csv";
-    a.click();
+    import("xlsx").then(XLSX => {
+      const ws = XLSX.utils.json_to_sheet(results);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Scrape Results");
+      XLSX.writeFile(wb, "scrape-results.xlsx");
+    });
   };
 
   const handleSendToProducts = async () => {
