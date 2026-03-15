@@ -235,7 +235,8 @@ export default function VisualScraperPage() {
         links.push({
           url: fullUrl,
           text: (a.textContent || "").trim().replace(/\s+/g, ' ').substring(0, 120),
-          selected: isContentLink, // Auto-select product/category links
+          selected: isContentLink,
+          linkType: linkType === 'product' ? 'produto' : linkType === 'category' ? 'categoria' : 'outro',
         });
       } catch { /* ignore */ }
     });
