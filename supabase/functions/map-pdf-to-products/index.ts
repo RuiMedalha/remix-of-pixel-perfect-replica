@@ -178,7 +178,7 @@ serve(async (req) => {
 
     const effectiveWorkspaceId = workspaceId || extractionRow?.workspace_id;
 
-    // Collect products from reviewed data or from pages
+    // Collect products from reviewed data or from pages + tables
     let structuredRows: any[] = [];
 
     const reviewedProducts = flattenVisionProducts(extractionRow?.detected_products || []);
@@ -186,16 +186,15 @@ serve(async (req) => {
       .map((p: any) => mapProductRow(p, p?.category || "", p?._source || "pdf_review", p?._pageNumber))
       .filter(hasMeaningfulProduct);
 
-    if (structuredRows.length === 0) {
-      const { data: allPages } = await supabase
-        .from("pdf_pages")
-        .select("id, page_number, confidence_score, vision_result, page_context")
-        .eq("extraction_id", extractionId)
-        .order("page_number");
+    // Always fetch pages for enrichment (even if reviewed products exist)
+    const { data: allPages } = await supabase
+      .from("pdf_pages")
+      .select("id, page_number, confidence_score, vision_result, page_context")
+      .eq("extraction_id", extractionId)
+      .order("page_number");
 
-      if (!allPages?.length) throw new Error("No pages found");
+    if (structuredRows.length === 0 && allPages?.length) {
       const pages = pickBestPageRows(allPages);
-
       for (const page of pages) {
         const sectionTitle = page.page_context?.section_title || "";
         const products = flattenVisionProducts(page.vision_result?.products || [], sectionTitle);
@@ -204,45 +203,73 @@ serve(async (req) => {
           if (hasMeaningfulProduct(mapped)) structuredRows.push(mapped);
         }
       }
+    }
 
-      // Also try tables if still empty
-      if (structuredRows.length === 0) {
-        const pageIds = pages.map((p) => p.id);
-        const { data: tables } = await supabase
-          .from("pdf_tables")
-          .select("*, pdf_table_rows(*)")
-          .in("page_id", pageIds)
-          .order("table_index");
+    // Always enrich with table data — merge table rows into existing products by SKU or append new ones
+    if (allPages?.length) {
+      const pageIds = allPages.map((p: any) => p.id);
+      const { data: tables } = await supabase
+        .from("pdf_tables")
+        .select("*, pdf_table_rows(*)")
+        .in("page_id", pageIds)
+        .order("table_index");
 
-        if (tables?.length) {
-          for (const table of tables) {
-            for (const row of table.pdf_table_rows || []) {
-              const cells = row.cells || [];
-              const product: Record<string, any> = {};
-              let totalConfidence = 0;
-              for (const cell of cells) {
-                const field = cell.semantic_type || cell.header;
-                if (cell.value && field) {
-                  if (field === "sku") product.sku = cell.value;
-                  else if (field === "title") product.original_title = cell.value;
-                  else if (field === "description") product.original_description = cell.value;
-                  else if (field === "price") { const num = toNumberPrice(cell.value); if (num !== null) product.original_price = num; }
-                  else if (field === "category") product.category = cell.value;
+      if (tables?.length) {
+        const tableProducts: any[] = [];
+        for (const table of tables) {
+          for (const row of table.pdf_table_rows || []) {
+            const cells = row.cells || [];
+            const product: Record<string, any> = {};
+            let totalConfidence = 0;
+            for (const cell of cells) {
+              const field = cell.semantic_type || cell.header;
+              if (cell.value && field) {
+                if (field === "sku" || field === "reference" || field === "código" || field === "codigo" || field === "ref") product.sku = cell.value;
+                else if (field === "title" || field === "nome" || field === "produto" || field === "designação" || field === "designacao") product.original_title = cell.value;
+                else if (field === "description" || field === "descrição" || field === "descricao") product.original_description = cell.value;
+                else if (field === "short_description") product.short_description = cell.value;
+                else if (field === "price" || field === "preço" || field === "preco" || field === "pvp") {
+                  const num = toNumberPrice(cell.value);
+                  if (num !== null) product.original_price = num;
                 }
-                totalConfidence += Number(cell.confidence || 0);
+                else if (field === "category" || field === "categoria" || field === "família" || field === "familia") product.category = cell.value;
+                else if (field === "dimensions" || field === "dimensões" || field === "medidas") product.dimensions = cell.value;
+                else if (field === "weight" || field === "peso") product.weight = cell.value;
+                else if (field === "material") product.material = cell.value;
+                else if (field === "brand" || field === "marca") product.brand = cell.value;
+                else if (field === "model" || field === "modelo") product.model = cell.value;
+                else if (field === "technical_specs" || field === "especificações" || field === "specs") {
+                  product.technical_specs = product.technical_specs
+                    ? product.technical_specs + "; " + cell.value
+                    : cell.value;
+                }
+                else {
+                  // Store unknown fields as extra attributes
+                  product[field] = cell.value;
+                }
               }
-              if (hasMeaningfulProduct(product)) {
-                structuredRows.push({
-                  ...product,
-                  _confidence: cells.length > 0 ? Math.round(totalConfidence / cells.length) : 50,
-                  _source: "pdf_table",
-                  _rowId: row.id,
-                });
-              }
+              totalConfidence += Number(cell.confidence || 0);
+            }
+            if (hasMeaningfulProduct(product)) {
+              tableProducts.push({
+                ...product,
+                _confidence: cells.length > 0 ? Math.round(totalConfidence / cells.length) : 50,
+                _source: "pdf_table",
+                _rowId: row.id,
+              });
             }
           }
         }
+
+        // Merge table products into structuredRows — table data enriches existing vision products
+        if (tableProducts.length > 0) {
+          structuredRows = [...structuredRows, ...tableProducts];
+        }
       }
+    }
+
+    if (structuredRows.length === 0 && !allPages?.length) {
+      throw new Error("No pages found");
     }
 
     // ─── Merge products with same SKU ───
