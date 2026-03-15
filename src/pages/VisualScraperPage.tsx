@@ -1485,8 +1485,8 @@ export default function VisualScraperPage() {
 
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">
-                  {(batchUrls.length > 0 || selectedLinksCount > 0)
-                    ? `${batchUrls.length > 0 ? batchUrls.length : selectedLinksCount} páginas selecionadas`
+                  {batchUrls.length > 0
+                    ? `${batchUrls.length} páginas de produto selecionadas`
                     : `1 página (${currentUrl})`}
                 </p>
                 {useFirecrawl && (
