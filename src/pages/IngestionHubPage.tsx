@@ -789,6 +789,8 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
       {selectedItem && (
         <ItemDetailDialog
           item={selectedItem}
+          allItems={items}
+          jobId={job.id}
           onClose={() => setSelectedItem(null)}
           currentIndex={selectedIndex}
           totalItems={items.length}
