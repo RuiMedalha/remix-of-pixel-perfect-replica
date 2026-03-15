@@ -71,6 +71,19 @@ type AgentStep =
    Link classification helpers
    ──────────────────────────────────────────────── */
 
+// Multi-language product zone keywords (menu items, breadcrumbs, headings)
+const PRODUCT_ZONE_KEYWORDS = [
+  'produtos', 'produto', 'os nossos produtos', 'catálogo', 'catalogo', 'loja', 'artigos',
+  'products', 'product', 'our products', 'shop', 'store', 'catalog', 'catalogue', 'all products',
+  'produits', 'nos produits', 'boutique', 'catalogue', 'articles',
+  'productos', 'nuestros productos', 'tienda',
+  'produkte', 'unsere produkte', 'sortiment',
+  'prodotti', 'i nostri prodotti', 'negozio',
+  'producten', 'onze producten', 'winkel',
+  'collection', 'collections', 'assortment', 'range', 'gama', 'gamma',
+];
+const PRODUCT_ZONE_REGEX = new RegExp(`\\b(${PRODUCT_ZONE_KEYWORDS.join('|')})\\b`, 'i');
+
 const NAV_URL_HINT = /(contact|about|legal|privacy|terms|cookies|gdpr|faq|blog|news|cart|checkout|account|login|search|facebook|instagram|linkedin|youtube|twitter|tiktok|pinterest)/i;
 const PRODUCT_URL_HINT = /(\/product(s)?\/|\/produto(s)?\/|\/p\/|\/item\/|\/model\/|\/md\d+|\.html$)/i;
 const CATEGORY_URL_HINT = /(\/categor(y|ies)\/|\/categoria(s)?\/|\/collection(s)?\/|\/grupo(s)?\/|\/range\/|\/gama\/|\/famil(y|ies)\/|\/shop\/|our-products|nos-produits|nuestros-productos)/i;
