@@ -154,6 +154,7 @@ export default function VisualScraperPage() {
           urls,
           fields: fields.map(f => ({ name: f.name, selector: f.selector, type: f.type })),
           workspaceId: activeWorkspace?.id,
+          useFirecrawl,
         },
       });
       if (error) throw error;
