@@ -319,63 +319,7 @@ export default function VisualScraperPage() {
     }
   };
 
-  // Drill into selected links — extract links from all selected URLs simultaneously
-  const handleDrillIntoSelected = async () => {
-    const selectedUrls = extractedLinks.filter(l => l.selected).map(l => l.url);
-    if (selectedUrls.length === 0) {
-      toast.error("Selecione pelo menos um link para explorar.");
-      return;
-    }
-
-    setDrillLoading(true);
-    try {
-      // Save current layer
-      setLinkLayers(prev => [...prev, {
-        label: `Camada ${prev.length + 1} (${selectedUrls.length} páginas)`,
-        links: extractedLinks,
-        sourceUrls: selectedUrls,
-      }]);
-
-      // Extract links from all selected URLs in parallel (batches of 5)
-      const allNewLinks: ExtractedLink[] = [];
-      const allNextPages: string[] = [];
-      const seenUrls = new Set<string>();
-
-      for (let i = 0; i < selectedUrls.length; i += 5) {
-        const batch = selectedUrls.slice(i, i + 5);
-        const results = await Promise.allSettled(
-          batch.map(u => extractLinksFromPage(u))
-        );
-
-        results.forEach(r => {
-          if (r.status === "fulfilled") {
-            r.value.links.forEach(link => {
-              if (!seenUrls.has(link.url)) {
-                seenUrls.add(link.url);
-                allNewLinks.push(link);
-              }
-            });
-            r.value.nextPages.forEach(p => {
-              if (!seenUrls.has(p)) allNextPages.push(p);
-            });
-          }
-        });
-
-        if (selectedUrls.length > 5) {
-          toast.info(`Progresso: ${Math.min(i + 5, selectedUrls.length)}/${selectedUrls.length} páginas exploradas...`);
-        }
-      }
-
-      setExtractedLinks(allNewLinks);
-      setPaginationUrls([...new Set(allNextPages)]);
-      setCrawledPages(prev => [...prev, ...selectedUrls]);
-      toast.success(`${allNewLinks.length} links encontrados de ${selectedUrls.length} páginas.`);
-    } catch (err: any) {
-      toast.error("Erro ao explorar links", { description: err.message });
-    } finally {
-      setDrillLoading(false);
-    }
-  };
+  // (Drill logic moved to handleDrillCategories)
 
   // Go back to previous layer
   const handleLayerBack = () => {
