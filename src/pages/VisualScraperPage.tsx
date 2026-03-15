@@ -234,9 +234,10 @@ export default function VisualScraperPage() {
         else if (tagName === "a" || href) { type = "link"; preview = href || text || ""; }
 
         const inferPurpose: FieldPurpose = (type === "link" || tagName === "a" || href) ? "category_url" : "field";
-        const autoName = inferPurpose === "category_url" ? `URL Cat ${prev.length + 1}` : inferPurpose === "product_url" ? `URL Prod ${prev.length + 1}` : `Campo ${prev.length + 1}`;
 
-        setFields(prev => [...prev, {
+        setFields(prev => {
+          const autoName = inferPurpose === "category_url" ? `URL Cat ${prev.length + 1}` : inferPurpose === "product_url" ? `URL Prod ${prev.length + 1}` : `Campo ${prev.length + 1}`;
+          return [...prev, {
           id: crypto.randomUUID(),
           name: autoName,
           selector, type,
