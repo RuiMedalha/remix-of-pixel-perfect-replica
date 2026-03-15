@@ -904,8 +904,8 @@ export default function VisualScraperPage() {
       {step === "links" && (
         <div className="flex-1 flex flex-col min-h-0 p-4 gap-3">
           <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => setStep("browse")}>
-              <ArrowLeft className="w-3 h-3 mr-1" /> Voltar
+            <Button variant="outline" size="sm" onClick={handleLayerBack}>
+              <ArrowLeft className="w-3 h-3 mr-1" /> {linkLayers.length > 1 ? "Camada Anterior" : "Voltar"}
             </Button>
             <h2 className="font-semibold">Links Encontrados</h2>
             <Badge>{extractedLinks.length} total</Badge>
@@ -926,6 +926,54 @@ export default function VisualScraperPage() {
               />
             </div>
           </div>
+
+          {/* Layer breadcrumbs */}
+          {linkLayers.length > 1 && (
+            <div className="flex items-center gap-1 flex-wrap text-xs text-muted-foreground border rounded-lg p-2 bg-muted/20 flex-shrink-0">
+              <Layers className="w-3.5 h-3.5 mr-1" />
+              {linkLayers.map((layer, idx) => (
+                <span key={idx} className="flex items-center gap-1">
+                  {idx > 0 && <ChevronRight className="w-3 h-3" />}
+                  <button
+                    className={`hover:underline ${idx === linkLayers.length - 1 ? "font-semibold text-foreground" : ""}`}
+                    onClick={() => {
+                      if (idx < linkLayers.length - 1) {
+                        const sliced = linkLayers.slice(0, idx + 1);
+                        setLinkLayers(sliced);
+                        setExtractedLinks(sliced[sliced.length - 1].links);
+                        setPaginationUrls([]);
+                      }
+                    }}
+                  >
+                    {layer.label.length > 40 ? layer.label.substring(0, 40) + "…" : layer.label}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Drill + selection actions */}
+          {selectedLinksCount > 0 && (
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-primary/5 flex-shrink-0">
+              <span className="text-sm font-medium">{selectedLinksCount} selecionados</span>
+              <div className="ml-auto flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleDrillIntoSelected}
+                  disabled={drillLoading}
+                >
+                  {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
+                  Explorar Links ({selectedLinksCount}) — próxima camada
+                </Button>
+                {fields.length > 0 && (
+                  <Button size="sm" onClick={handleGoToBatch}>
+                    <Play className="w-3 h-3 mr-1" /> Extrair Dados ({selectedLinksCount} páginas)
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Pagination controls */}
           {paginationUrls.length > 0 && (
@@ -963,7 +1011,8 @@ export default function VisualScraperPage() {
           />
 
           <p className="text-xs text-muted-foreground">
-            Selecione os links das páginas de produto. Depois clique no <Crosshair className="w-3 h-3 inline" /> para ir a uma página e definir os campos a extrair.
+            Selecione links e use <strong>"Explorar Links"</strong> para descer mais um nível (ex: categorias → subcategorias → produtos).
+            Quando estiver nas páginas de produto, clique no <Crosshair className="w-3 h-3 inline" /> para definir os campos a extrair.
           </p>
 
           <ScrollArea className="flex-1 border rounded-lg">
