@@ -676,7 +676,7 @@ export default function VisualScraperPage() {
           return;
         }
 
-        await handleRunBatch(uniqueProductUrls);
+        await runBatchExtraction(uniqueProductUrls);
       }
     } catch (err: any) {
       toast.error("Erro ao explorar links", { description: err.message });
