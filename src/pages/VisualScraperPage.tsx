@@ -1056,6 +1056,9 @@ export default function VisualScraperPage() {
             {selectedLinksCount > 0 && <Badge variant="secondary">{selectedLinksCount} selecionados</Badge>}
             <Badge variant="outline" className="text-[10px]">{crawledPages.length} pág. percorridas</Badge>
             <div className="ml-auto flex gap-2 flex-wrap">
+              <Button variant="secondary" size="sm" onClick={detectUrlPatterns}>
+                <Wand2 className="w-3 h-3 mr-1" /> Detetar Padrões
+              </Button>
               <Button variant="outline" size="sm" onClick={() => toggleAllLinks(true)}>Selecionar Todos</Button>
               <Button variant="outline" size="sm" onClick={() => toggleAllLinks(false)}>Limpar</Button>
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
