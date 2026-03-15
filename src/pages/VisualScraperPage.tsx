@@ -1434,7 +1434,24 @@ export default function VisualScraperPage() {
                           </>
                         )}
 
-                        {(f.purpose === "category_url" || f.purpose === "product_url") && (
+                        {f.purpose === "category_url" && (
+                          <div className="flex items-center gap-1">
+                            <p className="text-[9px] font-mono text-muted-foreground/60 truncate flex-1" title={f.selector}>{f.selector}</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-5 text-[9px] px-1.5 shrink-0"
+                              onClick={() => handleDrillCategoryField(f.preview, f.name)}
+                              disabled={loading || !f.preview}
+                              title="Entrar nesta categoria e ver sub-links"
+                            >
+                              {loading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <ChevronRight className="w-2.5 h-2.5" />}
+                              Entrar
+                            </Button>
+                          </div>
+                        )}
+
+                        {f.purpose === "product_url" && (
                           <p className="text-[9px] font-mono text-muted-foreground/60 truncate" title={f.selector}>{f.selector}</p>
                         )}
                       </div>
