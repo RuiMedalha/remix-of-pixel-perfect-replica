@@ -95,6 +95,10 @@ export default function VisualScraperPage() {
   // Current iframe mode
   const [iframeMode, setIframeMode] = useState<Mode>("browse");
 
+  // Smart pattern detection
+  const [urlPatterns, setUrlPatterns] = useState<{ pattern: string; count: number; sample: string; selected: boolean }[]>([]);
+  const [showPatternDialog, setShowPatternDialog] = useState(false);
+
   // Listen for messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -470,6 +474,143 @@ export default function VisualScraperPage() {
     setStep("select-fields");
   };
 
+  // ── Smart URL Pattern Detection ──
+
+  const detectUrlPatterns = () => {
+    // Group URLs by path structure (replace numeric/uuid segments with placeholders)
+    const patternMap = new Map<string, { urls: string[]; sample: string }>();
+
+    extractedLinks.forEach(link => {
+      try {
+        const u = new URL(link.url);
+        // Replace numeric IDs, UUIDs, slugs-with-numbers with {id}
+        const segments = u.pathname.split("/").map(seg => {
+          if (/^\d+$/.test(seg)) return "{id}";
+          if (/^[0-9a-f]{8}-/.test(seg)) return "{uuid}";
+          return seg;
+        });
+        const pattern = u.hostname + segments.join("/");
+        if (!patternMap.has(pattern)) {
+          patternMap.set(pattern, { urls: [], sample: link.url });
+        }
+        patternMap.get(pattern)!.urls.push(link.url);
+      } catch { /* ignore */ }
+    });
+
+    const patterns = Array.from(patternMap.entries())
+      .map(([pattern, { urls, sample }]) => ({
+        pattern,
+        count: urls.length,
+        sample,
+        selected: false,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    setUrlPatterns(patterns);
+    setShowPatternDialog(true);
+  };
+
+  const applyPatternSelection = () => {
+    const selectedPatterns = new Set(urlPatterns.filter(p => p.selected).map(p => p.pattern));
+    if (selectedPatterns.size === 0) {
+      toast.error("Selecione pelo menos um padrão.");
+      return;
+    }
+
+    setExtractedLinks(prev => prev.map(link => {
+      try {
+        const u = new URL(link.url);
+        const segments = u.pathname.split("/").map(seg => {
+          if (/^\d+$/.test(seg)) return "{id}";
+          if (/^[0-9a-f]{8}-/.test(seg)) return "{uuid}";
+          return seg;
+        });
+        const pattern = u.hostname + segments.join("/");
+        return { ...link, selected: selectedPatterns.has(pattern) };
+      } catch {
+        return link;
+      }
+    }));
+
+    setShowPatternDialog(false);
+    toast.success(`URLs filtradas por ${selectedPatterns.size} padrão(ões).`);
+  };
+
+  // ── Auto-Detect Product Fields ──
+  const handleAutoDetectFields = async () => {
+    if (!htmlContent) return;
+    setLoading(true);
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, "text/html");
+
+      const commonSelectors: { name: string; selectors: string[]; type: SelectedField["type"]; isVariation?: boolean }[] = [
+        { name: "Título", selectors: ["h1.product_title", "h1.product-title", "h1[itemprop='name']", ".product-name h1", ".product_title", "h1.entry-title", "h1"], type: "text" },
+        { name: "Preço", selectors: [".price ins .amount", ".price .amount", "[itemprop='price']", ".product-price", ".current-price", ".woocommerce-Price-amount", ".price"], type: "text" },
+        { name: "Preço Original", selectors: [".price del .amount", ".was-price", ".old-price", ".regular-price"], type: "text" },
+        { name: "SKU", selectors: [".sku", "[itemprop='sku']", ".product_meta .sku", ".product-sku"], type: "text" },
+        { name: "Descrição", selectors: [".woocommerce-product-details__short-description", "#tab-description", "[itemprop='description']", ".product-description", ".product-short-description"], type: "html" },
+        { name: "Imagem Principal", selectors: [".woocommerce-product-gallery__image img", ".product-image img", "[itemprop='image']", ".wp-post-image", ".product-main-image img", ".main-image img"], type: "image" },
+        { name: "Galeria Imagens", selectors: [".woocommerce-product-gallery__image:not(:first-child) img", ".product-thumbnails img", ".gallery-item img", ".product-gallery img"], type: "image", isVariation: true },
+        { name: "Categoria", selectors: [".posted_in a", "[itemprop='category']", ".product-category a", ".breadcrumb a:last-child", ".product_meta .posted_in a"], type: "text" },
+        { name: "Marca", selectors: ["[itemprop='brand']", ".product-brand", ".brand a", ".product_meta .brand"], type: "text" },
+        { name: "Peso", selectors: [".product_weight", "[itemprop='weight']", ".weight-value"], type: "text" },
+        { name: "Dimensões", selectors: [".product_dimensions", ".dimensions-value"], type: "text" },
+        { name: "Stock", selectors: [".stock", ".availability", "[itemprop='availability']", ".in-stock", ".product-stock"], type: "text" },
+        { name: "Variações", selectors: ["select[name^='attribute'] option:not([value=''])", ".variations select option:not([value=''])", ".swatch-anchor", ".product-variation-option"], type: "text", isVariation: true },
+        { name: "EAN/GTIN", selectors: ["[itemprop='gtin13']", "[itemprop='gtin']", ".ean-value", ".barcode"], type: "text" },
+      ];
+
+      const detected: SelectedField[] = [];
+
+      for (const spec of commonSelectors) {
+        for (const sel of spec.selectors) {
+          try {
+            const el = doc.querySelector(sel);
+            if (el) {
+              let preview = "";
+              if (spec.type === "image") {
+                preview = el.getAttribute("src") || el.querySelector("img")?.getAttribute("src") || "";
+              } else if (spec.type === "html") {
+                preview = (el.textContent || "").trim().substring(0, 200);
+              } else {
+                preview = (el.textContent || "").trim().substring(0, 200);
+              }
+
+              if (preview && preview.length > 1) {
+                detected.push({
+                  id: crypto.randomUUID(),
+                  name: spec.name,
+                  selector: sel,
+                  type: spec.type,
+                  preview,
+                  isVariation: spec.isVariation || false,
+                });
+                break; // use first match for this field
+              }
+            }
+          } catch { /* invalid selector */ }
+        }
+      }
+
+      if (detected.length > 0) {
+        setFields(prev => {
+          const existingNames = new Set(prev.map(f => f.name));
+          const newFields = detected.filter(d => !existingNames.has(d.name));
+          return [...prev, ...newFields];
+        });
+        toast.success(`${detected.length} campos detetados automaticamente!`);
+      } else {
+        toast.info("Não foi possível detetar campos automaticamente. Selecione-os manualmente clicando nos elementos.");
+      }
+    } catch (err: any) {
+      toast.error("Erro na auto-deteção", { description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRemoveField = (id: string) => {
     setFields(prev => prev.filter(f => f.id !== id));
   };
@@ -795,6 +936,9 @@ export default function VisualScraperPage() {
                   <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-300">
                     <Crosshair className="w-3 h-3 mr-1" /> Modo Seleção
                   </Badge>
+                  <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={handleAutoDetectFields} disabled={loading}>
+                    <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-detetar Campos
+                  </Button>
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { loadPage(currentUrl, "browse"); setStep("browse"); }}>
                     <Navigation className="w-3.5 h-3.5 mr-1" /> Voltar a Navegar
                   </Button>
@@ -912,6 +1056,9 @@ export default function VisualScraperPage() {
             {selectedLinksCount > 0 && <Badge variant="secondary">{selectedLinksCount} selecionados</Badge>}
             <Badge variant="outline" className="text-[10px]">{crawledPages.length} pág. percorridas</Badge>
             <div className="ml-auto flex gap-2 flex-wrap">
+              <Button variant="secondary" size="sm" onClick={detectUrlPatterns}>
+                <Wand2 className="w-3 h-3 mr-1" /> Detetar Padrões
+              </Button>
               <Button variant="outline" size="sm" onClick={() => toggleAllLinks(true)}>Selecionar Todos</Button>
               <Button variant="outline" size="sm" onClick={() => toggleAllLinks(false)}>Limpar</Button>
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
@@ -1257,6 +1404,50 @@ export default function VisualScraperPage() {
           </Dialog>
         </div>
       )}
+
+      {/* Pattern Detection Dialog */}
+      <Dialog open={showPatternDialog} onOpenChange={setShowPatternDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5" />
+              Padrões de URL Detetados
+            </DialogTitle>
+            <DialogDescription>
+              O sistema agrupou os links por padrão de URL. Selecione os padrões que correspondem a <strong>páginas de produto</strong> para filtrar automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            {urlPatterns.map((p, idx) => (
+              <div
+                key={idx}
+                className={`border rounded-lg p-3 cursor-pointer transition-colors ${p.selected ? "bg-primary/10 border-primary" : "hover:bg-muted/50"}`}
+                onClick={() => setUrlPatterns(prev => prev.map((pp, i) => i === idx ? { ...pp, selected: !pp.selected } : pp))}
+              >
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={p.selected} onCheckedChange={() => setUrlPatterns(prev => prev.map((pp, i) => i === idx ? { ...pp, selected: !pp.selected } : pp))} />
+                  <code className="text-xs font-mono flex-1 truncate">{p.pattern}</code>
+                  <Badge variant="secondary" className="text-[10px]">{p.count} URLs</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 ml-6 truncate">
+                  Exemplo: {p.sample}
+                </p>
+              </div>
+            ))}
+            {urlPatterns.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum padrão encontrado.</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPatternDialog(false)}>Cancelar</Button>
+            <Button onClick={applyPatternSelection} disabled={!urlPatterns.some(p => p.selected)}>
+              Selecionar URLs Correspondentes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
