@@ -71,20 +71,36 @@ function extractField(html: string, selector: string, type: string, isVariation:
   const elements = findElements(html, selector);
   if (elements.length === 0) return '';
 
+  // For image type, extract ALL image URLs from all matched elements
+  if (type === 'image') {
+    const allUrls = new Set<string>();
+    for (const el of elements) {
+      // Direct src on this element (if it's an img tag)
+      const directSrc = getAttr(el.attrs, 'src') || getAttr(el.attrs, 'data-src') || getAttr(el.attrs, 'data-lazy-src');
+      if (directSrc && /\.(jpe?g|png|webp|gif|svg|avif|bmp|tiff?)/i.test(directSrc)) {
+        allUrls.add(directSrc);
+      } else if (directSrc) {
+        allUrls.add(directSrc);
+      }
+      // Also scan innerHTML for img tags
+      if (el.tag !== 'img') {
+        const inner = getInnerHtml(html, el.outerStart, el.tag);
+        const imgRe = /<img\s[^>]*?(?:src|data-src|data-lazy-src)\s*=\s*['"]([^'"]+)['"]/gi;
+        let imgM;
+        while ((imgM = imgRe.exec(inner)) !== null) {
+          if (imgM[1]) allUrls.add(imgM[1]);
+        }
+      }
+    }
+    const urlArr = [...allUrls];
+    if (isVariation || urlArr.length > 1) {
+      return urlArr.join(' | ');
+    }
+    return urlArr[0] || '';
+  }
+
   const extract = (el: typeof elements[0]): string => {
     switch (type) {
-      case 'image': {
-        // Direct src on this element (if it's an img tag)
-        const directSrc = getAttr(el.attrs, 'src') || getAttr(el.attrs, 'data-src') || getAttr(el.attrs, 'data-lazy-src');
-        if (directSrc) return directSrc;
-        // If the matched element is a container (not img), look for img inside
-        if (el.tag !== 'img') {
-          const inner = getInnerHtml(html, el.outerStart, el.tag);
-          const imgMatch = inner.match(/<img\s[^>]*?(?:src|data-src|data-lazy-src)\s*=\s*['"]([^'"]+)['"]/i);
-          if (imgMatch) return imgMatch[1];
-        }
-        return '';
-      }
       case 'link': return getAttr(el.attrs, 'href') || '';
       case 'html': return getInnerHtml(html, el.outerStart, el.tag);
       default: return getInnerText(html, el.outerStart, el.tag);
