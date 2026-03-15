@@ -566,8 +566,48 @@ export default function VisualScraperPage() {
     setStep("select-fields");
   };
 
+  const openCategoryAgentDialog = () => {
+    const categoryCandidates = extractedLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+    if (categoryCandidates.length === 0) {
+      toast.error("Não existem categorias/grupos para explorar.");
+      return;
+    }
+
+    setCategoryAgentSelection(prev => {
+      const next = { ...prev };
+      categoryCandidates.forEach(link => {
+        if (!(link.url in next)) next[link.url] = true;
+      });
+      return next;
+    });
+
+    setShowCategoryAgentDialog(true);
+  };
+
+  const setAllCategoryAgentSelection = (selected: boolean) => {
+    const categoryCandidates = extractedLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+    setCategoryAgentSelection(Object.fromEntries(categoryCandidates.map(link => [link.url, selected])));
+  };
+
+  const handleRunCategoryAgentFlow = async (autoRunProducts: boolean) => {
+    const selectedUrls = Object.entries(categoryAgentSelection)
+      .filter(([, selected]) => selected)
+      .map(([url]) => url);
+
+    if (selectedUrls.length === 0) {
+      toast.error("Selecione pelo menos uma categoria/grupo.");
+      return;
+    }
+
+    setShowCategoryAgentDialog(false);
+    await handleDrillCategories(selectedUrls, { autoRunProducts });
+  };
+
   // Drill into selected links of type "categoria" or "grupo" to find products
-  const handleDrillCategories = async (overrideUrls?: string[]) => {
+  const handleDrillCategories = async (
+    overrideUrls?: string[],
+    options?: { autoRunProducts?: boolean },
+  ) => {
     const selectedUrls = overrideUrls || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).map(l => l.url);
     if (selectedUrls.length === 0) {
       toast.error("Selecione URLs de categoria ou grupo para explorar.");
@@ -584,6 +624,7 @@ export default function VisualScraperPage() {
 
       const allNewLinks: ExtractedLink[] = [];
       const allNextPages: string[] = [];
+      const discoveredProductUrls: string[] = [];
       const seenUrls = new Set<string>();
 
       for (let i = 0; i < selectedUrls.length; i += 5) {
@@ -598,6 +639,9 @@ export default function VisualScraperPage() {
               if (!seenUrls.has(link.url)) {
                 seenUrls.add(link.url);
                 allNewLinks.push(link);
+                if (link.linkType === "produto") {
+                  discoveredProductUrls.push(link.url);
+                }
               }
             });
             r.value.nextPages.forEach(p => {
@@ -611,10 +655,29 @@ export default function VisualScraperPage() {
         }
       }
 
+      const uniqueNextPages = [...new Set(allNextPages)];
+      const uniqueProductUrls = [...new Set(discoveredProductUrls)];
+
       setExtractedLinks(allNewLinks);
-      setPaginationUrls([...new Set(allNextPages)]);
+      setPaginationUrls(uniqueNextPages);
       setCrawledPages(prev => [...prev, ...selectedUrls]);
       toast.success(`${allNewLinks.length} links encontrados de ${selectedUrls.length} páginas.`);
+
+      if (options?.autoRunProducts) {
+        if (uniqueProductUrls.length === 0) {
+          toast.error("O agente não encontrou páginas de produto nas categorias selecionadas.");
+          return;
+        }
+
+        setBatchUrls(uniqueProductUrls);
+
+        if (fields.length === 0) {
+          toast.info("Produtos encontrados. Defina os campos no Passo 3 e depois execute a extração.");
+          return;
+        }
+
+        await handleRunBatch(uniqueProductUrls);
+      }
     } catch (err: any) {
       toast.error("Erro ao explorar links", { description: err.message });
     } finally {
