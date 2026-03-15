@@ -73,7 +73,18 @@ function extractField(html: string, selector: string, type: string, isVariation:
 
   const extract = (el: typeof elements[0]): string => {
     switch (type) {
-      case 'image': return getAttr(el.attrs, 'src') || getAttr(el.attrs, 'data-src') || getAttr(el.attrs, 'data-lazy-src') || '';
+      case 'image': {
+        // Direct src on this element (if it's an img tag)
+        const directSrc = getAttr(el.attrs, 'src') || getAttr(el.attrs, 'data-src') || getAttr(el.attrs, 'data-lazy-src');
+        if (directSrc) return directSrc;
+        // If the matched element is a container (not img), look for img inside
+        if (el.tag !== 'img') {
+          const inner = getInnerHtml(html, el.outerStart, el.tag);
+          const imgMatch = inner.match(/<img\s[^>]*?(?:src|data-src|data-lazy-src)\s*=\s*['"]([^'"]+)['"]/i);
+          if (imgMatch) return imgMatch[1];
+        }
+        return '';
+      }
       case 'link': return getAttr(el.attrs, 'href') || '';
       case 'html': return getInnerHtml(html, el.outerStart, el.tag);
       default: return getInnerText(html, el.outerStart, el.tag);
