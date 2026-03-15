@@ -94,6 +94,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: "Upload", icon: Upload, route: "/upload" },
       { title: "Ingestion Hub", icon: Database, route: "/ingestao" },
+      { title: "Visual Scraper", icon: MousePointerClick, route: "/visual-scraper" },
       { title: "Extração PDF", icon: FileText, route: "/pdf-extraction" },
       { title: "Memória de Extração", icon: Brain, route: "/extraction-memory" },
     ],

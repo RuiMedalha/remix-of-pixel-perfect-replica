@@ -125,6 +125,7 @@ function ProtectedRoutes() {
           <Route path="/supplier-playbooks" element={<SupplierPlaybooksPage />} />
           <Route path="/agent-runtime" element={<AgentRuntimeConsolePage />} />
           <Route path="/workflow-center" element={<CatalogWorkflowCenterPage />} />
+          <Route path="/visual-scraper" element={<VisualScraperPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
