@@ -69,35 +69,80 @@ function getInnerHtml(html: string, start: number, tag: string): string {
 
 function extractField(html: string, selector: string, type: string, isVariation: boolean): string {
   const elements = findElements(html, selector);
-  if (elements.length === 0) return '';
 
-  // For image type, extract ALL image URLs from all matched elements
-  if (type === 'image') {
-    const allUrls = new Set<string>();
-    for (const el of elements) {
-      // Direct src on this element (if it's an img tag)
-      const directSrc = getAttr(el.attrs, 'src') || getAttr(el.attrs, 'data-src') || getAttr(el.attrs, 'data-lazy-src');
-      if (directSrc && /\.(jpe?g|png|webp|gif|svg|avif|bmp|tiff?)/i.test(directSrc)) {
-        allUrls.add(directSrc);
-      } else if (directSrc) {
-        allUrls.add(directSrc);
-      }
-      // Also scan innerHTML for img tags
+  const getImageFromAttrs = (attrs: string): string => {
+    const direct = getAttr(attrs, 'src')
+      || getAttr(attrs, 'data-src')
+      || getAttr(attrs, 'data-lazy-src')
+      || getAttr(attrs, 'data-original')
+      || getAttr(attrs, 'data-image');
+    if (direct) return direct.trim();
+
+    const srcset = getAttr(attrs, 'srcset') || getAttr(attrs, 'data-srcset');
+    if (srcset) {
+      const first = srcset
+        .split(',')
+        .map(s => s.trim().split(/\s+/)[0])
+        .find(Boolean);
+      return first || '';
+    }
+
+    return '';
+  };
+
+  const collectFromElements = (els: { tag: string; attrs: string; outerStart: number }[], target: Set<string>) => {
+    for (const el of els) {
+      const directSrc = getImageFromAttrs(el.attrs);
+      if (directSrc) target.add(directSrc);
+
       if (el.tag !== 'img') {
         const inner = getInnerHtml(html, el.outerStart, el.tag);
-        const imgRe = /<img\s[^>]*?(?:src|data-src|data-lazy-src)\s*=\s*['"]([^'"]+)['"]/gi;
-        let imgM;
-        while ((imgM = imgRe.exec(inner)) !== null) {
-          if (imgM[1]) allUrls.add(imgM[1]);
+        const imgTagRe = /<img\s([^>]*?)\/?>/gi;
+        let imgTagMatch;
+        while ((imgTagMatch = imgTagRe.exec(inner)) !== null) {
+          const url = getImageFromAttrs(imgTagMatch[1] || '');
+          if (url) target.add(url);
         }
       }
     }
+  };
+
+  // For image type, extract ALL image URLs from selected elements + fallback gallery selectors
+  if (type === 'image') {
+    const allUrls = new Set<string>();
+
+    if (elements.length > 0) {
+      collectFromElements(elements, allUrls);
+    }
+
+    // Fallback: if selector was too specific (e.g. nth-of-type / active slide), scan known gallery containers
+    if (allUrls.size <= 1) {
+      const galleryFallbackSelectors = [
+        '.ProductMain-images-slider-item',
+        '.ProductMain-images',
+        '.woocommerce-product-gallery__image',
+        '.woocommerce-product-gallery',
+        '.product-gallery',
+        '.product-thumbnails',
+        '.gallery-item',
+      ];
+
+      for (const fallbackSelector of galleryFallbackSelectors) {
+        const fallbackElements = findElements(html, fallbackSelector);
+        if (fallbackElements.length > 0) {
+          collectFromElements(fallbackElements, allUrls);
+        }
+      }
+    }
+
     const urlArr = [...allUrls];
     if (isVariation || urlArr.length > 1) {
       return urlArr.join(' | ');
     }
     return urlArr[0] || '';
   }
+
+  if (elements.length === 0) return '';
 
   const extract = (el: typeof elements[0]): string => {
     switch (type) {
