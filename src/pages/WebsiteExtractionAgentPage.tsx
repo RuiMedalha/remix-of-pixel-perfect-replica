@@ -1713,7 +1713,46 @@ export default function WebsiteExtractionAgentPage() {
         </div>
       )}
 
-      {/* ═══ STEP: Extracting ═══ */}
+      {/* ═══ STEP: Extract ═══ */}
+      {step === "extract" && !batchLoading && (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="max-w-lg w-full p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <Play className="w-10 h-10 mx-auto text-primary" />
+              <h3 className="text-lg font-semibold">Pronto para Extrair</h3>
+              <p className="text-sm text-muted-foreground">Revise o resumo e clique para iniciar a extração em lote.</p>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">URLs de produto</span>
+                <Badge variant="secondary">{productUrls.length || 1}</Badge>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">Campos definidos</span>
+                <Badge variant="secondary">{fields.length}</Badge>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">Campos</span>
+                <span className="text-xs text-foreground">{fields.map(f => f.name).join(", ") || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Modo</span>
+                <Badge variant={useFirecrawl ? "default" : "outline"}>{useFirecrawl ? "Premium (Firecrawl)" : "Gratuito"}</Badge>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-center pt-2">
+              <Button variant="outline" onClick={() => setStep("fields")}>
+                <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Voltar
+              </Button>
+              <Button onClick={handleRunExtraction} disabled={fields.length === 0}>
+                <Play className="w-3.5 h-3.5 mr-1" /> Extrair Dados
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ═══ STEP: Extracting (loading) ═══ */}
       {step === "extract" && batchLoading && (
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full text-center p-8 space-y-4">
