@@ -210,6 +210,10 @@ export default function WebsiteExtractionAgentPage() {
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [scraperMapping, setScraperMapping] = useState<Record<string, string>>({});
 
+  // Smart Agent
+  const [agentLog, setAgentLog] = useState<string[]>([]);
+  const [smartAgentRunning, setSmartAgentRunning] = useState(false);
+
   // File import
   const fileInputRef = useRef<HTMLInputElement>(null);
 
