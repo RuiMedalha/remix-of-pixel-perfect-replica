@@ -197,7 +197,13 @@ export default function VisualScraperPage() {
 
   // Collected product URLs
   const [productUrls, setProductUrls] = useState<string[]>([]);
-  const [collectProgress, setCollectProgress] = useState<{ current: number; total: number } | null>(null);
+  const [collectProgress, setCollectProgress] = useState<{ current: number; total: number; label?: string; pages?: number } | null>(null);
+
+  // Pagination config
+  const [paginationMode, setPaginationMode] = useState<"auto" | "pattern">("auto");
+  const [paginationPattern, setPaginationPattern] = useState(""); // e.g. "?page={n}" or "/page/{n}/"
+  const [maxPagesPerCategory, setMaxPagesPerCategory] = useState(50);
+  const [showPaginationConfig, setShowPaginationConfig] = useState(false);
 
   // Fields
   const [fields, setFields] = useState<SelectedField[]>([]);
@@ -444,7 +450,7 @@ export default function VisualScraperPage() {
   /* ── Follow pagination ── */
   const handleFollowPagination = async () => {
     const currentLayer = layers[layers.length - 1];
-    if (!currentLayer || currentLayer.paginationUrls.length === 0) return;
+    if (!currentLayer) return;
     setLoading(true);
     try {
       let remaining = [...currentLayer.paginationUrls];
@@ -453,18 +459,30 @@ export default function VisualScraperPage() {
       let newLinks: ExtractedLink[] = [];
       let totalNew = 0;
 
-      while (remaining.length > 0 && crawled.size < 30) {
+      // If using manual pattern, generate pagination URLs
+      if (paginationMode === "pattern" && paginationPattern && remaining.length === 0) {
+        remaining = generatePaginationUrls(currentLayer.sourceUrl, paginationPattern, maxPagesPerCategory);
+      }
+
+      while (remaining.length > 0 && crawled.size < maxPagesPerCategory) {
         const targetUrl = remaining.shift()!;
         if (crawled.has(targetUrl)) continue;
         crawled.add(targetUrl);
 
         const { links, nextPages } = await extractLinksFromPage(targetUrl);
         const unique = links.filter(l => !existingUrls.has(l.url));
+        
+        // Stop if no new links found (empty page)
+        if (unique.length === 0 && crawled.size > 1) break;
+        
         unique.forEach(l => existingUrls.add(l.url));
         newLinks = [...newLinks, ...unique];
         totalNew += unique.length;
 
-        nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+        // Add discovered next pages
+        if (paginationMode === "auto") {
+          nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+        }
       }
 
       setCurrentLinks(prev => [...prev, ...newLinks]);
@@ -493,7 +511,67 @@ export default function VisualScraperPage() {
     toast.success(`${prods.length} URLs de produto recolhidas`);
   };
 
-  /* ── Auto-collect: drill all categories recursively then collect products ── */
+  /* ── Generate pagination URLs from a pattern ── */
+  const generatePaginationUrls = (baseUrl: string, pattern: string, maxPages: number): string[] => {
+    const urls: string[] = [];
+    for (let n = 2; n <= maxPages; n++) {
+      const pageStr = pattern.replace(/\{n\}/g, String(n));
+      try {
+        const base = new URL(baseUrl);
+        if (pageStr.startsWith("?") || pageStr.startsWith("&")) {
+          // Query param pattern: ?page={n}
+          const paramParts = pageStr.replace(/^[?&]/, "").split("=");
+          if (paramParts.length === 2) {
+            base.searchParams.set(paramParts[0], paramParts[1]);
+          }
+          urls.push(base.toString());
+        } else if (pageStr.startsWith("/")) {
+          // Path pattern: /page/{n}/
+          const cleanBase = base.pathname.replace(/\/+$/, "");
+          base.pathname = cleanBase + pageStr;
+          urls.push(base.toString());
+        } else {
+          // Just append
+          urls.push(baseUrl.replace(/\/$/, "") + pageStr);
+        }
+      } catch {
+        urls.push(baseUrl.replace(/\/$/, "") + pageStr);
+      }
+    }
+    return urls;
+  };
+
+  /* ── Auto-detect pagination pattern from a page ── */
+  const autoDetectPaginationPattern = (nextPages: string[], baseUrl: string): string | null => {
+    if (nextPages.length === 0) return null;
+    try {
+      const base = new URL(baseUrl);
+      for (const np of nextPages) {
+        const page = new URL(np);
+        // Check query params
+        for (const [key, val] of page.searchParams.entries()) {
+          if (/^\d+$/.test(val) && !base.searchParams.has(key)) {
+            return `?${key}={n}`;
+          }
+        }
+        // Check path segments
+        const baseParts = base.pathname.split("/").filter(Boolean);
+        const pageParts = page.pathname.split("/").filter(Boolean);
+        if (pageParts.length > baseParts.length) {
+          const diff = pageParts.slice(baseParts.length);
+          if (diff.length === 1 && /^\d+$/.test(diff[0])) {
+            return `/page/{n}`;
+          }
+          if (diff.length === 2 && diff[0] === "page" && /^\d+$/.test(diff[1])) {
+            return `/page/{n}/`;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+    return null;
+  };
+
+  /* ── Auto-collect: drill all categories with full pagination ── */
   const handleAutoCollect = async () => {
     const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected).map(l => l.url);
     if (catUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
@@ -502,40 +580,85 @@ export default function VisualScraperPage() {
     }
 
     setLoading(true);
-    setCollectProgress({ current: 0, total: catUrls.length || 1 });
+    setCollectProgress({ current: 0, total: catUrls.length || 1, label: "A iniciar...", pages: 0 });
 
     try {
       let allProductUrls: string[] = [];
       const seen = new Set<string>();
+      let totalPagesProcessed = 0;
 
       // Add already-visible products
       currentLinks.filter(l => l.linkType === "produto").forEach(l => {
         if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
       });
 
-      // Drill each category with pagination
+      // Drill each category with full pagination
       for (let i = 0; i < catUrls.length; i++) {
-        setCollectProgress({ current: i + 1, total: catUrls.length });
+        const catUrl = catUrls[i];
+        const catLabel = currentLinks.find(l => l.url === catUrl)?.text || `Cat ${i + 1}`;
+        setCollectProgress({ current: i + 1, total: catUrls.length, label: catLabel, pages: totalPagesProcessed });
+        
         try {
-          let pageUrl: string | null = catUrls[i];
           const crawledPages = new Set<string>();
+          let pageUrl: string | null = catUrl;
+          let detectedPattern: string | null = null;
+          let patternGenerated = false;
 
-          while (pageUrl && crawledPages.size < 20) {
+          while (pageUrl && crawledPages.size < maxPagesPerCategory) {
             crawledPages.add(pageUrl);
+            totalPagesProcessed++;
+            setCollectProgress({ current: i + 1, total: catUrls.length, label: `${catLabel} (pág ${crawledPages.size})`, pages: totalPagesProcessed });
+
             const { links, nextPages } = await extractLinksFromPage(pageUrl);
+            
+            // Collect products from this page
+            const productsBefore = allProductUrls.length;
             links.filter(l => l.linkType === "produto").forEach(l => {
               if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
             });
-            const nextPage = nextPages.find(p => !crawledPages.has(p));
-            pageUrl = nextPage || null;
+            const newProds = allProductUrls.length - productsBefore;
+
+            // If no new products found, this page is likely empty - stop
+            if (crawledPages.size > 1 && newProds === 0) break;
+
+            // Determine next page
+            let nextPage: string | null = null;
+
+            if (paginationMode === "pattern" && paginationPattern) {
+              // Use manual pattern
+              if (!patternGenerated) {
+                const paginationUrls = generatePaginationUrls(catUrl, paginationPattern, maxPagesPerCategory);
+                paginationUrls.forEach(u => { if (!crawledPages.has(u)) nextPages.push(u); });
+                patternGenerated = true;
+              }
+              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
+            } else {
+              // Auto mode: try detected pagination first
+              if (!detectedPattern && nextPages.length > 0) {
+                detectedPattern = autoDetectPaginationPattern(nextPages, catUrl);
+              }
+
+              // Try auto-detected links
+              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
+
+              // If no next page found but we detected a pattern, generate more
+              if (!nextPage && detectedPattern && crawledPages.size < maxPagesPerCategory) {
+                const generatedUrls = generatePaginationUrls(catUrl, detectedPattern, maxPagesPerCategory);
+                nextPage = generatedUrls.find(u => !crawledPages.has(u)) || null;
+              }
+            }
+
+            pageUrl = nextPage;
           }
-        } catch { /* skip failed category */ }
+        } catch (err) {
+          console.warn(`Erro na categoria ${catUrl}:`, err);
+        }
       }
 
       setProductUrls(allProductUrls);
       setCollectProgress(null);
       setStep("products");
-      toast.success(`${allProductUrls.length} URLs de produto recolhidas de ${catUrls.length} categorias`);
+      toast.success(`${allProductUrls.length} URLs de produto de ${catUrls.length} categorias (${totalPagesProcessed} páginas)`);
     } catch (err: any) {
       toast.error("Erro na recolha automática", { description: err.message });
     } finally {
@@ -1209,10 +1332,15 @@ export default function VisualScraperPage() {
                 </Button>
               )}
 
+              {/* Pagination config */}
+              <Button size="sm" variant="outline" onClick={() => setShowPaginationConfig(!showPaginationConfig)} disabled={loading}>
+                <Layers className="w-3 h-3 mr-1" /> Config Paginação
+              </Button>
+
               {/* Auto-collect */}
               <Button size="sm" variant="secondary" onClick={handleAutoCollect} disabled={loading}>
                 {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
-                Auto-recolher produtos
+                Auto-recolher produtos (c/ paginação)
               </Button>
 
               {/* Manual collect */}
@@ -1223,10 +1351,55 @@ export default function VisualScraperPage() {
               )}
             </div>
 
+            {/* Pagination config panel */}
+            {showPaginationConfig && (
+              <div className="pt-2 border-t space-y-2">
+                <p className="text-xs font-medium">Configuração de Paginação</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Select value={paginationMode} onValueChange={v => setPaginationMode(v as "auto" | "pattern")}>
+                    <SelectTrigger className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto-detetar</SelectItem>
+                      <SelectItem value="pattern">Padrão manual</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {paginationMode === "pattern" && (
+                    <Input
+                      placeholder="Ex: ?page={n}  ou  /page/{n}/"
+                      value={paginationPattern}
+                      onChange={e => setPaginationPattern(e.target.value)}
+                      className="h-7 text-xs font-mono max-w-60"
+                    />
+                  )}
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">Máx págs:</span>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={200}
+                      value={maxPagesPerCategory}
+                      onChange={e => setMaxPagesPerCategory(Number(e.target.value) || 50)}
+                      className="h-7 w-16 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-muted-foreground space-y-0.5">
+                  <p><strong>Auto-detetar:</strong> analisa os links de paginação da página e segue automaticamente.</p>
+                  <p><strong>Padrão manual:</strong> use <code className="bg-muted px-1 rounded">{"{n}"}</code> para o número da página. Ex: <code className="bg-muted px-1 rounded">?page={"{n}"}</code>, <code className="bg-muted px-1 rounded">/page/{"{n}"}/</code>, <code className="bg-muted px-1 rounded">&amp;p={"{n}"}</code></p>
+                </div>
+              </div>
+            )}
+
             {collectProgress && (
               <div className="pt-2">
                 <Progress value={(collectProgress.current / collectProgress.total) * 100} className="h-2" />
-                <p className="text-[10px] text-muted-foreground mt-1">{collectProgress.current}/{collectProgress.total} categorias processadas</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {collectProgress.label || `${collectProgress.current}/${collectProgress.total}`}
+                  {collectProgress.pages ? ` · ${collectProgress.pages} páginas processadas` : ""}
+                </p>
               </div>
             )}
           </div>
