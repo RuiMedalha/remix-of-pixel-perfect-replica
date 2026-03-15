@@ -1338,14 +1338,27 @@ export default function VisualScraperPage() {
                     <p className="text-sm font-medium text-primary">{fields.length} campos definidos ✓</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {fields.map(f => (
-                        <Badge key={f.id} variant="secondary" className="text-[10px] gap-1">
+                        <Badge key={f.id} variant="secondary" className="text-[10px] gap-1 items-center">
                           {typeIcons[f.type]} {f.name}
-                          <button onClick={(e) => { e.stopPropagation(); handleRemoveField(f.id); }} className="ml-1 hover:text-destructive">
+                          <label className="flex items-center gap-0.5 cursor-pointer ml-1" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={f.isVariation}
+                              onCheckedChange={() => handleToggleVariation(f.id)}
+                              className="h-2.5 w-2.5"
+                            />
+                            <Layers className={`w-2.5 h-2.5 ${f.isVariation ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
+                          </label>
+                          <button onClick={(e) => { e.stopPropagation(); handleRemoveField(f.id); }} className="ml-0.5 hover:text-destructive">
                             <X className="w-2.5 h-2.5" />
                           </button>
                         </Badge>
                       ))}
                     </div>
+                    {fields.some(f => f.isVariation) && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                        <Layers className="w-3 h-3" /> Campos com ícone amarelo serão extraídos como lista de opções
+                      </p>
+                    )}
                   </div>
                   <Button size="sm" variant="outline" onClick={() => {
                     const firstProduct = productLinks[0];
