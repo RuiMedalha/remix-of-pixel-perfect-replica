@@ -95,6 +95,10 @@ export default function VisualScraperPage() {
   // Current iframe mode
   const [iframeMode, setIframeMode] = useState<Mode>("browse");
 
+  // Smart pattern detection
+  const [urlPatterns, setUrlPatterns] = useState<{ pattern: string; count: number; sample: string; selected: boolean }[]>([]);
+  const [showPatternDialog, setShowPatternDialog] = useState(false);
+
   // Listen for messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
