@@ -1057,9 +1057,31 @@ function ItemDetailDialog({
         {/* Save + Navigation footer */}
         <div className="space-y-2 border-t pt-3 mt-2">
           {hasPending && (
+            <div className="flex items-center gap-2 mb-1">
+              <Button
+                size="sm"
+                variant={applyScope === "single" ? "default" : "outline"}
+                className="flex-1 h-7 text-xs"
+                onClick={() => setApplyScope("single")}
+              >
+                Só este produto
+              </Button>
+              <Button
+                size="sm"
+                variant={applyScope === "all" ? "default" : "outline"}
+                className="flex-1 h-7 text-xs"
+                onClick={() => setApplyScope("all")}
+              >
+                Todos do lote ({allItems.length})
+              </Button>
+            </div>
+          )}
+          {hasPending && (
             <Button onClick={handleSave} disabled={isSaving} className="w-full h-9 text-sm">
               {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Check className="h-3.5 w-3.5 mr-1.5" />}
-              Guardar {Object.keys(pendingAdds).length} campo(s) no mapeamento
+              {applyScope === "all"
+                ? `Aplicar ${Object.keys(pendingAdds).length} campo(s) a todos os ${allItems.length} produtos`
+                : `Guardar ${Object.keys(pendingAdds).length} campo(s) no mapeamento`}
             </Button>
           )}
           {saved && !hasPending && (
