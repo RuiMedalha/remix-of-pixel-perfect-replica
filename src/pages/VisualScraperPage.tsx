@@ -710,20 +710,14 @@ export default function VisualScraperPage() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     if (results.length === 0) return;
-    const headers = Object.keys(results[0]);
-    const csv = [
-      headers.join(","),
-      ...results.map(row =>
-        headers.map(h => `"${(row[h] || "").replace(/"/g, '""')}"`).join(",")
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "scrape-results.csv";
-    a.click();
+    import("xlsx").then(XLSX => {
+      const ws = XLSX.utils.json_to_sheet(results);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Scrape Results");
+      XLSX.writeFile(wb, "scrape-results.xlsx");
+    });
   };
 
   const handleSendToProducts = async () => {
@@ -1304,8 +1298,8 @@ export default function VisualScraperPage() {
             {errors.length > 0 && <Badge variant="destructive">{errors.length} erros</Badge>}
             <div className="ml-auto flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setStep("batch")}>← Voltar</Button>
-              <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                <Download className="w-3 h-3 mr-1" /> CSV
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                <Download className="w-3 h-3 mr-1" /> Excel
               </Button>
               <Button size="sm" onClick={() => setShowSendDialog(true)}>
                 <ArrowRight className="w-3 h-3 mr-1" /> Enviar p/ Ingestão
