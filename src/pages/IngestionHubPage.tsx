@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw } from "lucide-react";
+import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -800,7 +800,7 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
   );
 }
 
-// ─── Item Detail Dialog — shows all mapped_data and source_data ───
+// ─── Item Detail Dialog — shows all data with field selection ───
 function ItemDetailDialog({
   item, onClose, currentIndex, totalItems, onPrevious, onNext,
 }: {
@@ -813,6 +813,18 @@ function ItemDetailDialog({
 }) {
   const mapped = item.mapped_data || {};
   const source = item.source_data || {};
+  const [pendingAdds, setPendingAdds] = useState<Record<string, any>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Reset state when item changes
+  const itemId = item.id;
+  const [lastItemId, setLastItemId] = useState(itemId);
+  if (itemId !== lastItemId) {
+    setPendingAdds({});
+    setSaved(false);
+    setLastItemId(itemId);
+  }
 
   const FIELD_LABELS: Record<string, string> = {
     sku: "SKU", original_title: "Título", original_description: "Descrição",
@@ -826,13 +838,25 @@ function ItemDetailDialog({
     product_type: "Tipo de Produto",
   };
 
-  // Merge all keys from both mapped and source for complete view
-  const allKeys = [...new Set([...Object.keys(mapped), ...Object.keys(source)])].filter(k => !k.startsWith("_"));
+  const allMappedKeys = [...new Set([...Object.keys(mapped), ...Object.keys(pendingAdds)])].filter(k => !k.startsWith("_"));
   const priorityKeys = ["sku", "original_title", "original_description", "short_description", "original_price", "category", "brand", "model", "technical_specs", "dimensions", "weight", "material", "image_urls", "image_url"];
-  const sortedKeys = [
-    ...priorityKeys.filter(k => allKeys.includes(k)),
-    ...allKeys.filter(k => !priorityKeys.includes(k)),
+  const sortedMappedKeys = [
+    ...priorityKeys.filter(k => allMappedKeys.includes(k)),
+    ...allMappedKeys.filter(k => !priorityKeys.includes(k)),
   ];
+
+  // Source fields NOT yet in mapped_data (candidates to add)
+  const unmappedSourceKeys = Object.keys(source)
+    .filter(k => !k.startsWith("_") && k !== "confidence" && k !== "currency")
+    .filter(k => {
+      const mappedVal = mapped[k];
+      const pendingVal = pendingAdds[k];
+      return (mappedVal === null || mappedVal === undefined || mappedVal === "") && !(k in pendingAdds);
+    })
+    .filter(k => {
+      const v = source[k];
+      return v !== null && v !== undefined && v !== "";
+    });
 
   const formatValue = (val: any): string => {
     if (val === null || val === undefined || val === "") return "—";
@@ -840,6 +864,44 @@ function ItemDetailDialog({
     if (typeof val === "object") { try { return JSON.stringify(val, null, 2); } catch { return String(val); } }
     return String(val);
   };
+
+  const addFieldToMapped = (key: string) => {
+    setPendingAdds(prev => ({ ...prev, [key]: source[key] }));
+    setSaved(false);
+  };
+
+  const removeFieldFromPending = (key: string) => {
+    setPendingAdds(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    if (Object.keys(pendingAdds).length === 0) return;
+    setIsSaving(true);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const newMapped = { ...mapped, ...pendingAdds };
+      const { error } = await supabase
+        .from("ingestion_job_items")
+        .update({ mapped_data: newMapped })
+        .eq("id", item.id);
+      if (error) throw error;
+      // Update in-memory
+      item.mapped_data = newMapped;
+      setPendingAdds({});
+      setSaved(true);
+      toast.success("Campos adicionados ao mapeamento com sucesso");
+    } catch (err: any) {
+      toast.error(`Erro ao guardar: ${err?.message || "erro desconhecido"}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const hasPending = Object.keys(pendingAdds).length > 0;
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -875,40 +937,74 @@ function ItemDetailDialog({
 
             {/* Mapped data (what will be injected) */}
             <div>
-              <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">Dados a Injetar</h4>
+              <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
+                Dados a Injetar
+                {hasPending && <Badge variant="outline" className="text-[10px] border-primary text-primary">{Object.keys(pendingAdds).length} novos campos</Badge>}
+              </h4>
               <div className="border rounded-lg overflow-hidden">
-                {sortedKeys.map((key, i) => {
-                  const mappedVal = mapped[key];
-                  const hasValue = mappedVal !== null && mappedVal !== undefined && mappedVal !== "";
+                {sortedMappedKeys.map((key, i) => {
+                  const val = pendingAdds[key] !== undefined ? pendingAdds[key] : mapped[key];
+                  const hasValue = val !== null && val !== undefined && val !== "";
+                  const isPending = key in pendingAdds;
                   if (!hasValue) return null;
                   return (
-                    <div key={key} className={cn("flex gap-3 px-3 py-2 text-sm", i % 2 === 0 ? "bg-muted/30" : "")}>
-                      <span className="font-medium text-muted-foreground w-40 shrink-0 text-xs">{FIELD_LABELS[key] || key}</span>
-                      <span className="text-foreground text-xs break-all whitespace-pre-wrap flex-1">
-                        {formatValue(mappedVal)}
+                    <div key={key} className={cn(
+                      "flex gap-3 px-3 py-2 text-sm items-start",
+                      isPending ? "bg-primary/5 border-l-2 border-l-primary" : i % 2 === 0 ? "bg-muted/30" : ""
+                    )}>
+                      <span className="font-medium text-muted-foreground w-40 shrink-0 text-xs flex items-center gap-1">
+                        {isPending && <Plus className="h-3 w-3 text-primary" />}
+                        {FIELD_LABELS[key] || key}
                       </span>
+                      <span className="text-foreground text-xs break-all whitespace-pre-wrap flex-1">
+                        {formatValue(val)}
+                      </span>
+                      {isPending && (
+                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0 shrink-0" onClick={() => removeFieldFromPending(key)}>
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Source data (raw extraction) */}
-            {Object.keys(source).filter(k => !k.startsWith("_")).length > 0 && (
+            {/* Unmapped source fields — available to add */}
+            {unmappedSourceKeys.length > 0 && (
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Dados Originais (Extração)</h4>
-                <div className="border rounded-lg overflow-hidden">
-                  {Object.entries(source).filter(([k]) => !k.startsWith("_")).map(([key, val], i) => (
-                    <div key={key} className={cn("flex gap-3 px-3 py-2 text-sm", i % 2 === 0 ? "bg-muted/30" : "")}>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Dados Disponíveis (não mapeados) — clique para adicionar
+                </h4>
+                <div className="border rounded-lg overflow-hidden border-dashed">
+                  {unmappedSourceKeys.map((key, i) => (
+                    <div
+                      key={key}
+                      className={cn(
+                        "flex gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-primary/5 transition-colors items-center group",
+                        i % 2 === 0 ? "bg-muted/20" : ""
+                      )}
+                      onClick={() => addFieldToMapped(key)}
+                    >
                       <span className="font-medium text-muted-foreground w-40 shrink-0 text-xs">{FIELD_LABELS[key] || key}</span>
-                      <span className="text-foreground text-xs break-all whitespace-pre-wrap flex-1">
-                        {formatValue(val)}
+                      <span className="text-foreground/70 text-xs break-all whitespace-pre-wrap flex-1">
+                        {formatValue(source[key])}
                       </span>
+                      <Plus className="h-3.5 w-3.5 text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </div>
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Already mapped source fields (for reference) */}
+            {(() => {
+              const alreadyMappedSourceKeys = Object.keys(source)
+                .filter(k => !k.startsWith("_") && k !== "confidence" && k !== "currency")
+                .filter(k => (mapped[k] !== null && mapped[k] !== undefined && mapped[k] !== "") || k in pendingAdds);
+              if (alreadyMappedSourceKeys.length === 0) return null;
+              return null; // Already shown above in mapped section
+            })()}
 
             {/* Metadata */}
             <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
@@ -920,17 +1016,30 @@ function ItemDetailDialog({
           </div>
         </ScrollArea>
 
-        {/* Navigation footer */}
-        <div className="flex items-center justify-between border-t pt-3 mt-2">
-          <Button size="sm" variant="outline" onClick={onPrevious} disabled={currentIndex <= 0}>
-            <ChevronLeft className="h-3 w-3 mr-1" /> Anterior
-          </Button>
-          <span className="text-xs text-muted-foreground font-medium">
-            {currentIndex + 1} de {totalItems}
-          </span>
-          <Button size="sm" variant="outline" onClick={onNext} disabled={currentIndex >= totalItems - 1}>
-            Próximo <ChevronRight className="h-3 w-3 ml-1" />
-          </Button>
+        {/* Save + Navigation footer */}
+        <div className="space-y-2 border-t pt-3 mt-2">
+          {hasPending && (
+            <Button onClick={handleSave} disabled={isSaving} className="w-full h-9 text-sm">
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Check className="h-3.5 w-3.5 mr-1.5" />}
+              Guardar {Object.keys(pendingAdds).length} campo(s) no mapeamento
+            </Button>
+          )}
+          {saved && !hasPending && (
+            <div className="flex items-center justify-center gap-1.5 text-xs text-primary">
+              <CheckCircle className="h-3.5 w-3.5" /> Campos guardados com sucesso
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <Button size="sm" variant="outline" onClick={onPrevious} disabled={currentIndex <= 0}>
+              <ChevronLeft className="h-3 w-3 mr-1" /> Anterior
+            </Button>
+            <span className="text-xs text-muted-foreground font-medium">
+              {currentIndex + 1} de {totalItems}
+            </span>
+            <Button size="sm" variant="outline" onClick={onNext} disabled={currentIndex >= totalItems - 1}>
+              Próximo <ChevronRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
