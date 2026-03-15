@@ -650,6 +650,7 @@ const IngestionHubPage = () => {
 // ─── Job Detail Dialog with pagination ───
 function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; items: any[]; onClose: () => void }) {
   const [page, setPage] = useState(1);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const pageSize = 50;
 
   if (!job) return null;
@@ -663,105 +664,273 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
   const insertCount = items.filter(i => i.action === "insert").length;
   const updateCount = items.filter(i => i.action === "merge" || i.action === "update").length;
 
+  // Navigate between items in detail view
+  const selectedIndex = selectedItem ? items.findIndex(i => i.id === selectedItem.id) : -1;
+  const goToItem = (idx: number) => {
+    if (idx >= 0 && idx < items.length) {
+      setSelectedItem(items[idx]);
+      // Ensure pagination follows
+      const targetPage = Math.floor(idx / pageSize) + 1;
+      if (targetPage !== page) setPage(targetPage);
+    }
+  };
+
+  return (
+    <>
+      <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Database className="h-4 w-4 text-primary" />
+              {job.file_name || `Job ${job.id.slice(0, 8)}`}
+              <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Stats */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              {[
+                { l: "Total", v: job.total_rows, c: "" },
+                { l: "Novos", v: job.status === "dry_run" ? insertCount : job.imported_rows, c: "text-primary" },
+                { l: "Atualizações", v: job.status === "dry_run" ? updateCount : job.updated_rows, c: "text-primary" },
+                { l: "Ignorados", v: job.skipped_rows, c: "text-muted-foreground" },
+                { l: "Duplicados", v: job.duplicate_rows, c: "text-amber-600" },
+                { l: "Erros", v: job.failed_rows, c: "text-destructive" },
+              ].map(s => (
+                <div key={s.l} className="bg-muted/50 rounded-lg p-2.5 text-center">
+                  <p className={`text-xl font-bold ${s.c}`}>{s.v}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.l}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Items table */}
+            {items.length > 0 && (
+              <ScrollArea className="flex-1 min-h-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="text-xs font-semibold w-10">#</TableHead>
+                      <TableHead className="text-xs font-semibold">Status</TableHead>
+                      <TableHead className="text-xs font-semibold">Ação</TableHead>
+                      <TableHead className="text-xs font-semibold">SKU</TableHead>
+                      <TableHead className="text-xs font-semibold">Título</TableHead>
+                      <TableHead className="text-xs font-semibold">Erro</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visibleItems.map(item => (
+                      <TableRow
+                        key={item.id}
+                        className="cursor-pointer hover:bg-primary/5"
+                        onClick={() => setSelectedItem(item)}
+                      >
+                        <TableCell className="text-xs font-mono">{item.source_row_index + 1}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn("text-[10px]",
+                            item.status === "processed" ? "border-primary/50 text-primary" :
+                            item.status === "error" ? "border-destructive text-destructive" :
+                            item.status === "mapped" ? "border-primary/30 text-primary" :
+                            item.status === "skipped" ? "border-muted text-muted-foreground" : ""
+                          )}>{item.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className={cn("text-[10px]",
+                            item.action === "insert" ? "bg-primary/10 text-primary" :
+                            item.action === "merge" || item.action === "update" ? "bg-accent text-accent-foreground" :
+                            item.action === "skip" ? "bg-muted text-muted-foreground" : ""
+                          )}>
+                            {item.action === "insert" ? "➕ Novo" :
+                             item.action === "merge" || item.action === "update" ? "🔄 Atualizar" :
+                             item.action === "skip" ? "⏭ Ignorar" : item.action || "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs font-mono text-primary underline">{item.mapped_data?.sku || item.source_data?.sku || "—"}</TableCell>
+                        <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
+                        <TableCell className="text-xs text-destructive max-w-[200px] truncate">{item.error_message || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            )}
+
+            {/* Pagination */}
+            {items.length > pageSize && (
+              <div className="flex items-center justify-between border-t pt-3">
+                <p className="text-xs text-muted-foreground">
+                  {startIndex + 1}–{Math.min(startIndex + pageSize, items.length)} de {items.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(1)} disabled={safePage === 1}>
+                    <ChevronsLeft className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1}>
+                    <ChevronLeft className="h-3 w-3" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground px-2 font-medium">{safePage} / {totalPages}</span>
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
+                    <ChevronRight className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(totalPages)} disabled={safePage === totalPages}>
+                    <ChevronsRight className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-[10px] text-muted-foreground text-center">Clique numa linha para ver todos os dados do produto</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Item Detail Dialog */}
+      {selectedItem && (
+        <ItemDetailDialog
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          currentIndex={selectedIndex}
+          totalItems={items.length}
+          onPrevious={() => goToItem(selectedIndex - 1)}
+          onNext={() => goToItem(selectedIndex + 1)}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── Item Detail Dialog — shows all mapped_data and source_data ───
+function ItemDetailDialog({
+  item, onClose, currentIndex, totalItems, onPrevious, onNext,
+}: {
+  item: any;
+  onClose: () => void;
+  currentIndex: number;
+  totalItems: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const mapped = item.mapped_data || {};
+  const source = item.source_data || {};
+
+  const FIELD_LABELS: Record<string, string> = {
+    sku: "SKU", original_title: "Título", original_description: "Descrição",
+    short_description: "Descrição Curta", original_price: "Preço", category: "Categoria",
+    dimensions: "Dimensões", weight: "Peso", material: "Material", brand: "Marca",
+    model: "Modelo", technical_specs: "Especificações Técnicas", image_urls: "Imagens (URLs)",
+    image_url: "Imagem URL", image_description: "Descrição da Imagem",
+    color_options: "Opções de Cor", quantity: "Quantidade", unit: "Unidade",
+    tags: "Tags", meta_title: "Meta Title", meta_description: "Meta Description",
+    seo_slug: "SEO Slug", supplier_ref: "Ref. Fornecedor", attributes: "Atributos",
+    product_type: "Tipo de Produto",
+  };
+
+  // Merge all keys from both mapped and source for complete view
+  const allKeys = [...new Set([...Object.keys(mapped), ...Object.keys(source)])].filter(k => !k.startsWith("_"));
+  const priorityKeys = ["sku", "original_title", "original_description", "short_description", "original_price", "category", "brand", "model", "technical_specs", "dimensions", "weight", "material", "image_urls", "image_url"];
+  const sortedKeys = [
+    ...priorityKeys.filter(k => allKeys.includes(k)),
+    ...allKeys.filter(k => !priorityKeys.includes(k)),
+  ];
+
+  const formatValue = (val: any): string => {
+    if (val === null || val === undefined || val === "") return "—";
+    if (Array.isArray(val)) return val.join(", ");
+    if (typeof val === "object") { try { return JSON.stringify(val, null, 2); } catch { return String(val); } }
+    return String(val);
+  };
+
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Database className="h-4 w-4 text-primary" />
-            {job.file_name || `Job ${job.id.slice(0, 8)}`}
-            <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
+            <Eye className="h-4 w-4 text-primary" />
+            Detalhe do Produto — {mapped.sku || source.sku || `#${item.source_row_index + 1}`}
+            <Badge variant="secondary" className={cn("text-[10px] ml-2",
+              item.action === "insert" ? "bg-primary/10 text-primary" :
+              item.action === "merge" || item.action === "update" ? "bg-accent text-accent-foreground" :
+              "bg-muted text-muted-foreground"
+            )}>
+              {item.action === "insert" ? "➕ Novo" :
+               item.action === "merge" || item.action === "update" ? "🔄 Atualizar" :
+               item.action === "skip" ? "⏭ Ignorar" : item.action || "—"}
+            </Badge>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-          {/* Stats */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            {[
-              { l: "Total", v: job.total_rows, c: "" },
-              { l: "Novos", v: job.status === "dry_run" ? insertCount : job.imported_rows, c: "text-primary" },
-              { l: "Atualizações", v: job.status === "dry_run" ? updateCount : job.updated_rows, c: "text-primary" },
-              { l: "Ignorados", v: job.skipped_rows, c: "text-muted-foreground" },
-              { l: "Duplicados", v: job.duplicate_rows, c: "text-amber-600" },
-              { l: "Erros", v: job.failed_rows, c: "text-destructive" },
-            ].map(s => (
-              <div key={s.l} className="bg-muted/50 rounded-lg p-2.5 text-center">
-                <p className={`text-xl font-bold ${s.c}`}>{s.v}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.l}</p>
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="space-y-4 pr-4">
+            {/* Match info */}
+            {item.matched_existing_id && (
+              <div className="flex items-center gap-2 p-3 bg-accent/50 rounded-lg border border-accent">
+                <RefreshCw className="h-4 w-4 text-accent-foreground" />
+                <div>
+                  <p className="text-xs font-medium text-accent-foreground">Produto existente será atualizado</p>
+                  <p className="text-[10px] text-muted-foreground">ID: {item.matched_existing_id} · Confiança: {item.match_confidence}%</p>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
 
-          {/* Items table */}
-          {items.length > 0 && (
-            <ScrollArea className="flex-1 min-h-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead className="text-xs font-semibold w-10">#</TableHead>
-                    <TableHead className="text-xs font-semibold">Status</TableHead>
-                    <TableHead className="text-xs font-semibold">Ação</TableHead>
-                    <TableHead className="text-xs font-semibold">SKU</TableHead>
-                    <TableHead className="text-xs font-semibold">Título</TableHead>
-                    <TableHead className="text-xs font-semibold">Erro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleItems.map(item => (
-                    <TableRow key={item.id}>
-                      <TableCell className="text-xs font-mono">{item.source_row_index + 1}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("text-[10px]",
-                          item.status === "processed" ? "border-primary/50 text-primary" :
-                          item.status === "error" ? "border-destructive text-destructive" :
-                          item.status === "mapped" ? "border-primary/30 text-primary" :
-                          item.status === "skipped" ? "border-muted text-muted-foreground" : ""
-                        )}>{item.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={cn("text-[10px]",
-                          item.action === "insert" ? "bg-primary/10 text-primary" :
-                          item.action === "merge" || item.action === "update" ? "bg-accent text-accent-foreground" :
-                          item.action === "skip" ? "bg-muted text-muted-foreground" : ""
-                        )}>
-                          {item.action === "insert" ? "➕ Novo" :
-                           item.action === "merge" || item.action === "update" ? "🔄 Atualizar" :
-                           item.action === "skip" ? "⏭ Ignorar" : item.action || "—"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs font-mono">{item.mapped_data?.sku || item.source_data?.sku || "—"}</TableCell>
-                      <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
-                      <TableCell className="text-xs text-destructive max-w-[200px] truncate">{item.error_message || "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          )}
-
-          {/* Pagination */}
-          {items.length > pageSize && (
-            <div className="flex items-center justify-between border-t pt-3">
-              <p className="text-xs text-muted-foreground">
-                {startIndex + 1}–{Math.min(startIndex + pageSize, items.length)} de {items.length}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(1)} disabled={safePage === 1}>
-                  <ChevronsLeft className="h-3 w-3" />
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1}>
-                  <ChevronLeft className="h-3 w-3" />
-                </Button>
-                <span className="text-xs text-muted-foreground px-2 font-medium">{safePage} / {totalPages}</span>
-                <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
-                  <ChevronRight className="h-3 w-3" />
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(totalPages)} disabled={safePage === totalPages}>
-                  <ChevronsRight className="h-3 w-3" />
-                </Button>
+            {/* Mapped data (what will be injected) */}
+            <div>
+              <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">Dados a Injetar</h4>
+              <div className="border rounded-lg overflow-hidden">
+                {sortedKeys.map((key, i) => {
+                  const mappedVal = mapped[key];
+                  const hasValue = mappedVal !== null && mappedVal !== undefined && mappedVal !== "";
+                  if (!hasValue) return null;
+                  return (
+                    <div key={key} className={cn("flex gap-3 px-3 py-2 text-sm", i % 2 === 0 ? "bg-muted/30" : "")}>
+                      <span className="font-medium text-muted-foreground w-40 shrink-0 text-xs">{FIELD_LABELS[key] || key}</span>
+                      <span className="text-foreground text-xs break-all whitespace-pre-wrap flex-1">
+                        {formatValue(mappedVal)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          )}
+
+            {/* Source data (raw extraction) */}
+            {Object.keys(source).filter(k => !k.startsWith("_")).length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Dados Originais (Extração)</h4>
+                <div className="border rounded-lg overflow-hidden">
+                  {Object.entries(source).filter(([k]) => !k.startsWith("_")).map(([key, val], i) => (
+                    <div key={key} className={cn("flex gap-3 px-3 py-2 text-sm", i % 2 === 0 ? "bg-muted/30" : "")}>
+                      <span className="font-medium text-muted-foreground w-40 shrink-0 text-xs">{FIELD_LABELS[key] || key}</span>
+                      <span className="text-foreground text-xs break-all whitespace-pre-wrap flex-1">
+                        {formatValue(val)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Metadata */}
+            <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+              {source._confidence && <Badge variant="outline" className="text-[10px]">Confiança: {source._confidence}%</Badge>}
+              {source._source && <Badge variant="outline" className="text-[10px]">Fonte: {source._source}</Badge>}
+              {source._pageNumber && <Badge variant="outline" className="text-[10px]">Página: {source._pageNumber}</Badge>}
+              {(source._pages || []).length > 0 && <Badge variant="outline" className="text-[10px]">Páginas: {source._pages.join(", ")}</Badge>}
+            </div>
+          </div>
+        </ScrollArea>
+
+        {/* Navigation footer */}
+        <div className="flex items-center justify-between border-t pt-3 mt-2">
+          <Button size="sm" variant="outline" onClick={onPrevious} disabled={currentIndex <= 0}>
+            <ChevronLeft className="h-3 w-3 mr-1" /> Anterior
+          </Button>
+          <span className="text-xs text-muted-foreground font-medium">
+            {currentIndex + 1} de {totalItems}
+          </span>
+          <Button size="sm" variant="outline" onClick={onNext} disabled={currentIndex >= totalItems - 1}>
+            Próximo <ChevronRight className="h-3 w-3 ml-1" />
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
