@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import {
   Globe, Loader2, MousePointerClick, Trash2, Play, Download, Plus,
   Eye, Tag, Link2, Image as ImageIcon, Type, FileText, ArrowRight, X
