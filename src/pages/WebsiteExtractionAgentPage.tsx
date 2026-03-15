@@ -1217,11 +1217,18 @@ export default function WebsiteExtractionAgentPage() {
                   onKeyDown={e => e.key === "Enter" && loadPage(url, "browse")}
                   className="font-mono text-sm"
                 />
-                <Button onClick={() => loadPage(url, "browse")} disabled={loading || !url.trim()}>
+                <Button onClick={() => loadPage(url, "browse")} disabled={loading || smartAgentRunning || !url.trim()} variant="outline">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                  <span className="ml-1">Abrir</span>
+                  <span className="ml-1">Abrir Manual</span>
+                </Button>
+                <Button onClick={handleSmartAgent} disabled={loading || smartAgentRunning || !url.trim()} className="gap-1.5">
+                  {smartAgentRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                  <span>Smart Agent</span>
                 </Button>
               </div>
+              <p className="text-[10px] text-muted-foreground">
+                <strong>Smart Agent:</strong> Analisa automaticamente a página, encontra as zonas de "Produtos" (em qualquer língua), explora categorias, subcategorias, paginação e recolhe todos os URLs de produto. Depois abre um produto e auto-deteta os campos.
+              </p>
 
               <div className="border-t pt-4">
                 <p className="text-sm font-medium mb-2 flex items-center gap-2">
