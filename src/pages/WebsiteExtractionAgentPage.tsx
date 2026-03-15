@@ -1211,9 +1211,19 @@ export default function WebsiteExtractionAgentPage() {
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] text-muted-foreground">Máx págs:</span>
                     <Input
-                      type="number" min={2} max={200}
+                      type="number" min={2} max={500}
                       value={maxPagesPerCategory}
-                      onChange={e => setMaxPagesPerCategory(Number(e.target.value) || 50)}
+                      onChange={e => setMaxPagesPerCategory(Number(e.target.value) || 80)}
+                      className="h-7 w-16 text-xs"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">Prof.:</span>
+                    <Input
+                      type="number" min={1} max={10}
+                      value={maxCategoryDepth}
+                      onChange={e => setMaxCategoryDepth(Math.max(1, Number(e.target.value) || 4))}
                       className="h-7 w-16 text-xs"
                     />
                   </div>
