@@ -1851,6 +1851,86 @@ export default function VisualScraperPage() {
         </div>
       )}
 
+      {/* Agent Category Selection Dialog */}
+      <Dialog open={showCategoryAgentDialog} onOpenChange={setShowCategoryAgentDialog}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5" />
+              Agente de Categorias
+            </DialogTitle>
+            <DialogDescription>
+              Escolha as categorias/grupos para o agente explorar automaticamente, gerar a lista de produtos e preparar a execução.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px]">
+              {categoryAgentCandidates.length} categorias/grupos
+            </Badge>
+            <Badge variant="outline" className="text-[10px]">
+              {selectedCategoryAgentCount} selecionados
+            </Badge>
+            <div className="ml-auto flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setAllCategoryAgentSelection(true)}>
+                Selecionar tudo
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setAllCategoryAgentSelection(false)}>
+                Limpar
+              </Button>
+            </div>
+          </div>
+
+          <ScrollArea className="h-80 border rounded-lg">
+            <div className="p-2 space-y-1.5">
+              {categoryAgentCandidates.map(link => (
+                <label key={link.url} className="flex items-start gap-2 border rounded-md p-2 cursor-pointer hover:bg-muted/40">
+                  <Checkbox
+                    checked={!!categoryAgentSelection[link.url]}
+                    onCheckedChange={(checked) => setCategoryAgentSelection(prev => ({ ...prev, [link.url]: !!checked }))}
+                  />
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-xs truncate">{link.text || "Sem texto"}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate" title={link.url}>{link.url}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px]">{link.linkType}</Badge>
+                </label>
+              ))}
+              {categoryAgentCandidates.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhuma categoria/grupo disponível nesta camada.</p>
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setShowCategoryAgentDialog(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleRunCategoryAgentFlow(false)}
+              disabled={selectedCategoryAgentCount === 0 || drillLoading}
+            >
+              {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
+              Explorar e listar produtos
+            </Button>
+            <Button
+              onClick={() => handleRunCategoryAgentFlow(true)}
+              disabled={selectedCategoryAgentCount === 0 || drillLoading || fields.length === 0}
+            >
+              {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+              Explorar + correr produtos
+            </Button>
+          </DialogFooter>
+
+          {fields.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Defina os campos no Passo 3 para ativar a execução automática dos produtos.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Pattern Detection Dialog */}
       <Dialog open={showPatternDialog} onOpenChange={setShowPatternDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
