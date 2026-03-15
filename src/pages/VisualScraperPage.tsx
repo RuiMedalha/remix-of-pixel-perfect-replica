@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import { DEFAULT_PRODUCT_FIELDS } from "@/hooks/useUploadCatalog";
 import {
   Globe, Loader2, MousePointerClick, Trash2, Play, Download,
   Eye, Link2, Image as ImageIcon, Type, FileText, ArrowRight, ArrowLeft, X,
