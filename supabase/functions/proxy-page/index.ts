@@ -26,15 +26,12 @@ Deno.serve(async (req) => {
     let metadata: Record<string, string> = {};
     let fetchMethod = 'native';
 
-    if (useFirecrawl) {
+    // Helper to fetch via Firecrawl
+    async function fetchViaFirecrawl(): Promise<{ html: string; metadata: Record<string, string>; method: string }> {
       const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
       if (!apiKey) {
-        return new Response(
-          JSON.stringify({ error: 'Firecrawl não está configurado.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        throw new Error('Firecrawl não está configurado. Conecte o Firecrawl nas definições.');
       }
-
       const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
         method: 'POST',
         headers: {
@@ -47,39 +44,91 @@ Deno.serve(async (req) => {
           onlyMainContent: false,
         }),
       });
-
       const data = await response.json();
       if (!response.ok) {
+        throw new Error(data.error || `Firecrawl erro ${response.status}`);
+      }
+      return {
+        html: data.data?.html || data.html || '',
+        metadata: data.data?.metadata || data.metadata || {},
+        method: 'firecrawl',
+      };
+    }
+
+    if (useFirecrawl) {
+      // Explicit Firecrawl mode
+      try {
+        const result = await fetchViaFirecrawl();
+        html = result.html;
+        metadata = result.metadata;
+        fetchMethod = result.method;
+      } catch (e) {
         return new Response(
-          JSON.stringify({ error: data.error || `Erro ${response.status}` }),
-          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: e instanceof Error ? e.message : 'Erro Firecrawl' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-
-      html = data.data?.html || data.html || '';
-      metadata = data.data?.metadata || data.metadata || {};
-      fetchMethod = 'firecrawl';
     } else {
-      const response = await fetch(formattedUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-        },
-        redirect: 'follow',
-      });
+      // Try native fetch first, auto-fallback to Firecrawl on 403/401/503
+      try {
+        const response = await fetch(formattedUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+          },
+          redirect: 'follow',
+        });
 
-      if (!response.ok) {
-        return new Response(
-          JSON.stringify({ error: `Erro HTTP ${response.status}. Tente ativar o modo Firecrawl.` }),
-          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (!response.ok) {
+          // Auto-fallback to Firecrawl for blocked/forbidden responses
+          console.log(`Native fetch returned ${response.status}, attempting Firecrawl fallback...`);
+          try {
+            const result = await fetchViaFirecrawl();
+            html = result.html;
+            metadata = result.metadata;
+            fetchMethod = 'firecrawl-fallback';
+          } catch (fcErr) {
+            return new Response(
+              JSON.stringify({ error: `Site bloqueou acesso direto (HTTP ${response.status}) e Firecrawl falhou: ${fcErr instanceof Error ? fcErr.message : 'erro desconhecido'}` }),
+              { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else {
+          html = await response.text();
+          // Check if we got a meaningful page (not a captcha/block page)
+          if (html.length < 500 && (html.toLowerCase().includes('captcha') || html.toLowerCase().includes('blocked') || html.toLowerCase().includes('access denied'))) {
+            console.log('Native fetch returned blocked/captcha page, attempting Firecrawl fallback...');
+            try {
+              const result = await fetchViaFirecrawl();
+              html = result.html;
+              metadata = result.metadata;
+              fetchMethod = 'firecrawl-fallback';
+            } catch {
+              // Use the original html if Firecrawl also fails
+            }
+          }
+          if (fetchMethod !== 'firecrawl-fallback') {
+            const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+            metadata = { title: titleMatch?.[1]?.trim() || formattedUrl };
+            fetchMethod = 'native';
+          }
+        }
+      } catch (nativeErr) {
+        // Network error on native fetch, try Firecrawl
+        console.log('Native fetch failed, attempting Firecrawl fallback...', nativeErr);
+        try {
+          const result = await fetchViaFirecrawl();
+          html = result.html;
+          metadata = result.metadata;
+          fetchMethod = 'firecrawl-fallback';
+        } catch (fcErr) {
+          return new Response(
+            JSON.stringify({ error: `Falha no acesso: ${fcErr instanceof Error ? fcErr.message : 'erro desconhecido'}` }),
+            { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
-
-      html = await response.text();
-      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-      metadata = { title: titleMatch?.[1]?.trim() || formattedUrl };
-      fetchMethod = 'native';
     }
 
     // Make all relative URLs absolute
