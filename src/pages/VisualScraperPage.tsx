@@ -181,7 +181,7 @@ export default function VisualScraperPage() {
   };
 
   const handleSendToProducts = async () => {
-    if (!currentWorkspace?.id || results.length === 0) return;
+    if (!activeWorkspace?.id || results.length === 0) return;
     setBatchLoading(true);
     try {
       // Create ingestion job with the scraped data
