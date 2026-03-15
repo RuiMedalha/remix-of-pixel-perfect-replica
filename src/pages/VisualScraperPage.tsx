@@ -39,10 +39,13 @@ interface ExtractedRow {
   [key: string]: string;
 }
 
+type LinkType = "categoria" | "grupo" | "produto" | "outro";
+
 interface ExtractedLink {
   url: string;
   text: string;
   selected: boolean;
+  linkType: LinkType;
 }
 
 interface LinkLayer {
@@ -232,7 +235,8 @@ export default function VisualScraperPage() {
         links.push({
           url: fullUrl,
           text: (a.textContent || "").trim().replace(/\s+/g, ' ').substring(0, 120),
-          selected: isContentLink, // Auto-select product/category links
+          selected: isContentLink,
+          linkType: linkType === 'product' ? 'produto' : linkType === 'category' ? 'categoria' : 'outro',
         });
       } catch { /* ignore */ }
     });
@@ -315,63 +319,7 @@ export default function VisualScraperPage() {
     }
   };
 
-  // Drill into selected links — extract links from all selected URLs simultaneously
-  const handleDrillIntoSelected = async () => {
-    const selectedUrls = extractedLinks.filter(l => l.selected).map(l => l.url);
-    if (selectedUrls.length === 0) {
-      toast.error("Selecione pelo menos um link para explorar.");
-      return;
-    }
-
-    setDrillLoading(true);
-    try {
-      // Save current layer
-      setLinkLayers(prev => [...prev, {
-        label: `Camada ${prev.length + 1} (${selectedUrls.length} páginas)`,
-        links: extractedLinks,
-        sourceUrls: selectedUrls,
-      }]);
-
-      // Extract links from all selected URLs in parallel (batches of 5)
-      const allNewLinks: ExtractedLink[] = [];
-      const allNextPages: string[] = [];
-      const seenUrls = new Set<string>();
-
-      for (let i = 0; i < selectedUrls.length; i += 5) {
-        const batch = selectedUrls.slice(i, i + 5);
-        const results = await Promise.allSettled(
-          batch.map(u => extractLinksFromPage(u))
-        );
-
-        results.forEach(r => {
-          if (r.status === "fulfilled") {
-            r.value.links.forEach(link => {
-              if (!seenUrls.has(link.url)) {
-                seenUrls.add(link.url);
-                allNewLinks.push(link);
-              }
-            });
-            r.value.nextPages.forEach(p => {
-              if (!seenUrls.has(p)) allNextPages.push(p);
-            });
-          }
-        });
-
-        if (selectedUrls.length > 5) {
-          toast.info(`Progresso: ${Math.min(i + 5, selectedUrls.length)}/${selectedUrls.length} páginas exploradas...`);
-        }
-      }
-
-      setExtractedLinks(allNewLinks);
-      setPaginationUrls([...new Set(allNextPages)]);
-      setCrawledPages(prev => [...prev, ...selectedUrls]);
-      toast.success(`${allNewLinks.length} links encontrados de ${selectedUrls.length} páginas.`);
-    } catch (err: any) {
-      toast.error("Erro ao explorar links", { description: err.message });
-    } finally {
-      setDrillLoading(false);
-    }
-  };
+  // (Drill logic moved to handleDrillCategories)
 
   // Go back to previous layer
   const handleLayerBack = () => {
@@ -495,7 +443,7 @@ export default function VisualScraperPage() {
       const existingUrls = new Set(extractedLinks.map(l => l.url));
       const newLinks: ExtractedLink[] = urls
         .filter(u => !existingUrls.has(u))
-        .map(u => ({ url: u, text: "", selected: true }));
+        .map(u => ({ url: u, text: "", selected: true, linkType: "produto" as LinkType }));
 
       setExtractedLinks(prev => [...prev, ...newLinks]);
       setStep("links");
@@ -523,7 +471,7 @@ export default function VisualScraperPage() {
     const existingUrls = new Set(extractedLinks.map(l => l.url));
     const newLinks: ExtractedLink[] = urls
       .filter(u => !existingUrls.has(u))
-      .map(u => ({ url: u, text: "", selected: true }));
+      .map(u => ({ url: u, text: "", selected: true, linkType: "produto" as LinkType }));
 
     setExtractedLinks(prev => [...prev, ...newLinks]);
     setManualUrls("");
@@ -533,8 +481,7 @@ export default function VisualScraperPage() {
 
   // Enter selection mode on current page
   const handleEnterSelectMode = () => {
-    // Store selected links as batch URLs before entering field selection
-    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
+    const selected = productLinks.map(l => l.url);
     if (selected.length > 0) {
       setBatchUrls(selected);
     }
@@ -544,17 +491,69 @@ export default function VisualScraperPage() {
 
   // Go to a product page from links list
   const handleGoToProduct = (productUrl: string) => {
-    // Store all selected links as batch URLs before navigating to one product
-    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
+    const selected = productLinks.map(l => l.url);
     if (selected.length > 0) {
       setBatchUrls(selected);
-    } else {
-      // If no selections, use all visible links
-      setBatchUrls(extractedLinks.map(l => l.url));
     }
     setUrl(productUrl);
     loadPage(productUrl, "select");
     setStep("select-fields");
+  };
+
+  // Drill into selected links of type "categoria" or "grupo" to find products
+  const handleDrillCategories = async () => {
+    const selectedUrls = extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).map(l => l.url);
+    if (selectedUrls.length === 0) {
+      toast.error("Selecione URLs de categoria ou grupo para explorar.");
+      return;
+    }
+
+    setDrillLoading(true);
+    try {
+      setLinkLayers(prev => [...prev, {
+        label: `Camada ${prev.length + 1} (${selectedUrls.length} páginas)`,
+        links: extractedLinks,
+        sourceUrls: selectedUrls,
+      }]);
+
+      const allNewLinks: ExtractedLink[] = [];
+      const allNextPages: string[] = [];
+      const seenUrls = new Set<string>();
+
+      for (let i = 0; i < selectedUrls.length; i += 5) {
+        const batch = selectedUrls.slice(i, i + 5);
+        const results = await Promise.allSettled(
+          batch.map(u => extractLinksFromPage(u))
+        );
+
+        results.forEach(r => {
+          if (r.status === "fulfilled") {
+            r.value.links.forEach(link => {
+              if (!seenUrls.has(link.url)) {
+                seenUrls.add(link.url);
+                allNewLinks.push(link);
+              }
+            });
+            r.value.nextPages.forEach(p => {
+              if (!seenUrls.has(p)) allNextPages.push(p);
+            });
+          }
+        });
+
+        if (selectedUrls.length > 5) {
+          toast.info(`Progresso: ${Math.min(i + 5, selectedUrls.length)}/${selectedUrls.length} páginas exploradas...`);
+        }
+      }
+
+      setExtractedLinks(allNewLinks);
+      setPaginationUrls([...new Set(allNextPages)]);
+      setCrawledPages(prev => [...prev, ...selectedUrls]);
+      toast.success(`${allNewLinks.length} links encontrados de ${selectedUrls.length} páginas.`);
+    } catch (err: any) {
+      toast.error("Erro ao explorar links", { description: err.message });
+    } finally {
+      setDrillLoading(false);
+    }
   };
 
   // ── Smart URL Pattern Detection ──
@@ -768,20 +767,19 @@ export default function VisualScraperPage() {
       toast.error("Selecione pelo menos um campo.");
       return;
     }
-    // Store selected links as batch URLs if not already stored
-    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
-    if (selected.length > 0 && batchUrls.length === 0) {
-      setBatchUrls(selected);
+    // Always use product-type links for batch
+    const prodUrls = productLinks.map(l => l.url);
+    if (prodUrls.length > 0) {
+      setBatchUrls(prodUrls);
     }
     setStep("batch");
   };
 
   const handleRunBatch = async () => {
-    // Use stored batchUrls first, then fall back to selected links, then currentUrl
-    const selectedLinkUrls = batchUrls.length > 0
+    const productUrls = batchUrls.length > 0
       ? batchUrls
-      : extractedLinks.filter(l => l.selected).map(l => l.url);
-    let urls = selectedLinkUrls.length > 0 ? selectedLinkUrls : [currentUrl];
+      : productLinks.map(l => l.url);
+    let urls = productUrls.length > 0 ? productUrls : [currentUrl];
 
     setBatchLoading(true);
     try {
@@ -907,12 +905,27 @@ export default function VisualScraperPage() {
     setExtractedLinks(prev => prev.map(l => l.url === url ? { ...l, selected: !l.selected } : l));
   };
 
+  const changeLinkType = (url: string, linkType: LinkType) => {
+    setExtractedLinks(prev => prev.map(l => l.url === url ? { ...l, linkType } : l));
+  };
+
+  const setAllSelectedType = (linkType: LinkType) => {
+    setExtractedLinks(prev => prev.map(l => l.selected ? { ...l, linkType } : l));
+  };
+
+  const removeLink = (url: string) => {
+    setExtractedLinks(prev => prev.filter(l => l.url !== url));
+  };
+
   const filteredLinks = extractedLinks.filter(l =>
     !linkFilter || l.url.toLowerCase().includes(linkFilter.toLowerCase()) ||
     l.text.toLowerCase().includes(linkFilter.toLowerCase())
   );
 
   const selectedLinksCount = extractedLinks.filter(l => l.selected).length;
+  const productLinks = extractedLinks.filter(l => l.linkType === 'produto');
+  const categoryLinks = extractedLinks.filter(l => l.linkType === 'categoria');
+  const groupLinks = extractedLinks.filter(l => l.linkType === 'grupo');
 
   const typeIcons: Record<string, React.ReactNode> = {
     text: <Type className="w-3 h-3" />,
@@ -1185,31 +1198,17 @@ export default function VisualScraperPage() {
       {/* Step: Links extraction */}
       {step === "links" && (
         <div className="flex-1 flex flex-col min-h-0 p-4 gap-3">
+          {/* Header */}
           <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleLayerBack}>
               <ArrowLeft className="w-3 h-3 mr-1" /> {linkLayers.length > 1 ? "Camada Anterior" : "Voltar"}
             </Button>
-            <h2 className="font-semibold">Links Encontrados</h2>
+            <h2 className="font-semibold">Gestão de URLs</h2>
             <Badge>{extractedLinks.length} total</Badge>
-            {selectedLinksCount > 0 && <Badge variant="secondary">{selectedLinksCount} selecionados</Badge>}
+            <Badge variant="outline" className="text-[10px]">
+              {categoryLinks.length} categorias · {groupLinks.length} grupos · {productLinks.length} produtos
+            </Badge>
             <Badge variant="outline" className="text-[10px]">{crawledPages.length} pág. percorridas</Badge>
-            <div className="ml-auto flex gap-2 flex-wrap">
-              <Button variant="secondary" size="sm" onClick={detectUrlPatterns}>
-                <Wand2 className="w-3 h-3 mr-1" /> Detetar Padrões
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => toggleAllLinks(true)}>Selecionar Todos</Button>
-              <Button variant="outline" size="sm" onClick={() => toggleAllLinks(false)}>Limpar</Button>
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-3 h-3 mr-1" /> Importar URLs
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls,.txt"
-                onChange={handleFileImport}
-                className="hidden"
-              />
-            </div>
           </div>
 
           {/* Layer breadcrumbs */}
@@ -1237,37 +1236,40 @@ export default function VisualScraperPage() {
             </div>
           )}
 
-          {/* Step 1: Pagination controls - collect ALL product URLs first */}
+          {/* ─── Section A: Classificar & Recolher URLs ─── */}
           <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="text-[10px]">Passo 1</Badge>
-              <span className="text-sm font-medium">
-                Recolher Todos os Links {paginationUrls.length > 0 ? `— ${paginationUrls.length} página(s) de paginação detetadas` : ''}
-              </span>
-              {paginationUrls.length > 0 && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleFollowPagination()}
-                    disabled={paginationLoading}
-                    className="ml-auto"
-                  >
-                    {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
-                    Próxima Página
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleFollowAllPagination}
-                    disabled={paginationLoading}
-                  >
-                    {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
-                    Percorrer Todas ({paginationUrls.length})
-                  </Button>
-                </>
-              )}
+              <span className="text-sm font-medium">Classificar URLs e recolher mais</span>
+              <div className="ml-auto flex gap-2 flex-wrap">
+                <Button variant="outline" size="sm" onClick={() => setAllSelectedType('categoria')}>
+                  Seleção → Categoria
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setAllSelectedType('grupo')}>
+                  Seleção → Grupo
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setAllSelectedType('produto')}>
+                  Seleção → Produto
+                </Button>
+              </div>
             </div>
-            {/* Manual pagination URL input */}
+            <p className="text-xs text-muted-foreground">
+              Selecione URLs na tabela e classifique-os. Depois explore categorias/grupos para encontrar mais URLs.
+            </p>
+            {/* Pagination */}
+            {paginationUrls.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap pt-1 border-t">
+                <span className="text-xs text-muted-foreground">{paginationUrls.length} página(s) de paginação</span>
+                <Button size="sm" variant="outline" onClick={() => handleFollowPagination()} disabled={paginationLoading}>
+                  {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
+                  Próxima
+                </Button>
+                <Button size="sm" onClick={handleFollowAllPagination} disabled={paginationLoading}>
+                  {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+                  Todas ({paginationUrls.length})
+                </Button>
+              </div>
+            )}
             <div className="flex gap-2">
               <Input
                 placeholder="Adicionar URL de paginação manualmente (ex: ?page=2)..."
@@ -1289,56 +1291,49 @@ export default function VisualScraperPage() {
                 }}
               />
             </div>
-            {paginationUrls.length > 0 && (
-              <div className="flex flex-wrap gap-1 max-h-20 overflow-auto">
-                {paginationUrls.map((pu, i) => (
-                  <Badge key={i} variant="outline" className="text-[10px] cursor-pointer" onClick={() => {
-                    setPaginationUrls(prev => prev.filter((_, idx) => idx !== i));
-                  }}>
-                    {new URL(pu).pathname.slice(-40)} ✕
-                  </Badge>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Drill into sub-levels (categories → products) */}
-          {selectedLinksCount > 0 && (
+          {/* ─── Section B: Explorar Categorias/Grupos ─── */}
+          {(categoryLinks.length > 0 || groupLinks.length > 0) && (
             <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
-              <span className="text-sm font-medium">{selectedLinksCount} links selecionados</span>
+              <Badge variant="outline" className="text-[10px]">Passo 2</Badge>
+              <span className="text-sm font-medium">Explorar categorias/grupos para encontrar produtos</span>
               <div className="ml-auto flex gap-2">
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={handleDrillIntoSelected}
-                  disabled={drillLoading}
+                  onClick={handleDrillCategories}
+                  disabled={drillLoading || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).length === 0}
                 >
                   {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
-                  Explorar Links ({selectedLinksCount}) — próxima camada
+                  Explorar Selecionados ({extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).length})
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 2: Define fields - prominent CTA */}
-          {selectedLinksCount > 0 && (
+          {/* ─── Section C: Definir campos (só produtos) ─── */}
+          {productLinks.length > 0 && (
             <div className={`flex items-center gap-3 p-3 border-2 rounded-lg flex-shrink-0 ${fields.length > 0 ? 'border-primary/30 bg-primary/5' : 'border-dashed border-muted-foreground/30 bg-muted/20'}`}>
-              <Badge variant="outline" className="text-[10px]">Passo 2</Badge>
+              <Badge variant="outline" className="text-[10px]">Passo 3</Badge>
               {fields.length > 0 ? (
                 <>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-primary">{fields.length} campos definidos ✓</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {fields.map(f => (
-                        <Badge key={f.id} variant="secondary" className="text-[10px]">
+                        <Badge key={f.id} variant="secondary" className="text-[10px] gap-1">
                           {typeIcons[f.type]} {f.name}
+                          <button onClick={(e) => { e.stopPropagation(); handleRemoveField(f.id); }} className="ml-1 hover:text-destructive">
+                            <X className="w-2.5 h-2.5" />
+                          </button>
                         </Badge>
                       ))}
                     </div>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => {
-                    const firstSelected = extractedLinks.find(l => l.selected);
-                    if (firstSelected) handleGoToProduct(firstSelected.url);
+                    const firstProduct = productLinks[0];
+                    if (firstProduct) handleGoToProduct(firstProduct.url);
                   }}>
                     <Crosshair className="w-3 h-3 mr-1" /> Editar Campos
                   </Button>
@@ -1346,12 +1341,12 @@ export default function VisualScraperPage() {
               ) : (
                 <>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Definir campos a extrair</p>
+                    <p className="text-sm font-medium">Definir campos a extrair dos {productLinks.length} produtos</p>
                     <p className="text-xs text-muted-foreground">Abra um produto para escolher os campos (título, imagem, descrição, etc.)</p>
                   </div>
                   <Button size="sm" onClick={() => {
-                    const firstSelected = extractedLinks.find(l => l.selected);
-                    if (firstSelected) handleGoToProduct(firstSelected.url);
+                    const firstProduct = productLinks[0];
+                    if (firstProduct) handleGoToProduct(firstProduct.url);
                   }}>
                     <Crosshair className="w-3 h-3 mr-1" /> Abrir Produto & Definir Campos
                   </Button>
@@ -1360,22 +1355,23 @@ export default function VisualScraperPage() {
             </div>
           )}
 
-          {/* Step 3: Run batch extraction */}
-          {selectedLinksCount > 0 && fields.length > 0 && (
+          {/* ─── Section D: Extrair Tudo ─── */}
+          {productLinks.length > 0 && fields.length > 0 && (
             <div className="flex items-center gap-3 p-3 border-2 border-primary rounded-lg bg-primary/5 flex-shrink-0">
-              <Badge variant="outline" className="text-[10px]">Passo 3</Badge>
+              <Badge variant="outline" className="text-[10px]">Passo 4</Badge>
               <div className="flex-1">
                 <p className="text-sm font-medium">Tudo pronto!</p>
                 <p className="text-xs text-muted-foreground">
-                  {selectedLinksCount} produtos × {fields.length} campos
+                  {productLinks.length} produtos × {fields.length} campos
                 </p>
               </div>
               <Button onClick={handleGoToBatch}>
-                <Play className="w-4 h-4 mr-1" /> Extrair Todos ({selectedLinksCount} páginas)
+                <Play className="w-4 h-4 mr-1" /> Extrair Todos ({productLinks.length} páginas)
               </Button>
             </div>
           )}
 
+          {/* Filter & tools */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <Input
               placeholder="Filtrar links por URL ou texto..."
@@ -1402,6 +1398,7 @@ export default function VisualScraperPage() {
             </div>
           </div>
 
+          {/* URL Table with Type column */}
           <ScrollArea className="flex-1 border rounded-lg">
             <Table>
               <TableHeader>
@@ -1415,9 +1412,10 @@ export default function VisualScraperPage() {
                       }}
                     />
                   </TableHead>
+                  <TableHead className="text-xs w-28">Tipo</TableHead>
                   <TableHead className="text-xs">URL</TableHead>
                   <TableHead className="text-xs">Texto</TableHead>
-                  <TableHead className="w-16"></TableHead>
+                  <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1426,14 +1424,34 @@ export default function VisualScraperPage() {
                     <TableCell>
                       <Checkbox checked={link.selected} onCheckedChange={() => toggleLink(link.url)} />
                     </TableCell>
+                    <TableCell>
+                      <Select value={link.linkType} onValueChange={(v) => changeLinkType(link.url, v as LinkType)}>
+                        <SelectTrigger className="h-6 text-[10px] w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="categoria">Categoria</SelectItem>
+                          <SelectItem value="grupo">Grupo</SelectItem>
+                          <SelectItem value="produto">Produto</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell className="text-xs font-mono truncate max-w-md" title={link.url}>
                       {link.url}
                     </TableCell>
                     <TableCell className="text-xs truncate max-w-48">{link.text || "—"}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoToProduct(link.url)} title="Abrir e selecionar campos">
-                        <Crosshair className="w-3 h-3" />
-                      </Button>
+                      <div className="flex gap-1">
+                        {link.linkType === 'produto' && (
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoToProduct(link.url)} title="Abrir e selecionar campos">
+                            <Crosshair className="w-3 h-3" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeLink(link.url)} title="Remover">
+                          <Trash2 className="w-3 h-3 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1467,8 +1485,8 @@ export default function VisualScraperPage() {
 
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">
-                  {(batchUrls.length > 0 || selectedLinksCount > 0)
-                    ? `${batchUrls.length > 0 ? batchUrls.length : selectedLinksCount} páginas selecionadas`
+                  {batchUrls.length > 0
+                    ? `${batchUrls.length} páginas de produto selecionadas`
                     : `1 página (${currentUrl})`}
                 </p>
                 {useFirecrawl && (
