@@ -54,151 +54,216 @@ Deno.serve(async (req) => {
     if (itemsErr) throw itemsErr;
     if (!items || items.length === 0) throw new Error("No items to process");
 
-    let imported = 0, updated = 0, skipped = 0, failed = 0;
+    // ─── SKU Grouping: merge items with same SKU ───
+    const fieldMap: Record<string, string> = {
+      original_title: "original_title",
+      title: "original_title",
+      original_description: "original_description",
+      description: "original_description",
+      short_description: "short_description",
+      sku: "sku",
+      category: "category",
+      original_price: "original_price",
+      price: "original_price",
+      sale_price: "sale_price",
+      image_urls: "image_urls",
+      tags: "tags",
+      meta_title: "meta_title",
+      meta_description: "meta_description",
+      seo_slug: "seo_slug",
+      supplier_ref: "supplier_ref",
+      technical_specs: "technical_specs",
+      product_type: "product_type",
+      attributes: "attributes",
+    };
+
+    function buildProductData(mapped: Record<string, any>): Record<string, any> {
+      const productData: Record<string, any> = {};
+      for (const [src, dst] of Object.entries(fieldMap)) {
+        if (mapped[src] !== undefined && mapped[src] !== null && mapped[src] !== "") {
+          let val = mapped[src];
+          if (dst === "image_urls" || dst === "tags") {
+            if (typeof val === "string") {
+              val = val.split(",").map((s: string) => s.trim()).filter(Boolean);
+            }
+          }
+          if (dst === "original_price" || dst === "sale_price") {
+            val = parseFloat(String(val).replace(",", "."));
+            if (isNaN(val)) continue;
+          }
+          productData[dst] = val;
+        }
+      }
+      // Extra fields → attributes
+      const knownKeys = new Set([...Object.keys(fieldMap), "id", "workspace_id", "user_id"]);
+      const extras: Record<string, any> = {};
+      for (const [k, v] of Object.entries(mapped)) {
+        if (!knownKeys.has(k) && v !== undefined && v !== null && v !== "") {
+          extras[k] = v;
+        }
+      }
+      if (Object.keys(extras).length > 0) {
+        productData.attributes = { ...(productData.attributes || {}), ...extras };
+      }
+      return productData;
+    }
+
+    // Deep merge: later values fill in blanks, arrays are concatenated & deduped
+    function mergeProductData(base: Record<string, any>, overlay: Record<string, any>): Record<string, any> {
+      const result = { ...base };
+      for (const [key, val] of Object.entries(overlay)) {
+        if (val === undefined || val === null || val === "") continue;
+        const existing = result[key];
+        if (existing === undefined || existing === null || existing === "") {
+          result[key] = val;
+        } else if (Array.isArray(existing) && Array.isArray(val)) {
+          result[key] = [...new Set([...existing, ...val])];
+        } else if (typeof existing === "object" && typeof val === "object" && !Array.isArray(existing)) {
+          result[key] = { ...existing, ...val };
+        }
+        // If base already has a non-empty value, keep it (first-wins for scalar)
+      }
+      return result;
+    }
+
+    // Group items by SKU
+    const skuGroups = new Map<string, typeof items>();
+    const noSkuItems: typeof items = [];
 
     for (const item of items) {
+      const mapped = item.mapped_data || item.source_data || {};
+      const action = item.action;
+      if (action === "skip" || action === "duplicate") {
+        continue; // handled later
+      }
+      const sku = (mapped.sku || "").toString().trim().toUpperCase();
+      if (sku) {
+        if (!skuGroups.has(sku)) skuGroups.set(sku, []);
+        skuGroups.get(sku)!.push(item);
+      } else {
+        noSkuItems.push(item);
+      }
+    }
+
+    let imported = 0, updated = 0, skipped = 0, failed = 0;
+
+    // Handle skipped/duplicate items first
+    for (const item of items) {
+      if (item.action === "skip" || item.action === "duplicate") {
+        await supabase.from("ingestion_job_items").update({ status: "skipped" }).eq("id", item.id);
+        skipped++;
+      }
+    }
+
+    // Process each SKU group (merge all items with same SKU into one product)
+    for (const [sku, groupItems] of skuGroups.entries()) {
       try {
-        const mapped = item.mapped_data || item.source_data || {};
-        const action = item.action;
-
-        if (action === "skip" || action === "duplicate") {
-          await supabase.from("ingestion_job_items").update({ status: "skipped" }).eq("id", item.id);
-          skipped++;
-          continue;
+        // Build merged product data from all items with this SKU
+        let mergedData: Record<string, any> = {};
+        for (const item of groupItems) {
+          const mapped = item.mapped_data || item.source_data || {};
+          const pd = buildProductData(mapped);
+          mergedData = mergeProductData(mergedData, pd);
         }
+        mergedData.sku = sku;
 
-        // Build product data
-        const productData: Record<string, any> = {
-          workspace_id: workspaceId,
-          user_id: user.id,
-        };
-
-        // Map known fields
-        const fieldMap: Record<string, string> = {
-          original_title: "original_title",
-          title: "original_title",
-          original_description: "original_description",
-          description: "original_description",
-          short_description: "short_description",
-          sku: "sku",
-          category: "category",
-          original_price: "original_price",
-          price: "original_price",
-          sale_price: "sale_price",
-          image_urls: "image_urls",
-          tags: "tags",
-          meta_title: "meta_title",
-          meta_description: "meta_description",
-          seo_slug: "seo_slug",
-          supplier_ref: "supplier_ref",
-          technical_specs: "technical_specs",
-          product_type: "product_type",
-          attributes: "attributes",
-        };
-
-        for (const [src, dst] of Object.entries(fieldMap)) {
-          if (mapped[src] !== undefined && mapped[src] !== null && mapped[src] !== "") {
-            let val = mapped[src];
-            // Handle arrays
-            if (dst === "image_urls" || dst === "tags") {
-              if (typeof val === "string") {
-                val = val.split(",").map((s: string) => s.trim()).filter(Boolean);
-              }
-            }
-            // Handle numbers
-            if (dst === "original_price" || dst === "sale_price") {
-              val = parseFloat(String(val).replace(",", "."));
-              if (isNaN(val)) continue;
-            }
-            productData[dst] = val;
-          }
-        }
-
-        // Store extra fields in attributes
-        const knownKeys = new Set([...Object.keys(fieldMap), "id", "workspace_id", "user_id"]);
-        const extras: Record<string, any> = {};
-        for (const [k, v] of Object.entries(mapped)) {
-          if (!knownKeys.has(k) && v !== undefined && v !== null && v !== "") {
-            extras[k] = v;
-          }
-        }
-        if (Object.keys(extras).length > 0) {
-          productData.attributes = { ...(productData.attributes || {}), ...extras };
-        }
+        // Check if product with this SKU already exists in workspace
+        const { data: existingProducts } = await supabase
+          .from("products")
+          .select("id")
+          .eq("workspace_id", workspaceId)
+          .eq("user_id", user.id)
+          .ilike("sku", sku)
+          .limit(1);
 
         let productId: string | null = null;
 
-        if ((action === "update" || action === "merge") && item.matched_existing_id) {
-          // Update existing
-          const updateData = { ...productData };
+        if (existingProducts && existingProducts.length > 0) {
+          // Update existing product
+          const updateData = { ...mergedData };
           delete updateData.workspace_id;
           delete updateData.user_id;
-
-          if (strategy === "replace") {
-            // Full replace
-          } else {
-            // Merge: only non-empty fields
-          }
-
           const { error: updateErr } = await supabase
             .from("products")
             .update(updateData)
-            .eq("id", item.matched_existing_id);
-
+            .eq("id", existingProducts[0].id);
           if (updateErr) throw updateErr;
-          productId = item.matched_existing_id;
+          productId = existingProducts[0].id;
           updated++;
-        } else if (action === "insert") {
-          // Handle parent/child grouping
-          if (item.is_parent === false && item.parent_group_key) {
-            // Find parent product
-            const { data: parentItem } = await supabase
-              .from("ingestion_job_items")
-              .select("product_id")
-              .eq("job_id", jobId)
-              .eq("parent_group_key", item.parent_group_key)
-              .eq("is_parent", true)
-              .not("product_id", "is", null)
-              .limit(1)
-              .single();
-
-            if (parentItem?.product_id) {
-              productData.parent_product_id = parentItem.product_id;
-              productData.product_type = "variation";
-            }
-          } else if (item.is_parent) {
-            productData.product_type = "variable";
-          }
-
+        } else {
+          // Insert new product
           const { data: newProduct, error: insertErr } = await supabase
             .from("products")
-            .insert(productData)
+            .insert({
+              ...mergedData,
+              workspace_id: workspaceId,
+              user_id: user.id,
+            })
             .select("id")
             .single();
-
           if (insertErr) throw insertErr;
           productId = newProduct.id;
           imported++;
         }
 
-        await supabase.from("ingestion_job_items").update({
-          status: "processed",
-          product_id: productId,
-        }).eq("id", item.id);
+        // Mark all group items as processed
+        for (const item of groupItems) {
+          await supabase.from("ingestion_job_items").update({
+            status: "processed",
+            product_id: productId,
+          }).eq("id", item.id);
+        }
+      } catch (err) {
+        failed++;
+        for (const item of groupItems) {
+          await supabase.from("ingestion_job_items").update({
+            status: "error",
+            error_message: err.message,
+          }).eq("id", item.id);
+        }
+      }
+    }
 
-        // Update progress
-        await supabase.from("ingestion_jobs").update({
-          imported_rows: imported,
-          updated_rows: updated,
-          skipped_rows: skipped,
-          failed_rows: failed,
-        }).eq("id", jobId);
+    // Process items without SKU individually
+    for (const item of noSkuItems) {
+      try {
+        const mapped = item.mapped_data || item.source_data || {};
+        const productData = buildProductData(mapped);
 
-      } catch (itemErr) {
+        if ((item.action === "update" || item.action === "merge") && item.matched_existing_id) {
+          const updateData = { ...productData };
+          const { error: updateErr } = await supabase
+            .from("products")
+            .update(updateData)
+            .eq("id", item.matched_existing_id);
+          if (updateErr) throw updateErr;
+          await supabase.from("ingestion_job_items").update({
+            status: "processed",
+            product_id: item.matched_existing_id,
+          }).eq("id", item.id);
+          updated++;
+        } else {
+          const { data: newProduct, error: insertErr } = await supabase
+            .from("products")
+            .insert({
+              ...productData,
+              workspace_id: workspaceId,
+              user_id: user.id,
+            })
+            .select("id")
+            .single();
+          if (insertErr) throw insertErr;
+          await supabase.from("ingestion_job_items").update({
+            status: "processed",
+            product_id: newProduct.id,
+          }).eq("id", item.id);
+          imported++;
+        }
+      } catch (err) {
         failed++;
         await supabase.from("ingestion_job_items").update({
           status: "error",
-          error_message: itemErr.message,
+          error_message: err.message,
         }).eq("id", item.id);
       }
     }
@@ -211,7 +276,7 @@ Deno.serve(async (req) => {
       skipped_rows: skipped,
       failed_rows: failed,
       completed_at: new Date().toISOString(),
-      results: { imported, updated, skipped, failed },
+      results: { imported, updated, skipped, failed, skuGroupsMerged: skuGroups.size },
     }).eq("id", jobId);
 
     return new Response(JSON.stringify({
@@ -221,6 +286,7 @@ Deno.serve(async (req) => {
       updated,
       skipped,
       failed,
+      skuGroupsMerged: skuGroups.size,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, error: e.message }), {
