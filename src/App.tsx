@@ -129,6 +129,7 @@ function ProtectedRoutes() {
           <Route path="/workflow-center" element={<CatalogWorkflowCenterPage />} />
           <Route path="/visual-scraper" element={<VisualScraperPage />} />
           <Route path="/website-agent" element={<WebsiteExtractionAgentPage />} />
+          <Route path="/scraper-manual" element={<ScraperManualPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
