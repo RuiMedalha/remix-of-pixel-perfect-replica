@@ -1010,12 +1010,12 @@ export default function VisualScraperPage() {
   const changeLinkType = (url: string, type: LinkType) => setCurrentLinks(prev => prev.map(l => l.url === url ? { ...l, linkType: type } : l));
   const removeProductUrl = (url: string) => setProductUrls(prev => prev.filter(u => u !== url));
 
-  const categoryLinks = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+  const categoryLinks = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria");
   const productLinksInView = currentLinks.filter(l => l.linkType === "produto");
-  const selectedCats = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected);
+  const selectedCats = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria") && l.selected);
   const filteredLinks = currentLinks.filter(l => !linkFilter || l.url.toLowerCase().includes(linkFilter.toLowerCase()) || l.text.toLowerCase().includes(linkFilter.toLowerCase()));
   const currentLayer = layers[layers.length - 1];
-  const categoryAgentCandidates = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+  const categoryAgentCandidates = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria");
   const selectedCategoryAgentCount = Object.values(categoryAgentSelection).filter(Boolean).length;
 
   const typeIcons: Record<string, React.ReactNode> = {
