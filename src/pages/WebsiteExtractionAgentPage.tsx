@@ -520,29 +520,32 @@ export default function WebsiteExtractionAgentPage() {
     if (!currentLayer) return;
     setLoading(true);
     try {
-      let remaining = [...currentLayer.paginationUrls];
+      let remaining = currentLayer.paginationUrls.map(p => canonicalizeUrl(p));
       const crawled = new Set<string>();
-      const existingUrls = new Set(currentLinks.map(l => l.url));
+      const existingUrls = new Set(currentLinks.map(l => canonicalizeUrl(l.url)));
       let newLinks: ExtractedLink[] = [];
       let totalNew = 0;
 
       if (paginationMode === "pattern" && paginationPattern && remaining.length === 0) {
-        remaining = generatePaginationUrls(currentLayer.sourceUrl, paginationPattern, maxPagesPerCategory);
+        remaining = generatePaginationUrls(currentLayer.sourceUrl, paginationPattern, maxPagesPerCategory)
+          .map(p => canonicalizeUrl(p));
       }
 
       while (remaining.length > 0 && crawled.size < maxPagesPerCategory) {
-        const targetUrl = remaining.shift()!;
+        const targetUrl = canonicalizeUrl(remaining.shift()!);
         if (crawled.has(targetUrl)) continue;
         crawled.add(targetUrl);
 
         const { links, nextPages } = await extractLinksFromPage(targetUrl);
-        const unique = links.filter(l => !existingUrls.has(l.url));
-        unique.forEach(l => existingUrls.add(l.url));
+        const unique = links.filter(l => !existingUrls.has(canonicalizeUrl(l.url)));
+        unique.forEach(l => existingUrls.add(canonicalizeUrl(l.url)));
         newLinks = [...newLinks, ...unique];
         totalNew += unique.length;
 
         if (paginationMode === "auto") {
-          nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+          nextPages.map(p => canonicalizeUrl(p)).forEach(p => {
+            if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p);
+          });
         }
       }
 
