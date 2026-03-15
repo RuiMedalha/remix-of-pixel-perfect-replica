@@ -17,7 +17,7 @@ import {
   Eye, Link2, Image as ImageIcon, Type, FileText, ArrowRight, ArrowLeft, X,
   Zap, Coins, List, Navigation, Crosshair, ExternalLink, RefreshCw, Wand2,
   Upload, ChevronRight, Layers, FileSpreadsheet, Plus, Target, AlertTriangle,
-  CheckCircle2,
+  CheckCircle2, Brain,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
