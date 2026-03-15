@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { url, useFirecrawl = false } = await req.json();
+    const { url, useFirecrawl = false, mode = 'browse' } = await req.json();
     if (!url) {
       return new Response(JSON.stringify({ error: 'URL is required' }), {
         status: 400,
@@ -27,7 +27,6 @@ Deno.serve(async (req) => {
     let fetchMethod = 'native';
 
     if (useFirecrawl) {
-      // Use Firecrawl for JS-heavy sites
       const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
       if (!apiKey) {
         return new Response(
@@ -61,7 +60,6 @@ Deno.serve(async (req) => {
       metadata = data.data?.metadata || data.metadata || {};
       fetchMethod = 'firecrawl';
     } else {
-      // FREE: Native fetch — works for most static/SSR sites
       const response = await fetch(formattedUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -73,37 +71,39 @@ Deno.serve(async (req) => {
 
       if (!response.ok) {
         return new Response(
-          JSON.stringify({ error: `Erro HTTP ${response.status}. Tente ativar o modo Firecrawl para páginas com JavaScript.` }),
+          JSON.stringify({ error: `Erro HTTP ${response.status}. Tente ativar o modo Firecrawl.` }),
           { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       html = await response.text();
-
-      // Extract basic metadata
       const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
       metadata = { title: titleMatch?.[1]?.trim() || formattedUrl };
       fetchMethod = 'native';
     }
 
-    // Inject selection script into HTML
-    const selectionScript = buildSelectionScript();
-
-    // Inject before </body>
-    let modifiedHtml = html;
-    if (modifiedHtml.includes('</body>')) {
-      modifiedHtml = modifiedHtml.replace('</body>', selectionScript + '</body>');
-    } else {
-      modifiedHtml += selectionScript;
-    }
-
     // Make all relative URLs absolute
     const baseUrl = new URL(formattedUrl);
-    const baseHref = `<base href="${baseUrl.origin}/" target="_blank">`;
+    const baseHref = `<base href="${baseUrl.origin}/" target="_self">`;
+
+    let modifiedHtml = html;
+
+    // Inject base href
     if (modifiedHtml.includes('<head>')) {
       modifiedHtml = modifiedHtml.replace('<head>', '<head>' + baseHref);
     } else if (modifiedHtml.includes('<html')) {
       modifiedHtml = modifiedHtml.replace(/<html[^>]*>/, (match) => match + '<head>' + baseHref + '</head>');
+    } else {
+      modifiedHtml = '<head>' + baseHref + '</head>' + modifiedHtml;
+    }
+
+    // Inject the appropriate script based on mode
+    const script = mode === 'select' ? buildSelectionScript() : buildBrowseScript();
+
+    if (modifiedHtml.includes('</body>')) {
+      modifiedHtml = modifiedHtml.replace('</body>', script + '</body>');
+    } else {
+      modifiedHtml += script;
     }
 
     return new Response(
@@ -124,6 +124,38 @@ Deno.serve(async (req) => {
   }
 });
 
+// Browse mode: let user navigate, intercept clicks to notify parent
+function buildBrowseScript(): string {
+  return `
+<script>
+(function() {
+  // Intercept all link clicks and form submissions to go through proxy
+  document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[href]');
+    if (link) {
+      e.preventDefault();
+      e.stopPropagation();
+      const href = link.href;
+      if (href && !href.startsWith('javascript:') && !href.startsWith('#')) {
+        window.parent.postMessage({
+          type: 'navigate',
+          url: href,
+        }, '*');
+      }
+      return false;
+    }
+  }, true);
+
+  // Disable form submissions
+  document.addEventListener('submit', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+})();
+</script>`;
+}
+
+// Select mode: highlight + select elements
 function buildSelectionScript(): string {
   return `
 <style>
@@ -218,11 +250,6 @@ function buildSelectionScript(): string {
     }
     return false;
   }, true);
-
-  // Disable all links
-  document.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); }, true);
-  });
 })();
 </script>`;
 }

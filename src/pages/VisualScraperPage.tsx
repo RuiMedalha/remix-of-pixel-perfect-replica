@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,16 +10,18 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import {
-  Globe, Loader2, MousePointerClick, Trash2, Play, Download, Plus,
-  Eye, Tag, Link2, Image as ImageIcon, Type, FileText, ArrowRight, X, Zap, Coins
+  Globe, Loader2, MousePointerClick, Trash2, Play, Download,
+  Eye, Link2, Image as ImageIcon, Type, FileText, ArrowRight, ArrowLeft, X,
+  Zap, Coins, List, Navigation, Crosshair, ExternalLink, RefreshCw, Wand2,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SelectedField {
   id: string;
@@ -33,47 +35,57 @@ interface ExtractedRow {
   [key: string]: string;
 }
 
-type Step = "url" | "select" | "batch" | "results";
+interface ExtractedLink {
+  url: string;
+  text: string;
+  selected: boolean;
+}
+
+type Mode = "browse" | "select";
+type Step = "url" | "browse" | "links" | "select-fields" | "batch" | "results";
 
 export default function VisualScraperPage() {
   const { activeWorkspace } = useWorkspaceContext();
   const [step, setStep] = useState<Step>("url");
   const [url, setUrl] = useState("");
+  const [currentUrl, setCurrentUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [htmlContent, setHtmlContent] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
+  const [pageTitle, setPageTitle] = useState("");
   const [fields, setFields] = useState<SelectedField[]>([]);
-  const [editingField, setEditingField] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [navHistory, setNavHistory] = useState<string[]>([]);
+
+  // Links extraction
+  const [extractedLinks, setExtractedLinks] = useState<ExtractedLink[]>([]);
+  const [linkFilter, setLinkFilter] = useState("");
 
   // Batch state
-  const [batchUrls, setBatchUrls] = useState("");
   const [batchLoading, setBatchLoading] = useState(false);
   const [results, setResults] = useState<ExtractedRow[]>([]);
   const [errors, setErrors] = useState<any[]>([]);
 
-  // Send to products dialog
+  // Dialogs
   const [showSendDialog, setShowSendDialog] = useState(false);
 
   // Cost control
   const [useFirecrawl, setUseFirecrawl] = useState(false);
-  const [fetchMethod, setFetchMethod] = useState<string>("native");
+
+  // Current iframe mode
+  const [iframeMode, setIframeMode] = useState<Mode>("browse");
 
   // Listen for messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === "element-selected") {
+      if (e.data?.type === "navigate") {
+        // User clicked a link in browse mode
+        loadPage(e.data.url, "browse");
+      } else if (e.data?.type === "element-selected") {
         const { selector, text, src, href, tagName } = e.data;
-        // Auto-detect field type
         let type: SelectedField["type"] = "text";
         let preview = text || "";
-        if (tagName === "img" || src) {
-          type = "image";
-          preview = src || "";
-        } else if (tagName === "a" || href) {
-          type = "link";
-          preview = href || text || "";
-        }
+        if (tagName === "img" || src) { type = "image"; preview = src || ""; }
+        else if (tagName === "a" || href) { type = "link"; preview = href || text || ""; }
 
         const newField: SelectedField = {
           id: crypto.randomUUID(),
@@ -90,30 +102,118 @@ export default function VisualScraperPage() {
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [fields.length]);
+  }, [fields.length, useFirecrawl]);
 
-  const handleLoadPage = async () => {
-    if (!url.trim()) return;
+  const loadPage = async (targetUrl: string, mode: Mode) => {
+    if (!targetUrl.trim()) return;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("proxy-page", {
-        body: { url: url.trim(), useFirecrawl },
+        body: { url: targetUrl.trim(), useFirecrawl, mode },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       setHtmlContent(data.html);
-      setSourceUrl(data.sourceUrl);
-      setFetchMethod(data.fetchMethod || "native");
-      setFields([]);
-      setStep("select");
-      const methodLabel = data.fetchMethod === "firecrawl" ? "via Firecrawl" : "gratuito";
-      toast.success(`Página carregada (${methodLabel})!`, { description: data.metadata?.title || url });
+      setCurrentUrl(data.sourceUrl);
+      setPageTitle(data.metadata?.title || targetUrl);
+      setIframeMode(mode);
+
+      if (mode === "browse") {
+        setNavHistory(prev => [...prev, data.sourceUrl]);
+        if (step === "url") setStep("browse");
+      }
     } catch (err: any) {
       toast.error("Erro ao carregar página", { description: err.message });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLoadUrl = () => loadPage(url, "browse");
+
+  const handleGoBack = () => {
+    if (navHistory.length > 1) {
+      const prev = navHistory[navHistory.length - 2];
+      setNavHistory(h => h.slice(0, -1));
+      loadPage(prev, iframeMode);
+    }
+  };
+
+  // Extract all links from current page for product listing
+  const handleExtractLinks = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("scrape-with-selectors", {
+        body: {
+          urls: [currentUrl],
+          fields: [
+            { name: "link_url", selector: "a[href]", type: "link" },
+            { name: "link_text", selector: "a[href]", type: "text" },
+          ],
+          workspaceId: activeWorkspace?.id,
+          useFirecrawl: false,
+          extractAllMatches: true,
+        },
+      });
+      if (error) throw error;
+
+      // The scrape function returns one row per URL, but we need all links
+      // Let's parse links from the HTML directly via a dedicated approach
+      // For now, use the proxy to get all links
+      const { data: proxyData } = await supabase.functions.invoke("proxy-page", {
+        body: { url: currentUrl, useFirecrawl, mode: "browse" },
+      });
+
+      if (proxyData?.html) {
+        // Parse links from HTML using DOMParser on client
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(proxyData.html, "text/html");
+        const anchors = doc.querySelectorAll("a[href]");
+        const baseUrl = new URL(currentUrl);
+        const links: ExtractedLink[] = [];
+        const seen = new Set<string>();
+
+        anchors.forEach(a => {
+          try {
+            let href = a.getAttribute("href") || "";
+            if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
+            const fullUrl = new URL(href, baseUrl.origin).href;
+            if (seen.has(fullUrl)) return;
+            seen.add(fullUrl);
+            // Only include links from same domain
+            if (new URL(fullUrl).hostname === baseUrl.hostname) {
+              links.push({
+                url: fullUrl,
+                text: (a.textContent || "").trim().substring(0, 120),
+                selected: false,
+              });
+            }
+          } catch { /* ignore invalid URLs */ }
+        });
+
+        setExtractedLinks(links);
+        setStep("links");
+        toast.success(`${links.length} links encontrados na página`);
+      }
+    } catch (err: any) {
+      toast.error("Erro ao extrair links", { description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Enter selection mode on current page
+  const handleEnterSelectMode = () => {
+    loadPage(currentUrl, "select");
+    setStep("select-fields");
+  };
+
+  // Go to a product page from links list
+  const handleGoToProduct = (productUrl: string) => {
+    setUrl(productUrl);
+    loadPage(productUrl, "select");
+    setStep("select-fields");
   };
 
   const handleRemoveField = (id: string) => {
@@ -130,22 +230,16 @@ export default function VisualScraperPage() {
 
   const handleGoToBatch = () => {
     if (fields.length === 0) {
-      toast.error("Selecione pelo menos um campo antes de avançar.");
+      toast.error("Selecione pelo menos um campo.");
       return;
     }
     setStep("batch");
   };
 
   const handleRunBatch = async () => {
-    const urls = batchUrls
-      .split("\n")
-      .map(u => u.trim())
-      .filter(u => u.length > 0);
-
-    if (urls.length === 0) {
-      // If no batch URLs, just use current URL
-      urls.push(sourceUrl);
-    }
+    // Get URLs from selected links or manual input
+    const selectedLinkUrls = extractedLinks.filter(l => l.selected).map(l => l.url);
+    let urls = selectedLinkUrls.length > 0 ? selectedLinkUrls : [currentUrl];
 
     setBatchLoading(true);
     try {
@@ -163,12 +257,12 @@ export default function VisualScraperPage() {
       setResults(data.results || []);
       setErrors(data.errors || []);
       setStep("results");
-      const costMsg = data.firecrawlCreditsUsed > 0 
-        ? `(${data.firecrawlCreditsUsed} créditos Firecrawl)` 
+      const costMsg = data.firecrawlCreditsUsed > 0
+        ? `(${data.firecrawlCreditsUsed} créditos Firecrawl)`
         : "(gratuito)";
       toast.success(`${data.extracted} URLs extraídas ${costMsg}`);
     } catch (err: any) {
-      toast.error("Erro na extração em lote", { description: err.message });
+      toast.error("Erro na extração", { description: err.message });
     } finally {
       setBatchLoading(false);
     }
@@ -194,14 +288,13 @@ export default function VisualScraperPage() {
     if (!activeWorkspace?.id || results.length === 0) return;
     setBatchLoading(true);
     try {
-      // Create ingestion job with the scraped data
       const { data: job, error: jobError } = await supabase
         .from("ingestion_jobs")
         .insert({
           workspace_id: activeWorkspace.id,
           user_id: (await supabase.auth.getUser()).data.user?.id,
           source_type: "api" as any,
-          source_ref: sourceUrl,
+          source_ref: currentUrl,
           status: "pending" as any,
           config: { type: "visual_scraper", fields: fields.map(f => f.name) },
         } as any)
@@ -210,7 +303,6 @@ export default function VisualScraperPage() {
 
       if (jobError) throw jobError;
 
-      // Insert items
       const items = results.map((row, idx) => ({
         job_id: job.id,
         item_index: idx,
@@ -223,9 +315,7 @@ export default function VisualScraperPage() {
         await supabase.from("ingestion_job_items").insert(items.slice(i, i + 50) as any);
       }
 
-      toast.success(`Job de ingestão criado com ${results.length} itens!`, {
-        description: "Aceda ao Ingestion Hub para rever e aprovar.",
-      });
+      toast.success(`Job de ingestão criado com ${results.length} itens!`);
       setShowSendDialog(false);
     } catch (err: any) {
       toast.error("Erro ao criar job", { description: err.message });
@@ -234,231 +324,357 @@ export default function VisualScraperPage() {
     }
   };
 
-  const typeIcons = {
+  const toggleAllLinks = (selected: boolean) => {
+    setExtractedLinks(prev => prev.map(l => ({ ...l, selected })));
+  };
+
+  const toggleLink = (url: string) => {
+    setExtractedLinks(prev => prev.map(l => l.url === url ? { ...l, selected: !l.selected } : l));
+  };
+
+  const filteredLinks = extractedLinks.filter(l =>
+    !linkFilter || l.url.toLowerCase().includes(linkFilter.toLowerCase()) ||
+    l.text.toLowerCase().includes(linkFilter.toLowerCase())
+  );
+
+  const selectedLinksCount = extractedLinks.filter(l => l.selected).length;
+
+  const typeIcons: Record<string, React.ReactNode> = {
     text: <Type className="w-3 h-3" />,
     image: <ImageIcon className="w-3 h-3" />,
     link: <Link2 className="w-3 h-3" />,
     html: <FileText className="w-3 h-3" />,
   };
 
+  const stepLabels: Record<Step, string> = {
+    url: "URL",
+    browse: "Navegar",
+    links: "Links",
+    "select-fields": "Selecionar",
+    batch: "Extrair",
+    results: "Resultados",
+  };
+
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col gap-4 p-4">
-      {/* Top bar */}
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <Globe className="w-6 h-6 text-primary" />
-        <h1 className="text-xl font-bold">Visual Scraper</h1>
-        <div className="flex gap-1 ml-4">
-          {(["url", "select", "batch", "results"] as Step[]).map((s, i) => (
-            <Badge
-              key={s}
-              variant={step === s ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => {
-                if (s === "url" || (s === "select" && htmlContent) || (s === "batch" && fields.length) || (s === "results" && results.length)) {
-                  setStep(s);
-                }
-              }}
-            >
-              {i + 1}. {s === "url" ? "URL" : s === "select" ? "Selecionar" : s === "batch" ? "Lote" : "Resultados"}
+    <div className="h-[calc(100vh-4rem)] flex flex-col gap-0">
+      {/* Top toolbar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b bg-background flex-shrink-0">
+        <Globe className="w-5 h-5 text-primary" />
+        <span className="font-semibold text-sm">Visual Scraper</span>
+
+        {/* Step indicators */}
+        <div className="flex gap-1 ml-3">
+          {(Object.keys(stepLabels) as Step[]).filter(s => s !== "url" || step === "url").map((s, i) => (
+            <Badge key={s} variant={step === s ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
+              {stepLabels[s]}
             </Badge>
           ))}
         </div>
+
+        {/* Cost indicator */}
+        <div className="ml-auto flex items-center gap-2">
+          {useFirecrawl ? (
+            <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px]">
+              <Zap className="w-3 h-3 mr-1" /> Premium
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-emerald-600 border-emerald-300 text-[10px]">
+              <Coins className="w-3 h-3 mr-1" /> Gratuito
+            </Badge>
+          )}
+          <Switch checked={useFirecrawl} onCheckedChange={setUseFirecrawl} className="scale-75" />
+        </div>
       </div>
 
-      {/* Step 1: Enter URL */}
+      {/* Step: URL Entry */}
       {step === "url" && (
-        <Card className="max-w-2xl mx-auto mt-12 w-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MousePointerClick className="w-5 h-5" />
-              Selecionar dados visualmente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Insira o URL de um fornecedor. A página será carregada e poderá clicar nos elementos que deseja extrair (nome, preço, SKU, imagens...).
-            </p>
-            <div className="flex gap-2">
-              <Input
-                placeholder="https://fornecedor.com/produtos"
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleLoadPage()}
-              />
-              <Button onClick={handleLoadPage} disabled={loading || !url.trim()}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                <span className="ml-1">Carregar</span>
-              </Button>
-            </div>
-            {/* Cost control */}
-            <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/30">
-              <div className="flex items-center gap-2">
-                {useFirecrawl ? (
-                  <Zap className="w-4 h-4 text-amber-500" />
-                ) : (
-                  <Coins className="w-4 h-4 text-emerald-500" />
-                )}
-                <div>
-                  <p className="text-sm font-medium">
-                    {useFirecrawl ? "Firecrawl (premium)" : "Fetch Nativo (gratuito)"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {useFirecrawl
-                      ? "Renderiza JavaScript. Ideal para SPAs e sites dinâmicos. Gasta créditos."
-                      : "Rápido e sem custos. Funciona na maioria dos sites estáticos e SSR."}
-                  </p>
-                </div>
-              </div>
-              <Switch checked={useFirecrawl} onCheckedChange={setUseFirecrawl} />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 2: Visual Selection */}
-      {step === "select" && (
-        <div className="flex-1 flex gap-3 min-h-0">
-          {/* iframe */}
-          <div className="flex-1 border rounded-lg overflow-hidden bg-background relative">
-            <div className="absolute top-2 left-2 z-10 bg-background/90 backdrop-blur px-3 py-1 rounded-full text-xs text-muted-foreground border flex items-center gap-2">
-              <MousePointerClick className="w-3 h-3" />
-              Clique nos elementos para selecionar
-            </div>
-            <iframe
-              ref={iframeRef}
-              srcDoc={htmlContent}
-              className="w-full h-full border-0"
-              sandbox="allow-scripts allow-same-origin"
-              title="Preview da página"
-            />
-          </div>
-
-          {/* Fields panel */}
-          <Card className="w-80 flex-shrink-0 flex flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center justify-between">
-                <span>Campos Selecionados ({fields.length})</span>
-                <Button size="sm" onClick={handleGoToBatch} disabled={fields.length === 0}>
-                  Avançar <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="max-w-xl w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Navigation className="w-5 h-5" />
+                Abrir Página do Fornecedor
               </CardTitle>
             </CardHeader>
-            <ScrollArea className="flex-1">
-              <CardContent className="space-y-2">
-                {fields.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-8">
-                    Clique nos elementos da página à esquerda para os adicionar como campos de extração.
-                  </p>
-                )}
-                {fields.map(field => (
-                  <div key={field.id} className="border rounded-lg p-2 space-y-1.5">
-                    <div className="flex items-center gap-1">
-                      <Input
-                        value={field.name}
-                        onChange={e => handleUpdateFieldName(field.id, e.target.value)}
-                        className="h-7 text-xs font-medium"
-                        placeholder="Nome do campo"
-                      />
-                      <Select
-                        value={field.type}
-                        onValueChange={v => handleUpdateFieldType(field.id, v as any)}
-                      >
-                        <SelectTrigger className="h-7 w-20 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Texto</SelectItem>
-                          <SelectItem value="image">Imagem</SelectItem>
-                          <SelectItem value="link">Link</SelectItem>
-                          <SelectItem value="html">HTML</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleRemoveField(field.id)}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground truncate" title={field.preview}>
-                      {typeIcons[field.type]} {field.preview || "(vazio)"}
-                    </p>
-                    <p className="text-[9px] font-mono text-muted-foreground/50 truncate" title={field.selector}>
-                      {field.selector}
-                    </p>
-                  </div>
-                ))}
-              </CardContent>
-            </ScrollArea>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Insira o URL da página de listagem de produtos. Poderá navegar livremente como num browser e depois selecionar os dados que pretende extrair.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://fornecedor.com/produtos"
+                  value={url}
+                  onChange={e => setUrl(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleLoadUrl()}
+                  className="font-mono text-sm"
+                />
+                <Button onClick={handleLoadUrl} disabled={loading || !url.trim()}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                  <span className="ml-1">Abrir</span>
+                </Button>
+              </div>
+            </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Step 3: Batch URLs */}
-      {step === "batch" && (
-        <Card className="max-w-2xl mx-auto mt-8 w-full">
-          <CardHeader>
-            <CardTitle className="text-base">Extração em Lote</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Cole os URLs das páginas de produto do mesmo fornecedor (um por linha).
-              Os seletores definidos serão aplicados a cada página.
-            </p>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {fields.map(f => (
-                <Badge key={f.id} variant="secondary" className="text-xs">
-                  {typeIcons[f.type]} {f.name}
-                </Badge>
-              ))}
+      {/* Step: Browse (full-page iframe with address bar) */}
+      {(step === "browse" || step === "select-fields") && (
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Browser chrome */}
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 flex-shrink-0">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleGoBack} disabled={navHistory.length <= 1 || loading}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => loadPage(currentUrl, iframeMode)} disabled={loading}>
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+            <div className="flex-1 flex items-center gap-2 bg-background border rounded-md px-3 py-1 text-xs font-mono text-muted-foreground truncate">
+              {loading && <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />}
+              <span className="truncate">{currentUrl}</span>
             </div>
-            <Textarea
-              placeholder={`${sourceUrl}\nhttps://fornecedor.com/produto-2\nhttps://fornecedor.com/produto-3`}
-              value={batchUrls}
-              onChange={e => setBatchUrls(e.target.value)}
-              rows={8}
-              className="font-mono text-xs"
-            />
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>{batchUrls.split("\n").filter(u => u.trim()).length || 0} URLs</span>
-              {!batchUrls.trim() && <span>• Deixe vazio para extrair apenas da página original</span>}
-              <span className="ml-auto">
-                {useFirecrawl ? (
-                  <Badge variant="outline" className="text-amber-600 border-amber-300">
-                    <Zap className="w-3 h-3 mr-1" /> Firecrawl (premium)
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-emerald-600 border-emerald-300">
-                    <Coins className="w-3 h-3 mr-1" /> Gratuito
-                  </Badge>
-                )}
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep("select")}>
-                ← Voltar
+            <a href={currentUrl} target="_blank" rel="noreferrer">
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <ExternalLink className="w-3.5 h-3.5" />
               </Button>
-              <Button onClick={handleRunBatch} disabled={batchLoading}>
-                {batchLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Play className="w-4 h-4 mr-1" />}
-                Extrair Dados
-              </Button>
+            </a>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-1 ml-2 border-l pl-2">
+              {step === "browse" && (
+                <>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleExtractLinks} disabled={loading}>
+                    <List className="w-3.5 h-3.5 mr-1" /> Extrair Links
+                  </Button>
+                  <Button size="sm" className="h-7 text-xs" onClick={handleEnterSelectMode} disabled={loading}>
+                    <Crosshair className="w-3.5 h-3.5 mr-1" /> Selecionar Campos
+                  </Button>
+                </>
+              )}
+              {step === "select-fields" && (
+                <>
+                  <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-300">
+                    <Crosshair className="w-3 h-3 mr-1" /> Modo Seleção
+                  </Badge>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { loadPage(currentUrl, "browse"); setStep("browse"); }}>
+                    <Navigation className="w-3.5 h-3.5 mr-1" /> Voltar a Navegar
+                  </Button>
+                </>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Main content area */}
+          <div className="flex-1 flex min-h-0">
+            {/* Iframe */}
+            <div className="flex-1 relative">
+              <iframe
+                ref={iframeRef}
+                srcDoc={htmlContent}
+                className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin"
+                title="Preview da página"
+              />
+              {step === "select-fields" && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-emerald-600 text-white px-4 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-2 pointer-events-none">
+                  <MousePointerClick className="w-3.5 h-3.5" />
+                  Clique nos elementos que deseja extrair
+                </div>
+              )}
+            </div>
+
+            {/* Fields panel (only in select-fields step) */}
+            {step === "select-fields" && (
+              <div className="w-72 border-l flex flex-col bg-background flex-shrink-0">
+                <div className="p-3 border-b flex items-center justify-between">
+                  <span className="text-sm font-semibold">Campos ({fields.length})</span>
+                  <Button size="sm" className="h-7 text-xs" onClick={handleGoToBatch} disabled={fields.length === 0}>
+                    Avançar <ArrowRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </div>
+                <ScrollArea className="flex-1">
+                  <div className="p-2 space-y-2">
+                    {fields.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-8 px-2">
+                        Clique nos elementos da página para os adicionar como campos de extração.
+                      </p>
+                    )}
+                    {fields.map(field => (
+                      <div key={field.id} className="border rounded-lg p-2 space-y-1">
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={field.name}
+                            onChange={e => handleUpdateFieldName(field.id, e.target.value)}
+                            className="h-6 text-xs font-medium"
+                          />
+                          <Select value={field.type} onValueChange={v => handleUpdateFieldType(field.id, v as any)}>
+                            <SelectTrigger className="h-6 w-16 text-[10px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="text">Texto</SelectItem>
+                              <SelectItem value="image">Img</SelectItem>
+                              <SelectItem value="link">Link</SelectItem>
+                              <SelectItem value="html">HTML</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveField(field.id)}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                          {typeIcons[field.type]} {field.preview || "(vazio)"}
+                        </p>
+                        <p className="text-[9px] font-mono text-muted-foreground/40 truncate">{field.selector}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
-      {/* Step 4: Results */}
+      {/* Step: Links extraction */}
+      {step === "links" && (
+        <div className="flex-1 flex flex-col min-h-0 p-4 gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setStep("browse")}>
+              <ArrowLeft className="w-3 h-3 mr-1" /> Voltar
+            </Button>
+            <h2 className="font-semibold">Links Encontrados</h2>
+            <Badge>{extractedLinks.length} total</Badge>
+            {selectedLinksCount > 0 && <Badge variant="secondary">{selectedLinksCount} selecionados</Badge>}
+            <div className="ml-auto flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => toggleAllLinks(true)}>Selecionar Todos</Button>
+              <Button variant="outline" size="sm" onClick={() => toggleAllLinks(false)}>Limpar</Button>
+            </div>
+          </div>
+
+          <Input
+            placeholder="Filtrar links por URL ou texto..."
+            value={linkFilter}
+            onChange={e => setLinkFilter(e.target.value)}
+            className="max-w-md"
+          />
+
+          <p className="text-xs text-muted-foreground">
+            Selecione os links das páginas de produto. Depois vá a uma página de produto para definir os campos a extrair.
+          </p>
+
+          <ScrollArea className="flex-1 border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={filteredLinks.length > 0 && filteredLinks.every(l => l.selected)}
+                      onCheckedChange={(c) => {
+                        const urls = new Set(filteredLinks.map(l => l.url));
+                        setExtractedLinks(prev => prev.map(l => urls.has(l.url) ? { ...l, selected: !!c } : l));
+                      }}
+                    />
+                  </TableHead>
+                  <TableHead className="text-xs">URL</TableHead>
+                  <TableHead className="text-xs">Texto</TableHead>
+                  <TableHead className="w-16"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLinks.map(link => (
+                  <TableRow key={link.url} className={link.selected ? "bg-primary/5" : ""}>
+                    <TableCell>
+                      <Checkbox checked={link.selected} onCheckedChange={() => toggleLink(link.url)} />
+                    </TableCell>
+                    <TableCell className="text-xs font-mono truncate max-w-md" title={link.url}>
+                      {link.url}
+                    </TableCell>
+                    <TableCell className="text-xs truncate max-w-48">{link.text || "—"}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoToProduct(link.url)} title="Abrir e selecionar campos">
+                        <Crosshair className="w-3 h-3" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          {selectedLinksCount > 0 && fields.length > 0 && (
+            <div className="flex justify-end">
+              <Button onClick={handleGoToBatch}>
+                <Play className="w-4 h-4 mr-1" /> Extrair {selectedLinksCount} páginas ({fields.length} campos)
+              </Button>
+            </div>
+          )}
+
+          {selectedLinksCount > 0 && fields.length === 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground border rounded-lg p-3 bg-muted/30">
+              <Wand2 className="w-4 h-4" />
+              <span>Selecione links e depois clique no <Crosshair className="w-3 h-3 inline" /> de uma página para definir os campos a extrair.</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step: Batch confirmation */}
+      {step === "batch" && (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="max-w-xl w-full">
+            <CardHeader>
+              <CardTitle className="text-base">Confirmar Extração</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Campos a extrair:
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {fields.map(f => (
+                    <Badge key={f.id} variant="secondary" className="text-xs">
+                      {typeIcons[f.type]} {f.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {selectedLinksCount > 0
+                    ? `${selectedLinksCount} páginas selecionadas`
+                    : `1 página (${currentUrl})`}
+                </p>
+                {useFirecrawl && (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                    <Zap className="w-3 h-3 mr-1" /> Modo Premium — irá gastar créditos
+                  </Badge>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep(selectedLinksCount > 0 ? "links" : "select-fields")}>
+                  ← Voltar
+                </Button>
+                <Button onClick={handleRunBatch} disabled={batchLoading}>
+                  {batchLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Play className="w-4 h-4 mr-1" />}
+                  Extrair Dados
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Step: Results */}
       {step === "results" && (
-        <div className="flex-1 flex flex-col min-h-0 gap-3">
+        <div className="flex-1 flex flex-col min-h-0 gap-3 p-4">
           <div className="flex items-center gap-2 flex-shrink-0">
             <Badge>{results.length} produtos extraídos</Badge>
             {errors.length > 0 && <Badge variant="destructive">{errors.length} erros</Badge>}
             <div className="ml-auto flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setStep("batch")}>
-                ← Voltar
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => setStep("batch")}>← Voltar</Button>
               <Button variant="outline" size="sm" onClick={handleExportCSV}>
                 <Download className="w-3 h-3 mr-1" /> CSV
               </Button>
@@ -499,19 +715,18 @@ export default function VisualScraperPage() {
             </Table>
           </ScrollArea>
 
-          {/* Send to ingestion dialog */}
           <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Enviar para Ingestion Hub</DialogTitle>
+                <DialogDescription>
+                  Serão criados <strong>{results.length}</strong> itens para revisão e aprovação.
+                </DialogDescription>
               </DialogHeader>
-              <p className="text-sm text-muted-foreground">
-                Serão criados <strong>{results.length}</strong> itens no Ingestion Hub para revisão e aprovação antes de entrarem no catálogo.
-              </p>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowSendDialog(false)}>Cancelar</Button>
                 <Button onClick={handleSendToProducts} disabled={batchLoading}>
-                  {batchLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                  {batchLoading && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
                   Criar Job de Ingestão
                 </Button>
               </DialogFooter>
