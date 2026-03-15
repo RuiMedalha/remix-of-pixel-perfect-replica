@@ -12864,6 +12864,264 @@ export type Database = {
           },
         ]
       }
+      website_extraction_configs: {
+        Row: {
+          created_at: string | null
+          display_name: string | null
+          domain: string
+          field_mappings: Json | null
+          id: string
+          last_discovery_at: string | null
+          layout_signature: string | null
+          learned_selectors: Json | null
+          learned_url_patterns: Json | null
+          product_page_heuristics: Json | null
+          status: string | null
+          supplier_id: string | null
+          total_pages_discovered: number | null
+          total_products_extracted: number | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_name?: string | null
+          domain: string
+          field_mappings?: Json | null
+          id?: string
+          last_discovery_at?: string | null
+          layout_signature?: string | null
+          learned_selectors?: Json | null
+          learned_url_patterns?: Json | null
+          product_page_heuristics?: Json | null
+          status?: string | null
+          supplier_id?: string | null
+          total_pages_discovered?: number | null
+          total_products_extracted?: number | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string | null
+          domain?: string
+          field_mappings?: Json | null
+          id?: string
+          last_discovery_at?: string | null
+          layout_signature?: string | null
+          learned_selectors?: Json | null
+          learned_url_patterns?: Json | null
+          product_page_heuristics?: Json | null
+          status?: string | null
+          supplier_id?: string | null
+          total_pages_discovered?: number | null
+          total_products_extracted?: number | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_extraction_configs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_extraction_configs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      website_extraction_learnings: {
+        Row: {
+          confidence: number | null
+          config_id: string | null
+          created_at: string | null
+          domain: string
+          id: string
+          last_used_at: string | null
+          learning_type: string
+          pattern_key: string | null
+          pattern_value: Json | null
+          usage_count: number | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          config_id?: string | null
+          created_at?: string | null
+          domain: string
+          id?: string
+          last_used_at?: string | null
+          learning_type: string
+          pattern_key?: string | null
+          pattern_value?: Json | null
+          usage_count?: number | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          config_id?: string | null
+          created_at?: string | null
+          domain?: string
+          id?: string
+          last_used_at?: string | null
+          learning_type?: string
+          pattern_key?: string | null
+          pattern_value?: Json | null
+          usage_count?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_extraction_learnings_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "website_extraction_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_extraction_learnings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      website_extraction_pages: {
+        Row: {
+          classification_confidence: number | null
+          classification_signals: Json | null
+          created_at: string | null
+          extracted_data: Json | null
+          extraction_status: string | null
+          field_confidence: Json | null
+          id: string
+          page_type: string | null
+          run_id: string
+          url: string
+          warnings: string[] | null
+          workspace_id: string
+        }
+        Insert: {
+          classification_confidence?: number | null
+          classification_signals?: Json | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          extraction_status?: string | null
+          field_confidence?: Json | null
+          id?: string
+          page_type?: string | null
+          run_id: string
+          url: string
+          warnings?: string[] | null
+          workspace_id: string
+        }
+        Update: {
+          classification_confidence?: number | null
+          classification_signals?: Json | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          extraction_status?: string | null
+          field_confidence?: Json | null
+          id?: string
+          page_type?: string | null
+          run_id?: string
+          url?: string
+          warnings?: string[] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_extraction_pages_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "website_extraction_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_extraction_pages_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      website_extraction_runs: {
+        Row: {
+          completed_at: string | null
+          config_id: string | null
+          cost_estimate: number | null
+          created_at: string | null
+          error_payload: Json | null
+          extraction_engine: string | null
+          id: string
+          pages_discovered: number | null
+          pages_extracted: number | null
+          pages_failed: number | null
+          phase: string
+          started_at: string | null
+          status: string | null
+          target_url: string | null
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          config_id?: string | null
+          cost_estimate?: number | null
+          created_at?: string | null
+          error_payload?: Json | null
+          extraction_engine?: string | null
+          id?: string
+          pages_discovered?: number | null
+          pages_extracted?: number | null
+          pages_failed?: number | null
+          phase?: string
+          started_at?: string | null
+          status?: string | null
+          target_url?: string | null
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          config_id?: string | null
+          cost_estimate?: number | null
+          created_at?: string | null
+          error_payload?: Json | null
+          extraction_engine?: string | null
+          id?: string
+          pages_discovered?: number | null
+          pages_extracted?: number | null
+          pages_failed?: number | null
+          phase?: string
+          started_at?: string | null
+          status?: string | null
+          target_url?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_extraction_runs_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "website_extraction_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_extraction_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_handoffs: {
         Row: {
           created_at: string
