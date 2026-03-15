@@ -313,8 +313,11 @@ export default function WebsiteExtractionAgentPage() {
           const href = el.getAttribute("href");
           if (href) {
             try {
-              const full = new URL(href, baseUrl.origin).href;
-              if (!seenPages.has(full) && full !== pageUrl) { seenPages.add(full); nextPages.push(full); }
+              const full = canonicalizeUrl(new URL(href, pageUrl).href);
+              if (!seenPages.has(full) && full !== canonicalizeUrl(pageUrl) && new URL(full).hostname === baseUrl.hostname) {
+                seenPages.add(full);
+                nextPages.push(full);
+              }
             } catch { /* ignore */ }
           }
         });
@@ -328,12 +331,14 @@ export default function WebsiteExtractionAgentPage() {
         const href = a.getAttribute("href");
         if (!href) return;
         const isPageLink = /^(next|suivant|próxima?|seguinte|last|›|»|\d+)$/i.test(text)
-          || /[?&]page=\d/i.test(href) || /\/page\/\d/i.test(href);
+          || /[?&](?:page|paged|p)=\d/i.test(href)
+          || /\/(?:page|pagina|p)\/\d/i.test(href);
         if (isPageLink) {
           try {
-            const full = new URL(href, baseUrl.origin).href;
-            if (!seenPages.has(full) && full !== pageUrl && new URL(full).hostname === baseUrl.hostname) {
-              seenPages.add(full); nextPages.push(full);
+            const full = canonicalizeUrl(new URL(href, pageUrl).href);
+            if (!seenPages.has(full) && full !== canonicalizeUrl(pageUrl) && new URL(full).hostname === baseUrl.hostname) {
+              seenPages.add(full);
+              nextPages.push(full);
             }
           } catch { /* ignore */ }
         }
