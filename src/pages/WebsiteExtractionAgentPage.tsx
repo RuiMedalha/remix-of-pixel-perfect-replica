@@ -746,9 +746,6 @@ export default function WebsiteExtractionAgentPage() {
     }
   };
 
-  /* ── SMART AGENT: Full auto-discovery ── */
-  const [agentLog, setAgentLog] = useState<string[]>([]);
-  const [smartAgentRunning, setSmartAgentRunning] = useState(false);
 
   const addAgentLog = (msg: string) => setAgentLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
