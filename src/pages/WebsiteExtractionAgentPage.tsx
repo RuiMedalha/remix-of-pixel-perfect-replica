@@ -1074,17 +1074,28 @@ export default function WebsiteExtractionAgentPage() {
               )}
 
               {/* Pagination */}
-              {currentLayer?.hasPagination && (
+              {(currentLayer?.hasPagination || paginationMode === "pattern") && (
                 <Button size="sm" variant="outline" onClick={handleFollowPagination} disabled={loading}>
                   {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
-                  ✓ Paginação ({currentLayer.paginationUrls.length} pág.)
+                  ✓ Paginação {currentLayer?.paginationUrls?.length ? `(${currentLayer.paginationUrls.length} pág.)` : ""}
                 </Button>
               )}
+
+              {/* Pagination config */}
+              <Button size="sm" variant="outline" onClick={() => setShowPaginationConfig(!showPaginationConfig)} disabled={loading}>
+                <Layers className="w-3 h-3 mr-1" /> Config Paginação
+              </Button>
 
               {/* Auto-collect products */}
               <Button size="sm" variant="secondary" onClick={handleAutoCollect} disabled={loading}>
                 {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
-                Auto-recolher produtos
+                Auto-recolher produtos (c/ paginação)
+              </Button>
+
+              {/* Deep crawl */}
+              <Button size="sm" variant="outline" onClick={handleDeepCrawl} disabled={loading}>
+                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Brain className="w-3 h-3 mr-1" />}
+                Crawl Completo
               </Button>
 
               {/* Manual collect */}
@@ -1095,10 +1106,59 @@ export default function WebsiteExtractionAgentPage() {
               )}
             </div>
 
+            {/* Pagination config panel */}
+            {showPaginationConfig && (
+              <div className="pt-2 border-t space-y-2">
+                <p className="text-xs font-medium">Configuração de Paginação</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Select value={paginationMode} onValueChange={v => setPaginationMode(v as "auto" | "pattern")}>
+                    <SelectTrigger className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto-detetar</SelectItem>
+                      <SelectItem value="pattern">Padrão manual</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {paginationMode === "pattern" && (
+                    <Input
+                      placeholder="Ex: ?page={n}  ou  /page/{n}/"
+                      value={paginationPattern}
+                      onChange={e => setPaginationPattern(e.target.value)}
+                      className="h-7 text-xs font-mono max-w-60"
+                    />
+                  )}
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">Máx págs:</span>
+                    <Input
+                      type="number" min={2} max={200}
+                      value={maxPagesPerCategory}
+                      onChange={e => setMaxPagesPerCategory(Number(e.target.value) || 50)}
+                      className="h-7 w-16 text-xs"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <Checkbox checked={includeAllLinks} onCheckedChange={c => setIncludeAllLinks(!!c)} className="h-3.5 w-3.5" />
+                    <span className="text-xs">Mostrar todos os links</span>
+                  </label>
+                </div>
+
+                <div className="text-[10px] text-muted-foreground space-y-0.5">
+                  <p><strong>Auto-detetar:</strong> analisa links de paginação automaticamente.</p>
+                  <p><strong>Padrão manual:</strong> use <code className="bg-muted px-1 rounded">{"{n}"}</code> para número. Ex: <code className="bg-muted px-1 rounded">?page={"{n}"}</code></p>
+                  <p><strong>Crawl Completo:</strong> explora recursivamente todas as páginas internas do site.</p>
+                </div>
+              </div>
+            )}
+
             {collectProgress && (
               <div className="pt-2">
                 <Progress value={(collectProgress.current / collectProgress.total) * 100} className="h-2" />
-                <p className="text-[10px] text-muted-foreground mt-1">{collectProgress.current}/{collectProgress.total} categorias processadas</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {collectProgress.label || `${collectProgress.current}/${collectProgress.total}`}
+                  {collectProgress.pages ? ` · ${collectProgress.pages} páginas processadas` : ""}
+                </p>
               </div>
             )}
           </div>
