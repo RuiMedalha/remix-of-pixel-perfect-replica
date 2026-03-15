@@ -177,10 +177,11 @@ export default function WebsiteExtractionAgentPage() {
   const [productUrls, setProductUrls] = useState<string[]>([]);
   const [collectProgress, setCollectProgress] = useState<{ current: number; total: number; label?: string; pages?: number } | null>(null);
 
-  // Pagination config
+  // Pagination/crawl config
   const [paginationMode, setPaginationMode] = useState<"auto" | "pattern">("auto");
   const [paginationPattern, setPaginationPattern] = useState("");
-  const [maxPagesPerCategory, setMaxPagesPerCategory] = useState(50);
+  const [maxPagesPerCategory, setMaxPagesPerCategory] = useState(80);
+  const [maxCategoryDepth, setMaxCategoryDepth] = useState(4);
   const [showPaginationConfig, setShowPaginationConfig] = useState(false);
 
   // Fields
