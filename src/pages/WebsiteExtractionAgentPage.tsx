@@ -914,9 +914,14 @@ export default function WebsiteExtractionAgentPage() {
             </a>
             <div className="flex items-center gap-1 ml-2 border-l pl-2">
               {step === "browse" && (
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleExtractLinks} disabled={loading}>
-                  <List className="w-3.5 h-3.5 mr-1" /> Extrair Links
-                </Button>
+                <>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleExtractLinks} disabled={loading}>
+                    <List className="w-3.5 h-3.5 mr-1" /> Extrair Links
+                  </Button>
+                  <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={handleDeepCrawl} disabled={loading}>
+                    <Brain className="w-3.5 h-3.5 mr-1" /> Crawl Completo
+                  </Button>
+                </>
               )}
               {step === "fields" && (
                 <>
