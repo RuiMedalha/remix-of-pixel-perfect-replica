@@ -920,7 +920,7 @@ export default function VisualScraperPage() {
     setStep("batch");
   };
 
-  const handleRunBatch = async (overrideUrls?: string[]) => {
+  const runBatchExtraction = async (overrideUrls?: string[]) => {
     const productUrls = overrideUrls && overrideUrls.length > 0
       ? overrideUrls
       : batchUrls.length > 0
