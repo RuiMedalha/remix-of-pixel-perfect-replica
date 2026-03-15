@@ -97,13 +97,14 @@ Deno.serve(async (req) => {
       modifiedHtml = '<head>' + baseHref + '</head>' + modifiedHtml;
     }
 
-    // Inject the appropriate script based on mode
+    // Inject cookie banner removal + the appropriate script based on mode
+    const cookieScript = buildCookieRemovalScript();
     const script = mode === 'select' ? buildSelectionScript() : buildBrowseScript();
 
     if (modifiedHtml.includes('</body>')) {
-      modifiedHtml = modifiedHtml.replace('</body>', script + '</body>');
+      modifiedHtml = modifiedHtml.replace('</body>', cookieScript + script + '</body>');
     } else {
-      modifiedHtml += script;
+      modifiedHtml += cookieScript + script;
     }
 
     return new Response(
@@ -250,6 +251,73 @@ function buildSelectionScript(): string {
     }
     return false;
   }, true);
+})();
+</script>`;
+}
+
+// Auto-remove cookie consent banners
+function buildCookieRemovalScript(): string {
+  return `
+<script>
+(function() {
+  const SELECTORS = [
+    '#cookie-banner', '#cookie-consent', '#cookieConsent', '#cookie-notice',
+    '#gdpr-banner', '#gdpr-consent', '#consent-banner', '#onetrust-banner-sdk',
+    '#onetrust-consent-sdk', '#CybotCookiebotDialog', '#tarteaucitronRoot',
+    '#axeptio_overlay', '#axeptio_widget', '#cc-main', '#cc_div',
+    '.cookie-banner', '.cookie-consent', '.cookie-notice', '.cookie-popup',
+    '.gdpr-banner', '.consent-banner', '.consent-popup', '.cookies-overlay',
+    '.cc-banner', '.cc-window', '.js-cookie-consent', '.cookie-law-info-bar',
+    '[class*="cookie-consent"]', '[class*="cookie-banner"]', '[class*="cookie-notice"]',
+    '[class*="gdpr"]', '[class*="consent-banner"]', '[id*="cookie"]',
+    '[aria-label*="cookie" i]', '[aria-label*="consent" i]',
+    '[data-testid*="cookie"]', '[data-nosnippet] [class*="consent"]'
+  ];
+
+  function removeBanners() {
+    SELECTORS.forEach(function(sel) {
+      try {
+        document.querySelectorAll(sel).forEach(function(el) { el.remove(); });
+      } catch(e) {}
+    });
+    // Remove overlay backdrops
+    document.querySelectorAll('[class*="overlay"]').forEach(function(el) {
+      var s = getComputedStyle(el);
+      if (s.position === 'fixed' && s.zIndex > 999 && el.children.length <= 2) {
+        el.remove();
+      }
+    });
+    // Restore scrolling
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    document.body.classList.remove('no-scroll', 'modal-open', 'cookie-open');
+  }
+
+  // Run immediately, after DOM ready, and observe for late-loaded banners
+  removeBanners();
+  document.addEventListener('DOMContentLoaded', removeBanners);
+  setTimeout(removeBanners, 500);
+  setTimeout(removeBanners, 1500);
+  setTimeout(removeBanners, 3000);
+
+  var obs = new MutationObserver(function(muts) {
+    for (var i = 0; i < muts.length; i++) {
+      for (var j = 0; j < muts[i].addedNodes.length; j++) {
+        var n = muts[i].addedNodes[j];
+        if (n.nodeType === 1) {
+          var id = (n.id || '').toLowerCase();
+          var cls = (n.className || '').toString().toLowerCase();
+          if (id.includes('cookie') || id.includes('consent') || id.includes('gdpr') ||
+              cls.includes('cookie') || cls.includes('consent') || cls.includes('gdpr')) {
+            n.remove();
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+          }
+        }
+      }
+    }
+  });
+  obs.observe(document.documentElement, { childList: true, subtree: true });
 })();
 </script>`;
 }
