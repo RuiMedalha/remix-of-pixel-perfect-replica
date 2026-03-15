@@ -5,12 +5,8 @@ const corsHeaders = {
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Lightweight HTML element extractor using regex (no WASM DOM parser)
-function extractBySelector(html: string, selector: string): string[] {
-  // Support simple selectors: tag, .class, #id, tag.class, [attr], tag[attr=val]
-  const results: string[] = [];
-  
-  // Parse selector into tag + conditions
+// Ultra-lightweight extraction: find opening tags, then grab text/attrs only
+function findElements(html: string, selector: string): { tag: string; attrs: string; outerStart: number }[] {
   let tag = '';
   let className = '';
   let id = '';
@@ -19,59 +15,81 @@ function extractBySelector(html: string, selector: string): string[] {
 
   const idMatch = selector.match(/#([\w-]+)/);
   if (idMatch) id = idMatch[1];
-  
   const classMatch = selector.match(/\.([\w-]+)/);
   if (classMatch) className = classMatch[1];
-
   const attrMatch = selector.match(/\[([\w-]+)(?:=['"]?([^'"\]]+)['"]?)?\]/);
   if (attrMatch) { attr = attrMatch[1]; attrVal = attrMatch[2] || ''; }
-
   const tagMatch = selector.match(/^(\w+)/);
   if (tagMatch) tag = tagMatch[1].toLowerCase();
 
-  // Build regex to find matching elements
-  const tagPattern = tag || '[a-z][a-z0-9]*';
-  const openTagRegex = new RegExp(
-    `<(${tagPattern})(\\s[^>]*)?>([\\s\\S]*?)(?:<\\/\\1>|\\/>)`,
-    'gi'
-  );
-
-  let match;
-  while ((match = openTagRegex.exec(html)) !== null) {
-    const [fullMatch, matchedTag, attrs = '', innerHTML = ''] = match;
-    
-    // Check id
-    if (id && !new RegExp(`id\\s*=\\s*['"]${id}['"]`, 'i').test(attrs)) continue;
-    // Check class
-    if (className && !new RegExp(`class\\s*=\\s*['"][^'"]*\\b${className}\\b[^'"]*['"]`, 'i').test(attrs)) continue;
-    // Check attribute
+  const tagP = tag || '[a-z][a-z0-9]*';
+  // Only match opening tags — no greedy innerHTML capture
+  const re = new RegExp(`<(${tagP})(\\s[^>]*?)?\\/?>`, 'gi');
+  const found: { tag: string; attrs: string; outerStart: number }[] = [];
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const [, mTag, mAttrs = ''] = m;
+    if (id && !new RegExp(`id=['"]${id}['"]`, 'i').test(mAttrs)) continue;
+    if (className && !new RegExp(`class=['"][^'"]*\\b${className}\\b`, 'i').test(mAttrs)) continue;
     if (attr) {
       if (attrVal) {
-        if (!new RegExp(`${attr}\\s*=\\s*['"][^'"]*${attrVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^'"]*['"]`, 'i').test(attrs)) continue;
-      } else {
-        if (!new RegExp(`\\b${attr}\\b`, 'i').test(attrs)) continue;
-      }
+        if (!new RegExp(`${attr}=['"][^'"]*${attrVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(mAttrs)) continue;
+      } else if (!mAttrs.includes(attr)) continue;
     }
-    
-    results.push(fullMatch);
-    if (results.length > 200) break; // Safety limit
+    found.push({ tag: mTag.toLowerCase(), attrs: mAttrs, outerStart: m.index });
+    if (found.length >= 100) break;
+  }
+  return found;
+}
+
+function getAttr(attrs: string, name: string): string {
+  const m = attrs.match(new RegExp(`${name}\\s*=\\s*['"]([^'"]+)['"]`, 'i'));
+  return m?.[1] || '';
+}
+
+// Extract text between the opening tag and its closing tag (simple, non-nested)
+function getInnerText(html: string, start: number, tag: string): string {
+  const closeTag = `</${tag}>`;
+  const openEnd = html.indexOf('>', start);
+  if (openEnd < 0) return '';
+  const closeIdx = html.indexOf(closeTag, openEnd + 1);
+  if (closeIdx < 0) return '';
+  const inner = html.substring(openEnd + 1, Math.min(closeIdx, openEnd + 5000));
+  return inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function getInnerHtml(html: string, start: number, tag: string): string {
+  const closeTag = `</${tag}>`;
+  const openEnd = html.indexOf('>', start);
+  if (openEnd < 0) return '';
+  const closeIdx = html.indexOf(closeTag, openEnd + 1);
+  if (closeIdx < 0) return '';
+  return html.substring(openEnd + 1, Math.min(closeIdx, openEnd + 10000)).trim();
+}
+
+function extractField(html: string, selector: string, type: string, isVariation: boolean): string {
+  const elements = findElements(html, selector);
+  if (elements.length === 0) return '';
+
+  const extract = (el: typeof elements[0]): string => {
+    switch (type) {
+      case 'image': return getAttr(el.attrs, 'src') || getAttr(el.attrs, 'data-src') || getAttr(el.attrs, 'data-lazy-src') || '';
+      case 'link': return getAttr(el.attrs, 'href') || '';
+      case 'html': return getInnerHtml(html, el.outerStart, el.tag);
+      default: return getInnerText(html, el.outerStart, el.tag);
+    }
+  };
+
+  if (isVariation) {
+    const vals = new Set<string>();
+    for (const el of elements) {
+      const v = extract(el);
+      if (v) vals.add(v);
+    }
+    return [...vals].join(' | ');
   }
 
-  return results;
-}
-
-function getTextContent(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function getAttribute(html: string, attr: string): string {
-  const match = html.match(new RegExp(`${attr}\\s*=\\s*['"]([^'"]+)['"]`, 'i'));
-  return match?.[1] || '';
-}
-
-function getInnerHTML(html: string): string {
-  const match = html.match(/^<[^>]+>([\s\S]*)<\/[^>]+>$/);
-  return match?.[1]?.trim() || '';
+  return extract(elements[0]);
 }
 
 Deno.serve(async (req) => {
@@ -114,155 +132,79 @@ Deno.serve(async (req) => {
     const errors: any[] = [];
     let firecrawlCreditsUsed = 0;
 
-    // Process max 10 URLs per invocation to avoid memory limits
-    for (const url of urls.slice(0, 10)) {
+    // Process max 5 URLs per invocation
+    for (const url of urls.slice(0, 5)) {
       try {
         let html = '';
 
         if (useFirecrawl && apiKey) {
           const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, formats: ['html'], onlyMainContent: false }),
           });
-
-          if (!response.ok) {
-            errors.push({ url, error: `Firecrawl HTTP ${response.status}` });
-            continue;
-          }
-
+          if (!response.ok) { errors.push({ url, error: `Firecrawl HTTP ${response.status}` }); continue; }
           const data = await response.json();
           html = data.data?.html || data.html || '';
           firecrawlCreditsUsed++;
         } else {
           const response = await fetch(url, {
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'text/html,application/xhtml+xml',
             },
             redirect: 'follow',
           });
-
-          if (!response.ok) {
-            errors.push({ url, error: `HTTP ${response.status}` });
-            continue;
-          }
-
+          if (!response.ok) { errors.push({ url, error: `HTTP ${response.status}` }); continue; }
           html = await response.text();
         }
 
-        // Limit HTML size to prevent memory issues
-        if (html.length > 2_000_000) {
-          html = html.substring(0, 2_000_000);
-        }
+        // Truncate to 500KB to prevent memory issues
+        if (html.length > 500_000) html = html.substring(0, 500_000);
 
         const extracted: Record<string, string> = { source_url: url };
 
         for (const field of fields) {
           try {
-            const elements = extractBySelector(html, field.selector);
-
-            if (field.isVariation) {
-              const values: string[] = [];
-              for (const el of elements) {
-                let val = '';
-                switch (field.type) {
-                  case 'image':
-                    val = getAttribute(el, 'src') || '';
-                    break;
-                  case 'link':
-                    val = getAttribute(el, 'href') || '';
-                    break;
-                  case 'html':
-                    val = getInnerHTML(el);
-                    break;
-                  default:
-                    val = getTextContent(el);
-                }
-                if (val && !values.includes(val)) values.push(val);
-              }
-              extracted[field.name] = values.join(' | ');
-            } else {
-              const el = elements[0];
-              if (el) {
-                switch (field.type) {
-                  case 'image':
-                    extracted[field.name] = getAttribute(el, 'src') || '';
-                    break;
-                  case 'link':
-                    extracted[field.name] = getAttribute(el, 'href') || '';
-                    break;
-                  case 'html':
-                    extracted[field.name] = getInnerHTML(el);
-                    break;
-                  default:
-                    extracted[field.name] = getTextContent(el);
-                }
-              } else {
-                extracted[field.name] = '';
-              }
-            }
+            extracted[field.name] = extractField(html, field.selector, field.type, field.isVariation);
           } catch {
             extracted[field.name] = '';
           }
         }
 
         // Make relative URLs absolute
-        const baseUrl = new URL(url);
+        const baseOrigin = new URL(url).origin;
         for (const field of fields) {
           if ((field.type === 'image' || field.type === 'link') && extracted[field.name]) {
-            try {
-              const vals = extracted[field.name].split(' | ');
-              extracted[field.name] = vals.map(v => {
-                try { return new URL(v, baseUrl.origin).href; } catch { return v; }
-              }).join(' | ');
-            } catch { /* keep as-is */ }
+            extracted[field.name] = extracted[field.name].split(' | ').map(v => {
+              if (v && !v.startsWith('http')) {
+                try { return new URL(v, baseOrigin).href; } catch { return v; }
+              }
+              return v;
+            }).join(' | ');
           }
         }
 
         results.push(extracted);
-        
-        // Clear reference to free memory
-        html = '';
+        html = ''; // free memory
       } catch (err) {
         errors.push({ url, error: err instanceof Error ? err.message : 'Unknown error' });
       }
     }
 
-    // Track scraping credits if Firecrawl was used
     if (firecrawlCreditsUsed > 0 && workspaceId) {
-      try {
-        await supabase.rpc('increment_scraping_credits', { _workspace_id: workspaceId });
-      } catch { /* non-critical */ }
+      try { await supabase.rpc('increment_scraping_credits', { _workspace_id: workspaceId }); } catch {}
     }
 
-    // Save template if requested
     if (templateName && workspaceId) {
       await supabase.from('scraping_templates').upsert({
-        workspace_id: workspaceId,
-        user_id: user.id,
-        template_name: templateName,
-        fields,
-        sample_url: urls[0],
-        updated_at: new Date().toISOString(),
+        workspace_id: workspaceId, user_id: user.id, template_name: templateName,
+        fields, sample_url: urls[0], updated_at: new Date().toISOString(),
       } as any, { onConflict: 'workspace_id,template_name' });
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        results,
-        errors,
-        total: urls.length,
-        extracted: results.length,
-        failed: errors.length,
-        firecrawlCreditsUsed,
-        method: useFirecrawl ? 'firecrawl' : 'native',
-      }),
+      JSON.stringify({ success: true, results, errors, total: urls.length, extracted: results.length, failed: errors.length, firecrawlCreditsUsed, method: useFirecrawl ? 'firecrawl' : 'native' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
