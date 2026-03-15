@@ -464,12 +464,25 @@ export default function VisualScraperPage() {
 
   // Enter selection mode on current page
   const handleEnterSelectMode = () => {
+    // Store selected links as batch URLs before entering field selection
+    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
+    if (selected.length > 0) {
+      setBatchUrls(selected);
+    }
     loadPage(currentUrl, "select");
     setStep("select-fields");
   };
 
   // Go to a product page from links list
   const handleGoToProduct = (productUrl: string) => {
+    // Store all selected links as batch URLs before navigating to one product
+    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
+    if (selected.length > 0) {
+      setBatchUrls(selected);
+    } else {
+      // If no selections, use all visible links
+      setBatchUrls(extractedLinks.map(l => l.url));
+    }
     setUrl(productUrl);
     loadPage(productUrl, "select");
     setStep("select-fields");
