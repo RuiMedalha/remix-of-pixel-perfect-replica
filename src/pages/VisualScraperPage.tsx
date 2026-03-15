@@ -958,7 +958,7 @@ export default function VisualScraperPage() {
                     <List className="w-3.5 h-3.5 mr-1" /> Extrair Links
                   </Button>
                   <Button size="sm" className="h-7 text-xs" onClick={() => { loadPage(currentUrl, "select"); setStep("fields"); }} disabled={loading}>
-                    <Crosshair className="w-3.5 h-3.5 mr-1" /> Selecionar Campos
+                    <MousePointerClick className="w-3.5 h-3.5 mr-1" /> Modo Seleção
                   </Button>
                 </>
               )}
