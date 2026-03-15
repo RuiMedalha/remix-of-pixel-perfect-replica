@@ -920,10 +920,12 @@ export default function VisualScraperPage() {
     setStep("batch");
   };
 
-  const handleRunBatch = async () => {
-    const productUrls = batchUrls.length > 0
-      ? batchUrls
-      : productLinks.map(l => l.url);
+  const handleRunBatch = async (overrideUrls?: string[]) => {
+    const productUrls = overrideUrls && overrideUrls.length > 0
+      ? overrideUrls
+      : batchUrls.length > 0
+        ? batchUrls
+        : productLinks.map(l => l.url);
     let urls = productUrls.length > 0 ? productUrls : [currentUrl];
 
     setBatchLoading(true);
