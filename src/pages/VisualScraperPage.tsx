@@ -204,10 +204,14 @@ export default function VisualScraperPage() {
       'a[rel="next"]', '.woocommerce-pagination a', '.page-numbers a',
       'a[aria-label*="next" i]', 'a[aria-label*="próx" i]', 'a[aria-label*="seguinte" i]',
       '.pager a', '.paging a', 'ul.pages a', '.paginator a',
+      '.pagination-list a', '.nav-links a', '.page-link',
+      'a[title*="next" i]', 'a[title*="Next" i]', 'a[title*="Last" i]',
     ];
 
     const nextPages: string[] = [];
     const seenPages = new Set<string>();
+    
+    // Method 1: CSS selectors
     paginationSelectors.forEach(sel => {
       try {
         doc.querySelectorAll(sel).forEach(el => {
@@ -224,6 +228,29 @@ export default function VisualScraperPage() {
         });
       } catch { /* ignore */ }
     });
+
+    // Method 2: Text-based detection for "Next", "NEXT", "›", "»", numbered pages
+    if (nextPages.length === 0) {
+      const allAnchors = doc.querySelectorAll("a[href]");
+      allAnchors.forEach(a => {
+        const text = (a.textContent || "").trim().toLowerCase();
+        const href = a.getAttribute("href");
+        if (!href) return;
+        const isPageLink = /^(next|suivant|próxima?|seguinte|last|›|»|\d+)$/i.test(text)
+          || /[?&]page=\d/i.test(href)
+          || /\/page\/\d/i.test(href)
+          || /[?&]p=\d/i.test(href);
+        if (isPageLink) {
+          try {
+            const fullUrl = new URL(href, baseUrl.origin).href;
+            if (!seenPages.has(fullUrl) && fullUrl !== pageUrl && new URL(fullUrl).hostname === baseUrl.hostname) {
+              seenPages.add(fullUrl);
+              nextPages.push(fullUrl);
+            }
+          } catch { /* ignore */ }
+        }
+      });
+    }
 
     return { links, nextPages };
   };
