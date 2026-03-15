@@ -652,6 +652,7 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
   const [page, setPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const pageSize = 50;
+  const runJob = useRunIngestionJob();
 
   if (!job) return null;
 
