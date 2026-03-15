@@ -47,13 +47,15 @@ interface ExtractedRow {
   [key: string]: string;
 }
 
-type LinkType = "categoria" | "grupo" | "produto" | "outro";
+type LinkType = "categoria" | "grupo" | "subcategoria" | "produto" | "outro";
 
 interface ExtractedLink {
   url: string;
   text: string;
   selected: boolean;
   linkType: LinkType;
+  depth?: number;
+  parentCategory?: string;
 }
 
 interface SiteLayer {
@@ -62,6 +64,14 @@ interface SiteLayer {
   sourceUrl: string;
   hasPagination: boolean;
   paginationUrls: string[];
+}
+
+interface CrawlStats {
+  categoriesProcessed: number;
+  subcategoriesFound: number;
+  pagesProcessed: number;
+  productsFound: number;
+  maxDepthReached: number;
 }
 
 type Step =
