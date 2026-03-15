@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,12 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  analyzeHtmlProductSignals,
+  buildAutoProductMapping,
+  computeFingerprintRatios,
+  summarizeVariationStructure,
+} from "@/lib/scraperIntelligence";
 
 /* ────────────────────────────────────────────────
    Types

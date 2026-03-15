@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,12 @@ import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useWebsiteExtractionAgent } from "@/hooks/useWebsiteExtractionAgent";
 import { DEFAULT_PRODUCT_FIELDS } from "@/hooks/useUploadCatalog";
 import { ExcelPreviewTable } from "@/components/scraper/ExcelPreviewTable";
+import {
+  analyzeHtmlProductSignals,
+  buildAutoProductMapping,
+  computeFingerprintRatios,
+  summarizeVariationStructure,
+} from "@/lib/scraperIntelligence";
 
 /* ────────────────────────────────────────────────
    Types
