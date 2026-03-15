@@ -942,6 +942,31 @@ export default function VisualScraperPage() {
     toast.success(`${links.length} URLs de categoria adicionadas`);
   };
 
+  /* ── Drill into a single category URL from the fields panel ── */
+  const handleDrillCategoryField = async (fieldUrl: string, fieldName: string) => {
+    const resolvedUrl = fieldUrl.startsWith("http") ? fieldUrl : `${new URL(currentUrl).origin}${fieldUrl}`;
+    setLoading(true);
+    try {
+      const { links, nextPages } = await extractLinksFromPage(resolvedUrl);
+      setCurrentLinks(links);
+      setLayers([{
+        label: fieldName || resolvedUrl,
+        links,
+        sourceUrl: resolvedUrl,
+        hasPagination: nextPages.length > 0,
+        paginationUrls: nextPages,
+      }]);
+      // Keep only extraction fields, remove used category URLs
+      setFields(prev => prev.filter(f => f.purpose === "field"));
+      setStep("categories");
+      const cats = links.filter(l => l.linkType === "categoria" || l.linkType === "grupo").length;
+      const prods = links.filter(l => l.linkType === "produto").length;
+      toast.success(`${fieldName}: ${links.length} links (${cats} categorias · ${prods} produtos)`);
+    } catch (err: any) {
+      toast.error("Erro ao explorar categoria", { description: err.message });
+    } finally { setLoading(false); }
+  };
+
   const handleUseProductUrls = () => {
     const prodFields = fields.filter(f => f.purpose === "product_url" && f.preview);
     if (prodFields.length === 0) { toast.error("Nenhum URL de produto selecionado."); return; }
