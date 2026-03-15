@@ -290,6 +290,27 @@ export default function VisualScraperPage() {
                 <span className="ml-1">Carregar</span>
               </Button>
             </div>
+            {/* Cost control */}
+            <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/30">
+              <div className="flex items-center gap-2">
+                {useFirecrawl ? (
+                  <Zap className="w-4 h-4 text-amber-500" />
+                ) : (
+                  <Coins className="w-4 h-4 text-emerald-500" />
+                )}
+                <div>
+                  <p className="text-sm font-medium">
+                    {useFirecrawl ? "Firecrawl (premium)" : "Fetch Nativo (gratuito)"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {useFirecrawl
+                      ? "Renderiza JavaScript. Ideal para SPAs e sites dinâmicos. Gasta créditos."
+                      : "Rápido e sem custos. Funciona na maioria dos sites estáticos e SSR."}
+                  </p>
+                </div>
+              </div>
+              <Switch checked={useFirecrawl} onCheckedChange={setUseFirecrawl} />
+            </div>
           </CardContent>
         </Card>
       )}
