@@ -427,9 +427,24 @@ export default function VisualScraperPage() {
     } finally { setLoading(false); }
   };
 
+  /* ── Accumulate products from currentLinks into productUrls ── */
+  const accumulateCurrentProducts = () => {
+    const prods = currentLinks.filter(l => l.linkType === "produto" && l.selected);
+    if (prods.length > 0) {
+      setProductUrls(prev => {
+        const existing = new Set(prev);
+        const newUrls = prods.map(l => l.url).filter(u => !existing.has(u));
+        if (newUrls.length > 0) toast.info(`${newUrls.length} produtos acumulados do nível atual`);
+        return [...prev, ...newUrls];
+      });
+    }
+  };
+
   /* ── Drill into selected categories ── */
   const handleDrillInto = async (urls: string[]) => {
     if (urls.length === 0) { toast.error("Selecione pelo menos uma categoria."); return; }
+    // Accumulate products from current level before drilling
+    accumulateCurrentProducts();
     setLoading(true);
     try {
       const allLinks: ExtractedLink[] = [];
@@ -521,13 +536,18 @@ export default function VisualScraperPage() {
     } finally { setLoading(false); }
   };
 
-  /* ── Collect products → Products step ── */
+  /* ── Collect products → Products step (accumulates, doesn't replace) ── */
   const handleCollectProducts = () => {
     const prods = currentLinks.filter(l => l.linkType === "produto" && l.selected).map(l => l.url);
-    if (prods.length === 0) { toast.error("Nenhum produto selecionado."); return; }
-    setProductUrls(prods);
+    if (prods.length === 0 && productUrls.length === 0) { toast.error("Nenhum produto selecionado."); return; }
+    setProductUrls(prev => {
+      const existing = new Set(prev);
+      const newUrls = prods.filter(u => !existing.has(u));
+      const total = prev.length + newUrls.length;
+      toast.success(`${total} URLs de produto (${newUrls.length} novas + ${prev.length} acumuladas)`);
+      return [...prev, ...newUrls];
+    });
     setStep("products");
-    toast.success(`${prods.length} URLs de produto recolhidas`);
   };
 
   /* ── Generate pagination URLs from a pattern ── */
@@ -711,10 +731,10 @@ export default function VisualScraperPage() {
     setCrawlStats(null);
 
     try {
-      const allProductUrls: string[] = [];
-      const seen = new Set<string>();
+      const allProductUrls: string[] = [...productUrls]; // Start with already accumulated products
+      const seen = new Set<string>(allProductUrls);
 
-      // Add already-visible products
+      // Add already-visible products from current level
       currentLinks.filter(l => l.linkType === "produto").forEach(l => {
         if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
       });
@@ -945,6 +965,8 @@ export default function VisualScraperPage() {
   /* ── Drill into a single category URL from the fields panel ── */
   const handleDrillCategoryField = async (fieldUrl: string, fieldName: string) => {
     const resolvedUrl = fieldUrl.startsWith("http") ? fieldUrl : `${new URL(currentUrl).origin}${fieldUrl}`;
+    // Accumulate products before drilling
+    accumulateCurrentProducts();
     setLoading(true);
     try {
       const { links, nextPages } = await extractLinksFromPage(resolvedUrl);
@@ -1494,6 +1516,16 @@ export default function VisualScraperPage() {
             <h2 className="font-semibold text-sm">Estrutura do Site</h2>
             <Badge>{currentLinks.length} links</Badge>
             <Badge variant="outline" className="text-[10px]">{categoryLinks.length} categorias · {productLinksInView.length} produtos</Badge>
+            {productUrls.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                <Target className="w-3 h-3 mr-1" /> {productUrls.length} produtos acumulados
+              </Badge>
+            )}
+            {(productUrls.length > 0 || productLinksInView.filter(l => l.selected).length > 0) && (
+              <Button size="sm" className="ml-auto h-7 text-xs" onClick={handleCollectProducts}>
+                <ArrowRight className="w-3 h-3 mr-1" /> Avançar para Produtos ({productUrls.length + currentLinks.filter(l => l.linkType === "produto" && l.selected && !productUrls.includes(l.url)).length})
+              </Button>
+            )}
           </div>
 
           {/* Layer breadcrumbs */}
