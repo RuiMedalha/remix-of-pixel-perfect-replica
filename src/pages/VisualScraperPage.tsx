@@ -758,6 +758,22 @@ export default function VisualScraperPage() {
     setFields(prev => prev.map(f => f.id === id ? { ...f, type } : f));
   };
 
+  const handleUpdateFieldSelector = (id: string, selector: string) => {
+    setFields(prev => prev.map(f => f.id === id ? { ...f, selector } : f));
+  };
+
+  const handleAddManualField = () => {
+    const newField: SelectedField = {
+      id: crypto.randomUUID(),
+      name: `Campo ${fields.length + 1}`,
+      selector: "",
+      type: "text",
+      preview: "",
+      isVariation: false,
+    };
+    setFields(prev => [...prev, newField]);
+  };
+
   const handleToggleVariation = (id: string) => {
     setFields(prev => prev.map(f => f.id === id ? { ...f, isVariation: !f.isVariation } : f));
   };
@@ -1328,56 +1344,73 @@ export default function VisualScraperPage() {
 
           {/* ─── Section C: Definir campos (só produtos) ─── */}
           {productLinks.length > 0 && (
-            <div className={`flex items-center gap-3 p-3 border-2 rounded-lg flex-shrink-0 ${fields.length > 0 ? 'border-primary/30 bg-primary/5' : 'border-dashed border-muted-foreground/30 bg-muted/20'}`}>
-              <Badge variant="outline" className="text-[10px]">Passo 3</Badge>
-              {fields.length > 0 ? (
-                <>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-primary">{fields.length} campos definidos ✓</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {fields.map(f => (
-                        <Badge key={f.id} variant="secondary" className="text-[10px] gap-1 items-center">
-                          {typeIcons[f.type]} {f.name}
-                          <label className="flex items-center gap-0.5 cursor-pointer ml-1" onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={f.isVariation}
-                              onCheckedChange={() => handleToggleVariation(f.id)}
-                              className="h-2.5 w-2.5"
-                            />
-                            <Layers className={`w-2.5 h-2.5 ${f.isVariation ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
-                          </label>
-                          <button onClick={(e) => { e.stopPropagation(); handleRemoveField(f.id); }} className="ml-0.5 hover:text-destructive">
-                            <X className="w-2.5 h-2.5" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                    {fields.some(f => f.isVariation) && (
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
-                        <Layers className="w-3 h-3" /> Campos com ícone amarelo serão extraídos como lista de opções
-                      </p>
-                    )}
-                  </div>
+            <div className={`flex flex-col gap-2 p-3 border-2 rounded-lg flex-shrink-0 ${fields.length > 0 ? 'border-primary/30 bg-primary/5' : 'border-dashed border-muted-foreground/30 bg-muted/20'}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px]">Passo 3</Badge>
+                <span className="text-sm font-medium">Definir campos a extrair ({fields.length} campos)</span>
+                <div className="ml-auto flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleAddManualField}>
+                    <Plus className="w-3 h-3 mr-1" /> Adicionar Campo
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => {
                     const firstProduct = productLinks[0];
                     if (firstProduct) handleGoToProduct(firstProduct.url);
                   }}>
-                    <Crosshair className="w-3 h-3 mr-1" /> Editar Campos
+                    <Crosshair className="w-3 h-3 mr-1" /> Selecionar na Página
                   </Button>
-                </>
+                </div>
+              </div>
+
+              {fields.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">
+                  Adicione campos manualmente ou abra um produto para selecionar visualmente.
+                </p>
               ) : (
-                <>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Definir campos a extrair dos {productLinks.length} produtos</p>
-                    <p className="text-xs text-muted-foreground">Abra um produto para escolher os campos (título, imagem, descrição, etc.)</p>
-                  </div>
-                  <Button size="sm" onClick={() => {
-                    const firstProduct = productLinks[0];
-                    if (firstProduct) handleGoToProduct(firstProduct.url);
-                  }}>
-                    <Crosshair className="w-3 h-3 mr-1" /> Abrir Produto & Definir Campos
-                  </Button>
-                </>
+                <div className="space-y-1.5">
+                  {fields.map(f => (
+                    <div key={f.id} className="grid grid-cols-[1fr,200px,70px,auto,auto,auto] gap-1.5 items-center">
+                      <Input
+                        value={f.name}
+                        onChange={e => handleUpdateFieldName(f.id, e.target.value)}
+                        className="h-7 text-xs"
+                        placeholder="Nome do campo"
+                      />
+                      <Input
+                        value={f.selector}
+                        onChange={e => handleUpdateFieldSelector(f.id, e.target.value)}
+                        className="h-7 text-[10px] font-mono"
+                        placeholder="Seletor CSS (ex: .product-title)"
+                      />
+                      <Select value={f.type} onValueChange={v => handleUpdateFieldType(f.id, v as any)}>
+                        <SelectTrigger className="h-7 text-[10px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text">Texto</SelectItem>
+                          <SelectItem value="image">Img</SelectItem>
+                          <SelectItem value="link">Link</SelectItem>
+                          <SelectItem value="html">HTML</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <label className="flex items-center gap-1 cursor-pointer px-1" title="Extrair múltiplos valores (variações)">
+                        <Checkbox
+                          checked={f.isVariation}
+                          onCheckedChange={() => handleToggleVariation(f.id)}
+                          className="h-3.5 w-3.5"
+                        />
+                        <Layers className={`w-3.5 h-3.5 ${f.isVariation ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
+                      </label>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveField(f.id)}>
+                        <Trash2 className="w-3 h-3 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                  {fields.some(f => f.isVariation) && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-1">
+                      <Layers className="w-3 h-3" /> Campos com variação ativa extraem múltiplos valores separados por "|"
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
