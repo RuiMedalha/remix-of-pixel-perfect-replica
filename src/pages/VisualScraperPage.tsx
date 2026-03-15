@@ -166,6 +166,38 @@ export default function VisualScraperPage() {
     }
   };
 
+  // ── Smart link classification helpers ──
+  const PRODUCT_LINK_CLASSES = [
+    'productteaser', 'product-teaser', 'product-card', 'product-item',
+    'product-link', 'product-tile', 'woocommerce-loop-product__link',
+  ];
+  const CATEGORY_LINK_CLASSES = [
+    'categoryproductteaser', 'category-teaser', 'category-card', 'category-link',
+  ];
+  const NAV_CONTAINERS = ['nav', 'header', 'footer', '.menu', '.navbar', '.footer', '.header', '.breadcrumb', '.social'];
+
+  const classifyLink = (anchor: Element, doc: Document): 'product' | 'category' | 'navigation' | 'other' => {
+    const classes = (anchor.className || '').toLowerCase();
+    const href = (anchor.getAttribute('href') || '').toLowerCase();
+    
+    // Check if link itself has product/category class
+    if (PRODUCT_LINK_CLASSES.some(c => classes.includes(c))) return 'product';
+    if (CATEGORY_LINK_CLASSES.some(c => classes.includes(c))) return 'category';
+
+    // Check if inside a nav/footer container
+    const isInNav = !!anchor.closest('nav, header, footer, .menu, .navbar, .footer-menu, .header-menu, .Breadcrumb, .social-links, .GeographicRedirection');
+    if (isInNav) return 'navigation';
+
+    // Check if inside main content area
+    const isInMain = !!anchor.closest('main, #Main-wrapper, .NodeCategory, .NodeCategoriesList, .item-list, .products, .product-list, .catalog, [role="main"]');
+    if (isInMain) return 'product';
+
+    // URL heuristics - contact, legal pages etc.
+    if (/\/(contact|about|legal|privacy|terms|faq|blog|news|cart|checkout|account|login|search)/.test(href)) return 'navigation';
+
+    return 'other';
+  };
+
   // Extract links + detect pagination from a page
   const extractLinksFromPage = async (pageUrl: string): Promise<{ links: ExtractedLink[]; nextPages: string[] }> => {
     const { data: proxyData } = await supabase.functions.invoke("proxy-page", {
@@ -180,23 +212,35 @@ export default function VisualScraperPage() {
     const baseUrl = new URL(pageUrl);
     const links: ExtractedLink[] = [];
     const seen = new Set<string>();
+    let hasProductLinks = false;
 
     anchors.forEach(a => {
       try {
         let href = a.getAttribute("href") || "";
         if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
         const fullUrl = new URL(href, baseUrl.origin).href;
-        if (seen.has(fullUrl)) return;
+        if (seen.has(fullUrl) || fullUrl === pageUrl) return;
         seen.add(fullUrl);
-        if (new URL(fullUrl).hostname === baseUrl.hostname) {
-          links.push({
-            url: fullUrl,
-            text: (a.textContent || "").trim().substring(0, 120),
-            selected: false,
-          });
-        }
+        if (new URL(fullUrl).hostname !== baseUrl.hostname) return;
+
+        const linkType = classifyLink(a, doc);
+        if (linkType === 'navigation') return; // Skip nav/footer/header links entirely
+
+        const isContentLink = linkType === 'product' || linkType === 'category';
+        if (isContentLink) hasProductLinks = true;
+
+        links.push({
+          url: fullUrl,
+          text: (a.textContent || "").trim().replace(/\s+/g, ' ').substring(0, 120),
+          selected: isContentLink, // Auto-select product/category links
+        });
       } catch { /* ignore */ }
     });
+
+    // If we found content links, deselect the "other" ones
+    if (hasProductLinks) {
+      // Already handled: content links are selected, others are not
+    }
 
     // Detect pagination links (next page, page 2, 3, etc.)
     const paginationSelectors = [
@@ -211,7 +255,6 @@ export default function VisualScraperPage() {
     const nextPages: string[] = [];
     const seenPages = new Set<string>();
     
-    // Method 1: CSS selectors
     paginationSelectors.forEach(sel => {
       try {
         doc.querySelectorAll(sel).forEach(el => {
@@ -229,7 +272,6 @@ export default function VisualScraperPage() {
       } catch { /* ignore */ }
     });
 
-    // Method 2: Text-based detection for "Next", "NEXT", "›", "»", numbered pages
     if (nextPages.length === 0) {
       const allAnchors = doc.querySelectorAll("a[href]");
       allAnchors.forEach(a => {
