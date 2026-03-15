@@ -427,9 +427,24 @@ export default function VisualScraperPage() {
     } finally { setLoading(false); }
   };
 
+  /* ── Accumulate products from currentLinks into productUrls ── */
+  const accumulateCurrentProducts = () => {
+    const prods = currentLinks.filter(l => l.linkType === "produto" && l.selected);
+    if (prods.length > 0) {
+      setProductUrls(prev => {
+        const existing = new Set(prev);
+        const newUrls = prods.map(l => l.url).filter(u => !existing.has(u));
+        if (newUrls.length > 0) toast.info(`${newUrls.length} produtos acumulados do nível atual`);
+        return [...prev, ...newUrls];
+      });
+    }
+  };
+
   /* ── Drill into selected categories ── */
   const handleDrillInto = async (urls: string[]) => {
     if (urls.length === 0) { toast.error("Selecione pelo menos uma categoria."); return; }
+    // Accumulate products from current level before drilling
+    accumulateCurrentProducts();
     setLoading(true);
     try {
       const allLinks: ExtractedLink[] = [];
