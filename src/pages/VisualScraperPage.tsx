@@ -97,7 +97,7 @@ export default function VisualScraperPage() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("proxy-page", {
-        body: { url: url.trim() },
+        body: { url: url.trim(), useFirecrawl },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
