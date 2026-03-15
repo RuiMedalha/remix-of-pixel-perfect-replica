@@ -104,9 +104,11 @@ export default function VisualScraperPage() {
 
       setHtmlContent(data.html);
       setSourceUrl(data.sourceUrl);
+      setFetchMethod(data.fetchMethod || "native");
       setFields([]);
       setStep("select");
-      toast.success("Página carregada!", { description: data.metadata?.title || url });
+      const methodLabel = data.fetchMethod === "firecrawl" ? "via Firecrawl" : "gratuito";
+      toast.success(`Página carregada (${methodLabel})!`, { description: data.metadata?.title || url });
     } catch (err: any) {
       toast.error("Erro ao carregar página", { description: err.message });
     } finally {
