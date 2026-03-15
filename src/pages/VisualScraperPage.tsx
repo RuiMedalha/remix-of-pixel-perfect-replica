@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import {
   Globe, Loader2, MousePointerClick, Trash2, Play, Download, Plus,
-  Eye, Tag, Link2, Image as ImageIcon, Type, FileText, ArrowRight, X
+  Eye, Tag, Link2, Image as ImageIcon, Type, FileText, ArrowRight, X, Zap, Coins
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
