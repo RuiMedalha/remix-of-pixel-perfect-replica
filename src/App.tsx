@@ -56,6 +56,7 @@ import AgentRuntimeConsolePage from "./pages/AgentRuntimeConsolePage";
 import CatalogWorkflowCenterPage from "./pages/CatalogWorkflowCenterPage";
 import VisualScraperPage from "./pages/VisualScraperPage";
 import WebsiteExtractionAgentPage from "./pages/WebsiteExtractionAgentPage";
+import ScraperManualPage from "./pages/ScraperManualPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
