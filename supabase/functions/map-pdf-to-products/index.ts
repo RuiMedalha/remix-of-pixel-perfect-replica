@@ -57,15 +57,17 @@ function toNumberPrice(value: unknown): number | null {
 
 function mapProductRow(product: any, fallbackCategory = "", source = "pdf_ai_vision", pageNumber?: number): Record<string, any> {
   const mapped: Record<string, any> = {};
-  const sku = product?.sku ?? product?.SKU;
+  const sku = product?.sku ?? product?.SKU ?? product?.reference;
   const title = product?.original_title ?? product?.title ?? product?.name;
   const description = product?.original_description ?? product?.description;
+  const shortDescription = product?.short_description ?? product?.optimized_short_description;
   const category = product?.category || fallbackCategory;
   const price = toNumberPrice(product?.original_price ?? product?.price);
 
-  if (sku) mapped.sku = sku;
+  if (sku) mapped.sku = String(sku).trim();
   if (title) mapped.original_title = title;
   if (description) mapped.original_description = description;
+  if (shortDescription) mapped.short_description = shortDescription;
   if (price !== null) mapped.original_price = price;
   if (category) mapped.category = category;
   if (product?.dimensions) mapped.dimensions = product.dimensions;
@@ -75,14 +77,17 @@ function mapProductRow(product: any, fallbackCategory = "", source = "pdf_ai_vis
   if (product?.image_description) mapped.image_description = product.image_description;
   if (product?.image_url) mapped.image_url = product.image_url;
   if (product?.image_urls) mapped.image_urls = product.image_urls;
-  if (product?.technical_specs) mapped.technical_specs = product.technical_specs;
-  if (product?.short_description) mapped.short_description = product.short_description;
+  if (product?.technical_specs) mapped.technical_specs = typeof product.technical_specs === "string" ? product.technical_specs : JSON.stringify(product.technical_specs);
+  if (product?.brand) mapped.brand = product.brand;
+  if (product?.model) mapped.model = product.model;
+  if (product?.quantity) mapped.quantity = product.quantity;
+  if (product?.unit) mapped.unit = product.unit;
 
   const skipKeys = new Set([
-    "sku", "SKU", "title", "name", "original_title", "description", "original_description",
+    "sku", "SKU", "reference", "title", "name", "original_title", "description", "original_description",
     "price", "original_price", "category", "dimensions", "weight", "material", "color_options",
     "image_description", "image_url", "image_urls", "technical_specs", "short_description",
-    "confidence", "currency",
+    "optimized_short_description", "confidence", "currency", "brand", "model", "quantity", "unit",
   ]);
   for (const [key, value] of Object.entries(product || {})) {
     if (key.startsWith("_") || skipKeys.has(key)) continue;
@@ -95,6 +100,62 @@ function mapProductRow(product: any, fallbackCategory = "", source = "pdf_ai_vis
     _pageNumber: pageNumber ?? product?._pageNumber ?? null,
     _source: product?._source || source,
   };
+}
+
+// ─── Merge products with same SKU from different pages ───
+function mergeProductsBySku(products: any[]): any[] {
+  const bySkuMap = new Map<string, any>();
+  const noSku: any[] = [];
+
+  for (const product of products) {
+    const sku = product.sku;
+    if (!sku || typeof sku !== "string" || !sku.trim()) {
+      noSku.push(product);
+      continue;
+    }
+
+    const key = sku.trim().toLowerCase();
+    const existing = bySkuMap.get(key);
+
+    if (!existing) {
+      bySkuMap.set(key, { ...product, _sources: [product._source || "unknown"], _pages: product._pageNumber ? [product._pageNumber] : [] });
+      continue;
+    }
+
+    // Merge: prefer longer/more complete values
+    for (const [field, value] of Object.entries(product)) {
+      if (field.startsWith("_")) continue;
+      if (value === null || value === undefined || value === "") continue;
+
+      const existingValue = existing[field];
+      if (!existingValue || existingValue === "" || existingValue === null) {
+        existing[field] = value;
+      } else if (typeof value === "string" && typeof existingValue === "string" && value.length > existingValue.length) {
+        existing[field] = value;
+      }
+    }
+
+    // Merge image_urls arrays
+    if (product.image_urls && Array.isArray(product.image_urls)) {
+      existing.image_urls = [...new Set([...(existing.image_urls || []), ...product.image_urls])];
+    }
+    if (product.image_url && !existing.image_urls?.includes(product.image_url)) {
+      existing.image_urls = [...(existing.image_urls || []), product.image_url];
+    }
+
+    // Track sources and pages
+    if (product._source && !existing._sources.includes(product._source)) existing._sources.push(product._source);
+    if (product._pageNumber && !existing._pages.includes(product._pageNumber)) existing._pages.push(product._pageNumber);
+
+    // Take higher confidence
+    if ((product._confidence || 0) > (existing._confidence || 0)) {
+      existing._confidence = product._confidence;
+    }
+
+    bySkuMap.set(key, existing);
+  }
+
+  return [...bySkuMap.values(), ...noSku];
 }
 
 serve(async (req) => {
@@ -117,8 +178,11 @@ serve(async (req) => {
 
     const effectiveWorkspaceId = workspaceId || extractionRow?.workspace_id;
 
+    // Collect products from reviewed data or from pages
+    let structuredRows: any[] = [];
+
     const reviewedProducts = flattenVisionProducts(extractionRow?.detected_products || []);
-    const structuredRows: any[] = reviewedProducts
+    structuredRows = reviewedProducts
       .map((p: any) => mapProductRow(p, p?.category || "", p?._source || "pdf_review", p?._pageNumber))
       .filter(hasMeaningfulProduct);
 
@@ -141,6 +205,7 @@ serve(async (req) => {
         }
       }
 
+      // Also try tables if still empty
       if (structuredRows.length === 0) {
         const pageIds = pages.map((p) => p.id);
         const { data: tables } = await supabase
@@ -180,7 +245,10 @@ serve(async (req) => {
       }
     }
 
-    // ─── SKU matching: check which products already exist ───
+    // ─── Merge products with same SKU ───
+    structuredRows = mergeProductsBySku(structuredRows);
+
+    // ─── SKU matching & ingestion ───
     if (sendToIngestion && effectiveWorkspaceId && structuredRows.length > 0) {
       const skus = structuredRows
         .map((r) => r.sku)
@@ -188,7 +256,6 @@ serve(async (req) => {
 
       let existingBySku: Record<string, string> = {};
       if (skus.length > 0) {
-        // Batch query in chunks of 200
         for (let i = 0; i < skus.length; i += 200) {
           const batch = skus.slice(i, i + 200);
           const { data: existing } = await supabase
@@ -260,6 +327,8 @@ serve(async (req) => {
               image_description: row.image_description,
               image_urls: row.image_urls || (row.image_url ? [row.image_url] : undefined),
               technical_specs: row.technical_specs,
+              brand: row.brand,
+              model: row.model,
             },
             action,
             matched_existing_id: matchedId,
@@ -292,11 +361,13 @@ serve(async (req) => {
           rowsMapped: structuredRows.length,
           ingestionJobId: job?.id,
           sentToIngestion: true,
+          skuMatches: Object.keys(existingBySku).length,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
+    // Not sending to ingestion — just compile products for review
     await supabase
       .from("pdf_extractions")
       .update({ status: "reviewing", detected_products: structuredRows })
