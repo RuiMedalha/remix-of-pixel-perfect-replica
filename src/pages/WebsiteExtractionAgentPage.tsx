@@ -46,9 +46,10 @@ interface SelectedField {
   type: "text" | "image" | "link" | "html";
   preview: string;
   isVariation?: boolean;
+  confidence?: number;
 }
 
-type LinkType = "categoria" | "grupo" | "produto" | "outro";
+type LinkType = "categoria" | "subcategoria" | "grupo" | "produto" | "outro";
 
 interface ExtractedLink {
   url: string;
