@@ -720,7 +720,14 @@ export default function VisualScraperPage() {
 
   /* ── Auto-collect: drill all categories recursively with full pagination ── */
   const handleAutoCollect = async () => {
-    const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria") && l.selected).map(l => l.url);
+    // Auto-select ALL categories if none are manually selected
+    let catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria") && l.selected).map(l => l.url);
+    
+    if (catUrls.length === 0) {
+      // No manual selection — use ALL categories/groups/subcategories automatically
+      catUrls = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria").map(l => l.url);
+    }
+    
     if (catUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
       toast.error("Nenhuma categoria ou produto encontrado.");
       return;
@@ -735,7 +742,7 @@ export default function VisualScraperPage() {
       const allProductUrls: string[] = [...productUrls]; // Start with already accumulated products
       const seen = new Set<string>(allProductUrls);
 
-      // Add already-visible products from current level
+      // Add ALL product-typed links from current level (not just selected)
       currentLinks.filter(l => l.linkType === "produto").forEach(l => {
         if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
       });
@@ -1620,15 +1627,15 @@ export default function VisualScraperPage() {
                 <Layers className="w-3 h-3 mr-1" /> Config Paginação
               </Button>
 
-              {/* Auto-collect */}
-              <Button size="sm" variant="secondary" onClick={handleAutoCollect} disabled={loading}>
-                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
-                Auto-recolher produtos (recursivo c/ paginação)
+              {/* Auto-collect - works without manual selection */}
+              <Button size="sm" variant="default" onClick={handleAutoCollect} disabled={loading} className="font-medium">
+                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Zap className="w-3 h-3 mr-1" />}
+                🚀 Auto-recolher TUDO ({categoryLinks.length} categorias + paginação)
               </Button>
 
               {/* Manual collect */}
               {productLinksInView.length > 0 && (
-                <Button size="sm" onClick={handleCollectProducts}>
+                <Button size="sm" variant="outline" onClick={handleCollectProducts}>
                   <Target className="w-3 h-3 mr-1" /> Recolher {productLinksInView.filter(l => l.selected).length} produtos →
                 </Button>
               )}
