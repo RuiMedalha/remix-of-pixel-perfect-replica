@@ -536,13 +536,18 @@ export default function VisualScraperPage() {
     } finally { setLoading(false); }
   };
 
-  /* ── Collect products → Products step ── */
+  /* ── Collect products → Products step (accumulates, doesn't replace) ── */
   const handleCollectProducts = () => {
     const prods = currentLinks.filter(l => l.linkType === "produto" && l.selected).map(l => l.url);
-    if (prods.length === 0) { toast.error("Nenhum produto selecionado."); return; }
-    setProductUrls(prods);
+    if (prods.length === 0 && productUrls.length === 0) { toast.error("Nenhum produto selecionado."); return; }
+    setProductUrls(prev => {
+      const existing = new Set(prev);
+      const newUrls = prods.filter(u => !existing.has(u));
+      const total = prev.length + newUrls.length;
+      toast.success(`${total} URLs de produto (${newUrls.length} novas + ${prev.length} acumuladas)`);
+      return [...prev, ...newUrls];
+    });
     setStep("products");
-    toast.success(`${prods.length} URLs de produto recolhidas`);
   };
 
   /* ── Generate pagination URLs from a pattern ── */
