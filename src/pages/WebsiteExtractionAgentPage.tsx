@@ -1022,7 +1022,7 @@ export default function WebsiteExtractionAgentPage() {
     setStep("fields");
   };
 
-  /* ── Auto-detect fields ── */
+  /* ── Auto-detect fields (rule-based) ── */
   const handleAutoDetectFields = () => {
     if (!htmlContent) return;
     const parser = new DOMParser();
@@ -1054,6 +1054,189 @@ export default function WebsiteExtractionAgentPage() {
       toast.success(`${detected.length} campos detetados`);
     } else {
       toast.info("Não foi possível detetar campos. Selecione-os manualmente.");
+    }
+  };
+
+  /* ── AI Hybrid: Use AI to analyze fields (smart) then extract with free fetch ── */
+  const handleAiAnalyzeFields = async () => {
+    if (!htmlContent && productUrls.length === 0) { toast.error("Carregue uma página primeiro."); return; }
+    setLoading(true);
+    try {
+      // Collect sample pages (1-3 product pages + optionally 1 non-product for fingerprinting)
+      const samplePages: { url: string; html: string; isProduct?: boolean }[] = [];
+
+      // If we have HTML loaded, use it
+      if (htmlContent) {
+        samplePages.push({ url: currentUrl, html: htmlContent, isProduct: true });
+      }
+
+      // Load 1-2 more product pages for better analysis
+      const extraUrls = productUrls.filter(u => u !== currentUrl).slice(0, 2);
+      for (const extraUrl of extraUrls) {
+        try {
+          const { data } = await supabase.functions.invoke("proxy-page", {
+            body: { url: extraUrl, useFirecrawl: false, mode: "browse" },
+          });
+          if (data?.html) samplePages.push({ url: extraUrl, html: data.html, isProduct: true });
+        } catch { /* skip */ }
+      }
+
+      // Optionally load homepage as non-product sample
+      if (url && !productUrls.includes(url)) {
+        try {
+          const { data } = await supabase.functions.invoke("proxy-page", {
+            body: { url: url.trim(), useFirecrawl: false, mode: "browse" },
+          });
+          if (data?.html) samplePages.push({ url: url.trim(), html: data.html, isProduct: false });
+        } catch { /* skip */ }
+      }
+
+      addAgentLog(`🧠 IA a analisar ${samplePages.length} páginas para detetar campos...`);
+
+      const { data: aiResult, error: aiError } = await supabase.functions.invoke("analyze-product-page", {
+        body: { sampleHtmlPages: samplePages, mode: "both" },
+      });
+
+      if (aiError) throw aiError;
+      if (aiResult?.error) throw new Error(aiResult.error);
+
+      const analysis = aiResult.analysis;
+
+      // Apply AI-detected fields
+      if (analysis?.fields?.length > 0) {
+        const aiFields: SelectedField[] = analysis.fields.map((f: any) => ({
+          id: crypto.randomUUID(),
+          name: f.name || "Campo",
+          selector: f.selector,
+          type: f.type || "text",
+          preview: f.sample_value || "",
+          isVariation: false,
+          confidence: f.confidence || 0.5,
+        }));
+
+        setFields(prev => {
+          const existing = new Set(prev.map(ff => ff.name));
+          return [...prev, ...aiFields.filter(d => !existing.has(d.name))];
+        });
+
+        addAgentLog(`✅ IA detetou ${aiFields.length} campos: ${aiFields.map(f => `${f.name} (${Math.round((f as any).confidence * 100)}%)`).join(", ")}`);
+        toast.success(`IA: ${aiFields.length} campos detetados com confiança`);
+      }
+
+      // Store fingerprint for product filtering
+      if (analysis?.fingerprint) {
+        addAgentLog(`🔍 Fingerprint: ${analysis.fingerprint.product_indicators?.length || 0} indicadores de produto, ${analysis.fingerprint.non_product_indicators?.length || 0} indicadores de não-produto`);
+        analysis.fingerprint.product_indicators?.forEach((ind: any) => {
+          addAgentLog(`   ✓ Produto: "${ind.pattern}" (${Math.round(ind.confidence * 100)}%) — ${ind.description}`);
+        });
+      }
+
+      if (analysis?.overall_confidence != null) {
+        addAgentLog(`📊 Confiança global: ${Math.round(analysis.overall_confidence * 100)}%`);
+      }
+    } catch (err: any) {
+      const msg = err.message || "Erro na análise IA";
+      addAgentLog(`❌ ${msg}`);
+      toast.error("Erro na análise IA", { description: msg });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ── AI Hybrid: Filter non-product URLs using AI fingerprint ── */
+  const handleAiFilterProducts = async () => {
+    if (productUrls.length === 0) { toast.error("Nenhum URL para filtrar."); return; }
+    setLoading(true);
+    try {
+      addAgentLog(`🔍 IA a verificar ${Math.min(productUrls.length, 10)} URLs para filtrar não-produtos...`);
+
+      // Sample up to 10 pages to test the fingerprint
+      const samplesToTest = productUrls.slice(0, 10);
+      const samplePages: { url: string; html: string }[] = [];
+
+      for (const testUrl of samplesToTest) {
+        try {
+          const { data } = await supabase.functions.invoke("proxy-page", {
+            body: { url: testUrl, useFirecrawl: false, mode: "browse" },
+          });
+          if (data?.html) samplePages.push({ url: testUrl, html: data.html });
+        } catch { /* skip */ }
+      }
+
+      const { data: aiResult, error: aiError } = await supabase.functions.invoke("analyze-product-page", {
+        body: { sampleHtmlPages: samplePages, mode: "fingerprint" },
+      });
+
+      if (aiError) throw aiError;
+
+      const fingerprint = aiResult?.analysis?.fingerprint;
+      if (!fingerprint?.product_indicators?.length) {
+        addAgentLog("⚠️ IA não conseguiu criar fingerprint. Mantendo todos os URLs.");
+        toast.info("Não foi possível distinguir páginas de produto automaticamente.");
+        setLoading(false);
+        return;
+      }
+
+      // Now test all URLs using the fingerprint (free native fetch)
+      addAgentLog(`🧹 A aplicar fingerprint a ${productUrls.length} URLs...`);
+      const validProductUrls: string[] = [];
+      const removedUrls: string[] = [];
+
+      for (let i = 0; i < productUrls.length; i += 5) {
+        const batch = productUrls.slice(i, i + 5);
+        setCollectProgress({ current: i + batch.length, total: productUrls.length, label: "A filtrar não-produtos..." });
+
+        const results = await Promise.allSettled(batch.map(async (testUrl) => {
+          try {
+            const { data } = await supabase.functions.invoke("proxy-page", {
+              body: { url: testUrl, useFirecrawl: false, mode: "browse" },
+            });
+            if (!data?.html) return { url: testUrl, isProduct: false };
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.html, "text/html");
+
+            // Check product indicators
+            let productScore = 0;
+            let totalWeight = 0;
+            for (const ind of fingerprint.product_indicators) {
+              const weight = ind.confidence || 0.5;
+              totalWeight += weight;
+              try {
+                if (ind.type === "selector" && doc.querySelector(ind.pattern)) productScore += weight;
+                else if (ind.type === "text" && data.html.toLowerCase().includes(ind.pattern.toLowerCase())) productScore += weight;
+              } catch { /* skip invalid selectors */ }
+            }
+
+            const ratio = totalWeight > 0 ? productScore / totalWeight : 0;
+            return { url: testUrl, isProduct: ratio >= 0.4 };
+          } catch {
+            return { url: testUrl, isProduct: true }; // Keep on error
+          }
+        }));
+
+        results.forEach(r => {
+          if (r.status === "fulfilled") {
+            if (r.value.isProduct) validProductUrls.push(r.value.url);
+            else removedUrls.push(r.value.url);
+          }
+        });
+      }
+
+      setProductUrls(validProductUrls);
+      setCollectProgress(null);
+
+      addAgentLog(`✅ Filtro completo: ${validProductUrls.length} produtos válidos, ${removedUrls.length} não-produtos removidos`);
+      if (removedUrls.length > 0) {
+        addAgentLog(`   Removidos: ${removedUrls.slice(0, 5).join(", ")}${removedUrls.length > 5 ? "..." : ""}`);
+      }
+      toast.success(`Filtro IA: ${removedUrls.length} não-produtos removidos, ${validProductUrls.length} produtos mantidos`);
+    } catch (err: any) {
+      addAgentLog(`❌ ${err.message}`);
+      toast.error("Erro no filtro IA", { description: err.message });
+    } finally {
+      setLoading(false);
+      setCollectProgress(null);
     }
   };
 
