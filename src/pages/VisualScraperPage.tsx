@@ -188,7 +188,7 @@ export default function VisualScraperPage() {
       const { data: job, error: jobError } = await supabase
         .from("ingestion_jobs")
         .insert({
-          workspace_id: currentWorkspace.id,
+          workspace_id: activeWorkspace.id,
           user_id: (await supabase.auth.getUser()).data.user?.id,
           source_type: "api" as any,
           source_ref: sourceUrl,
