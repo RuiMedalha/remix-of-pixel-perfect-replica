@@ -1046,18 +1046,81 @@ export default function VisualScraperPage() {
           </ScrollArea>
 
           <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-            <DialogContent>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Enviar para Ingestion Hub</DialogTitle>
+                <DialogTitle>Mapear Campos → Produto</DialogTitle>
                 <DialogDescription>
-                  Serão criados <strong>{results.length}</strong> itens para revisão e aprovação.
+                  Associe cada campo extraído ao campo correspondente do produto. Mapeie pelo menos o <strong>Título</strong>.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter>
+
+              <div className="space-y-3">
+                {results[0] && Object.keys(results[0]).map(scraperKey => {
+                  const sampleValue = results[0][scraperKey]?.substring(0, 80) || "—";
+                  return (
+                    <div key={scraperKey} className="grid grid-cols-[1fr,auto,1fr] items-center gap-2">
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-medium">{scraperKey}</p>
+                        <p className="text-[10px] text-muted-foreground truncate" title={sampleValue}>{sampleValue}</p>
+                      </div>
+                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                      <Select
+                        value={scraperMapping[scraperKey] || "__ignore__"}
+                        onValueChange={(v) => setScraperMapping(prev => {
+                          const next = { ...prev };
+                          if (v === "__ignore__") {
+                            delete next[scraperKey];
+                          } else {
+                            next[scraperKey] = v;
+                          }
+                          return next;
+                        })}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Ignorar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__ignore__">
+                            <span className="text-muted-foreground">— Ignorar —</span>
+                          </SelectItem>
+                          {DEFAULT_PRODUCT_FIELDS.map(pf => (
+                            <SelectItem key={pf.key} value={pf.key}>
+                              {pf.label}{pf.required ? " *" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Preview of mapped data */}
+              {Object.keys(scraperMapping).length > 0 && results.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Pré-visualização (1º produto)</p>
+                  <div className="border rounded-lg p-2 space-y-1 bg-muted/30">
+                    {Object.entries(scraperMapping).map(([scraperKey, productField]) => {
+                      const pf = DEFAULT_PRODUCT_FIELDS.find(f => f.key === productField);
+                      return (
+                        <div key={scraperKey} className="flex gap-2 text-xs">
+                          <Badge variant="secondary" className="text-[10px] shrink-0">{pf?.label || productField}</Badge>
+                          <span className="truncate text-muted-foreground">{results[0][scraperKey]?.substring(0, 120) || "—"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter className="mt-4">
                 <Button variant="outline" onClick={() => setShowSendDialog(false)}>Cancelar</Button>
-                <Button onClick={handleSendToProducts} disabled={batchLoading}>
+                <Button
+                  onClick={handleSendToProducts}
+                  disabled={batchLoading || !Object.values(scraperMapping).includes("title")}
+                >
                   {batchLoading && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
-                  Criar Job de Ingestão
+                  Criar Job de Ingestão ({results.length} itens)
                 </Button>
               </DialogFooter>
             </DialogContent>
