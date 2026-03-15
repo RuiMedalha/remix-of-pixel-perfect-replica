@@ -78,6 +78,7 @@ export default function VisualScraperPage() {
 
   // Dialogs
   const [showSendDialog, setShowSendDialog] = useState(false);
+  const [scraperMapping, setScraperMapping] = useState<Record<string, string>>({});
 
   // Cost control
   const [useFirecrawl, setUseFirecrawl] = useState(false);
