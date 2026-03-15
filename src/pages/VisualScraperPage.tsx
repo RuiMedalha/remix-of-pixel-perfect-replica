@@ -585,7 +585,7 @@ export default function VisualScraperPage() {
             if (spec.type === "image") preview = el.getAttribute("src") || el.querySelector("img")?.getAttribute("src") || "";
             else preview = (el.textContent || "").trim().substring(0, 200);
             if (preview && preview.length > 1) {
-              detected.push({ id: crypto.randomUUID(), name: spec.name, selector: sel, type: spec.type, preview, isVariation: spec.isVariation || false });
+              detected.push({ id: crypto.randomUUID(), name: spec.name, selector: sel, type: spec.type, preview, isVariation: spec.isVariation || false, purpose: "field" });
               break;
             }
           }
