@@ -421,10 +421,21 @@ export default function VisualScraperPage() {
               rows={8}
               className="font-mono text-xs"
             />
-            <p className="text-xs text-muted-foreground">
-              {batchUrls.split("\n").filter(u => u.trim()).length || 0} URLs
-              {!batchUrls.trim() && ` • Deixe vazio para extrair apenas da página original`}
-            </p>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>{batchUrls.split("\n").filter(u => u.trim()).length || 0} URLs</span>
+              {!batchUrls.trim() && <span>• Deixe vazio para extrair apenas da página original</span>}
+              <span className="ml-auto">
+                {useFirecrawl ? (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300">
+                    <Zap className="w-3 h-3 mr-1" /> Firecrawl (premium)
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-emerald-600 border-emerald-300">
+                    <Coins className="w-3 h-3 mr-1" /> Gratuito
+                  </Badge>
+                )}
+              </span>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("select")}>
                 ← Voltar
