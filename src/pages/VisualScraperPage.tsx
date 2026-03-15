@@ -13,6 +13,7 @@ import {
   Globe, Loader2, MousePointerClick, Trash2, Play, Download,
   Eye, Link2, Image as ImageIcon, Type, FileText, ArrowRight, ArrowLeft, X,
   Zap, Coins, List, Navigation, Crosshair, ExternalLink, RefreshCw, Wand2,
+  Upload, ChevronRight, Layers, FileSpreadsheet, Plus,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface SelectedField {
   id: string;
@@ -29,6 +31,7 @@ interface SelectedField {
   selector: string;
   type: "text" | "image" | "link" | "html";
   preview: string;
+  isVariation?: boolean;
 }
 
 interface ExtractedRow {
@@ -59,6 +62,14 @@ export default function VisualScraperPage() {
   // Links extraction
   const [extractedLinks, setExtractedLinks] = useState<ExtractedLink[]>([]);
   const [linkFilter, setLinkFilter] = useState("");
+  const [paginationLoading, setPaginationLoading] = useState(false);
+  const [paginationUrls, setPaginationUrls] = useState<string[]>([]);
+  const [crawledPages, setCrawledPages] = useState<string[]>([]);
+
+  // Manual URL import
+  const [manualUrls, setManualUrls] = useState("");
+  const [urlImportTab, setUrlImportTab] = useState<"extract" | "import">("extract");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Batch state
   const [batchLoading, setBatchLoading] = useState(false);
@@ -78,7 +89,6 @@ export default function VisualScraperPage() {
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === "navigate") {
-        // User clicked a link in browse mode
         loadPage(e.data.url, "browse");
       } else if (e.data?.type === "element-selected") {
         const { selector, text, src, href, tagName } = e.data;
@@ -93,6 +103,7 @@ export default function VisualScraperPage() {
           selector,
           type,
           preview: preview.substring(0, 200),
+          isVariation: false,
         };
         setFields(prev => [...prev, newField]);
         toast.success("Elemento selecionado!", { description: preview.substring(0, 80) });
@@ -140,67 +151,227 @@ export default function VisualScraperPage() {
     }
   };
 
-  // Extract all links from current page for product listing
+  // Extract links + detect pagination from a page
+  const extractLinksFromPage = async (pageUrl: string): Promise<{ links: ExtractedLink[]; nextPages: string[] }> => {
+    const { data: proxyData } = await supabase.functions.invoke("proxy-page", {
+      body: { url: pageUrl, useFirecrawl, mode: "browse" },
+    });
+
+    if (!proxyData?.html) return { links: [], nextPages: [] };
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(proxyData.html, "text/html");
+    const anchors = doc.querySelectorAll("a[href]");
+    const baseUrl = new URL(pageUrl);
+    const links: ExtractedLink[] = [];
+    const seen = new Set<string>();
+
+    anchors.forEach(a => {
+      try {
+        let href = a.getAttribute("href") || "";
+        if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
+        const fullUrl = new URL(href, baseUrl.origin).href;
+        if (seen.has(fullUrl)) return;
+        seen.add(fullUrl);
+        if (new URL(fullUrl).hostname === baseUrl.hostname) {
+          links.push({
+            url: fullUrl,
+            text: (a.textContent || "").trim().substring(0, 120),
+            selected: false,
+          });
+        }
+      } catch { /* ignore */ }
+    });
+
+    // Detect pagination links (next page, page 2, 3, etc.)
+    const paginationSelectors = [
+      'a.next', 'a.next-page', '.pagination a', 'nav.pagination a',
+      'a[rel="next"]', '.woocommerce-pagination a', '.page-numbers a',
+      'a[aria-label*="next" i]', 'a[aria-label*="próx" i]', 'a[aria-label*="seguinte" i]',
+      '.pager a', '.paging a', 'ul.pages a', '.paginator a',
+    ];
+
+    const nextPages: string[] = [];
+    const seenPages = new Set<string>();
+    paginationSelectors.forEach(sel => {
+      try {
+        doc.querySelectorAll(sel).forEach(el => {
+          const href = el.getAttribute("href");
+          if (href) {
+            try {
+              const fullUrl = new URL(href, baseUrl.origin).href;
+              if (!seenPages.has(fullUrl) && fullUrl !== pageUrl) {
+                seenPages.add(fullUrl);
+                nextPages.push(fullUrl);
+              }
+            } catch { /* ignore */ }
+          }
+        });
+      } catch { /* ignore */ }
+    });
+
+    return { links, nextPages };
+  };
+
+  // Initial link extraction
   const handleExtractLinks = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("scrape-with-selectors", {
-        body: {
-          urls: [currentUrl],
-          fields: [
-            { name: "link_url", selector: "a[href]", type: "link" },
-            { name: "link_text", selector: "a[href]", type: "text" },
-          ],
-          workspaceId: activeWorkspace?.id,
-          useFirecrawl: false,
-          extractAllMatches: true,
-        },
-      });
-      if (error) throw error;
-
-      // The scrape function returns one row per URL, but we need all links
-      // Let's parse links from the HTML directly via a dedicated approach
-      // For now, use the proxy to get all links
-      const { data: proxyData } = await supabase.functions.invoke("proxy-page", {
-        body: { url: currentUrl, useFirecrawl, mode: "browse" },
-      });
-
-      if (proxyData?.html) {
-        // Parse links from HTML using DOMParser on client
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(proxyData.html, "text/html");
-        const anchors = doc.querySelectorAll("a[href]");
-        const baseUrl = new URL(currentUrl);
-        const links: ExtractedLink[] = [];
-        const seen = new Set<string>();
-
-        anchors.forEach(a => {
-          try {
-            let href = a.getAttribute("href") || "";
-            if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
-            const fullUrl = new URL(href, baseUrl.origin).href;
-            if (seen.has(fullUrl)) return;
-            seen.add(fullUrl);
-            // Only include links from same domain
-            if (new URL(fullUrl).hostname === baseUrl.hostname) {
-              links.push({
-                url: fullUrl,
-                text: (a.textContent || "").trim().substring(0, 120),
-                selected: false,
-              });
-            }
-          } catch { /* ignore invalid URLs */ }
-        });
-
-        setExtractedLinks(links);
-        setStep("links");
-        toast.success(`${links.length} links encontrados na página`);
-      }
+      const { links, nextPages } = await extractLinksFromPage(currentUrl);
+      setExtractedLinks(links);
+      setPaginationUrls(nextPages);
+      setCrawledPages([currentUrl]);
+      setStep("links");
+      toast.success(`${links.length} links encontrados. ${nextPages.length} páginas de paginação detetadas.`);
     } catch (err: any) {
       toast.error("Erro ao extrair links", { description: err.message });
     } finally {
       setLoading(false);
     }
+  };
+
+  // Follow pagination to get more product links
+  const handleFollowPagination = async (pageUrl?: string) => {
+    setPaginationLoading(true);
+    try {
+      const targetUrl = pageUrl || paginationUrls[0];
+      if (!targetUrl) return;
+
+      const { links: newLinks, nextPages } = await extractLinksFromPage(targetUrl);
+
+      // Merge new links (dedup by URL)
+      const existingUrls = new Set(extractedLinks.map(l => l.url));
+      const uniqueNewLinks = newLinks.filter(l => !existingUrls.has(l.url));
+
+      setExtractedLinks(prev => [...prev, ...uniqueNewLinks]);
+      setCrawledPages(prev => [...prev, targetUrl]);
+
+      // Update pagination: remove crawled, add newly discovered
+      const crawled = new Set([...crawledPages, targetUrl]);
+      const allNextPages = [...paginationUrls, ...nextPages].filter(
+        u => !crawled.has(u) && !crawledPages.includes(u)
+      );
+      const uniqueNextPages = [...new Set(allNextPages)];
+      setPaginationUrls(uniqueNextPages);
+
+      toast.success(`+${uniqueNewLinks.length} novos links. ${uniqueNextPages.length} páginas restantes.`);
+    } catch (err: any) {
+      toast.error("Erro ao seguir paginação", { description: err.message });
+    } finally {
+      setPaginationLoading(false);
+    }
+  };
+
+  // Follow ALL pagination automatically
+  const handleFollowAllPagination = async () => {
+    setPaginationLoading(true);
+    try {
+      let remaining = [...paginationUrls];
+      let allCrawled = new Set(crawledPages);
+      let allLinks = [...extractedLinks];
+      const existingUrls = new Set(allLinks.map(l => l.url));
+      let totalNew = 0;
+
+      while (remaining.length > 0 && allCrawled.size < 50) { // Safety limit 50 pages
+        const targetUrl = remaining.shift()!;
+        if (allCrawled.has(targetUrl)) continue;
+
+        const { links: newLinks, nextPages } = await extractLinksFromPage(targetUrl);
+        allCrawled.add(targetUrl);
+
+        const uniqueNew = newLinks.filter(l => !existingUrls.has(l.url));
+        uniqueNew.forEach(l => existingUrls.add(l.url));
+        allLinks = [...allLinks, ...uniqueNew];
+        totalNew += uniqueNew.length;
+
+        // Add new pagination pages
+        nextPages.forEach(p => {
+          if (!allCrawled.has(p) && !remaining.includes(p)) {
+            remaining.push(p);
+          }
+        });
+      }
+
+      setExtractedLinks(allLinks);
+      setCrawledPages([...allCrawled]);
+      setPaginationUrls(remaining);
+
+      toast.success(`Paginação completa: +${totalNew} links de ${allCrawled.size} páginas.`);
+    } catch (err: any) {
+      toast.error("Erro na paginação automática", { description: err.message });
+    } finally {
+      setPaginationLoading(false);
+    }
+  };
+
+  // Import URLs from Excel/CSV file
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const lines = text.split(/[\r\n]+/).filter(Boolean);
+
+      // Try to detect if first line is a header
+      const firstLine = lines[0]?.toLowerCase() || "";
+      const hasHeader = firstLine.includes("url") || firstLine.includes("link") || firstLine.includes("sku");
+      const dataLines = hasHeader ? lines.slice(1) : lines;
+
+      const urls: string[] = [];
+      dataLines.forEach(line => {
+        // Split by common delimiters
+        const parts = line.split(/[,;\t]/);
+        parts.forEach(part => {
+          const trimmed = part.trim().replace(/^["']|["']$/g, "");
+          if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            urls.push(trimmed);
+          }
+        });
+      });
+
+      if (urls.length === 0) {
+        toast.error("Nenhum URL encontrado no ficheiro. Certifique-se que as URLs começam com http:// ou https://");
+        return;
+      }
+
+      const existingUrls = new Set(extractedLinks.map(l => l.url));
+      const newLinks: ExtractedLink[] = urls
+        .filter(u => !existingUrls.has(u))
+        .map(u => ({ url: u, text: "", selected: true }));
+
+      setExtractedLinks(prev => [...prev, ...newLinks]);
+      setStep("links");
+      toast.success(`${newLinks.length} URLs importadas do ficheiro.`);
+    } catch (err: any) {
+      toast.error("Erro ao ler ficheiro", { description: err.message });
+    }
+
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Import URLs from textarea
+  const handleManualUrlImport = () => {
+    const urls = manualUrls
+      .split(/[\r\n,;]+/)
+      .map(u => u.trim())
+      .filter(u => u.startsWith("http://") || u.startsWith("https://"));
+
+    if (urls.length === 0) {
+      toast.error("Nenhum URL válido encontrado.");
+      return;
+    }
+
+    const existingUrls = new Set(extractedLinks.map(l => l.url));
+    const newLinks: ExtractedLink[] = urls
+      .filter(u => !existingUrls.has(u))
+      .map(u => ({ url: u, text: "", selected: true }));
+
+    setExtractedLinks(prev => [...prev, ...newLinks]);
+    setManualUrls("");
+    setStep("links");
+    toast.success(`${newLinks.length} URLs adicionadas.`);
   };
 
   // Enter selection mode on current page
@@ -228,6 +399,10 @@ export default function VisualScraperPage() {
     setFields(prev => prev.map(f => f.id === id ? { ...f, type } : f));
   };
 
+  const handleToggleVariation = (id: string) => {
+    setFields(prev => prev.map(f => f.id === id ? { ...f, isVariation: !f.isVariation } : f));
+  };
+
   const handleGoToBatch = () => {
     if (fields.length === 0) {
       toast.error("Selecione pelo menos um campo.");
@@ -237,30 +412,51 @@ export default function VisualScraperPage() {
   };
 
   const handleRunBatch = async () => {
-    // Get URLs from selected links or manual input
     const selectedLinkUrls = extractedLinks.filter(l => l.selected).map(l => l.url);
     let urls = selectedLinkUrls.length > 0 ? selectedLinkUrls : [currentUrl];
 
     setBatchLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("scrape-with-selectors", {
-        body: {
-          urls,
-          fields: fields.map(f => ({ name: f.name, selector: f.selector, type: f.type })),
-          workspaceId: activeWorkspace?.id,
-          useFirecrawl,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      // Split into chunks of 20 to avoid timeouts
+      const allResults: ExtractedRow[] = [];
+      const allErrors: any[] = [];
+      let firecrawlTotal = 0;
 
-      setResults(data.results || []);
-      setErrors(data.errors || []);
+      for (let i = 0; i < urls.length; i += 20) {
+        const chunk = urls.slice(i, i + 20);
+        const { data, error } = await supabase.functions.invoke("scrape-with-selectors", {
+          body: {
+            urls: chunk,
+            fields: fields.map(f => ({
+              name: f.name,
+              selector: f.selector,
+              type: f.type,
+              isVariation: f.isVariation,
+            })),
+            workspaceId: activeWorkspace?.id,
+            useFirecrawl,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        allResults.push(...(data.results || []));
+        allErrors.push(...(data.errors || []));
+        firecrawlTotal += data.firecrawlCreditsUsed || 0;
+
+        // Progress toast
+        if (urls.length > 20) {
+          toast.info(`Progresso: ${Math.min(i + 20, urls.length)}/${urls.length} páginas...`);
+        }
+      }
+
+      setResults(allResults);
+      setErrors(allErrors);
       setStep("results");
-      const costMsg = data.firecrawlCreditsUsed > 0
-        ? `(${data.firecrawlCreditsUsed} créditos Firecrawl)`
+      const costMsg = firecrawlTotal > 0
+        ? `(${firecrawlTotal} créditos Firecrawl)`
         : "(gratuito)";
-      toast.success(`${data.extracted} URLs extraídas ${costMsg}`);
+      toast.success(`${allResults.length} produtos extraídos ${costMsg}`);
     } catch (err: any) {
       toast.error("Erro na extração", { description: err.message });
     } finally {
@@ -364,7 +560,7 @@ export default function VisualScraperPage() {
 
         {/* Step indicators */}
         <div className="flex gap-1 ml-3">
-          {(Object.keys(stepLabels) as Step[]).filter(s => s !== "url" || step === "url").map((s, i) => (
+          {(Object.keys(stepLabels) as Step[]).filter(s => s !== "url" || step === "url").map((s) => (
             <Badge key={s} variant={step === s ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
               {stepLabels[s]}
             </Badge>
@@ -389,29 +585,72 @@ export default function VisualScraperPage() {
       {/* Step: URL Entry */}
       {step === "url" && (
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="max-w-xl w-full">
+          <Card className="max-w-2xl w-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Navigation className="w-5 h-5" />
                 Abrir Página do Fornecedor
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Insira o URL da página de listagem de produtos. Poderá navegar livremente como num browser e depois selecionar os dados que pretende extrair.
-              </p>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://fornecedor.com/produtos"
-                  value={url}
-                  onChange={e => setUrl(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleLoadUrl()}
-                  className="font-mono text-sm"
-                />
-                <Button onClick={handleLoadUrl} disabled={loading || !url.trim()}>
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                  <span className="ml-1">Abrir</span>
-                </Button>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Insira o URL da página de categorias/listagem de produtos. Poderá navegar, extrair links de produtos (com paginação) e depois definir os campos a extrair.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="https://fornecedor.com/produtos"
+                    value={url}
+                    onChange={e => setUrl(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleLoadUrl()}
+                    className="font-mono text-sm"
+                  />
+                  <Button onClick={handleLoadUrl} disabled={loading || !url.trim()}>
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                    <span className="ml-1">Abrir</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium mb-3 flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Ou importe uma lista de URLs
+                </p>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,.xlsx,.xls,.txt"
+                      onChange={handleFileImport}
+                      className="hidden"
+                    />
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="w-4 h-4 mr-1" /> Importar CSV/Excel
+                    </Button>
+                    <span className="text-xs text-muted-foreground self-center">
+                      Ficheiro com uma coluna de URLs (CSV, TXT)
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder={"Cole aqui os URLs dos produtos (um por linha):\nhttps://loja.com/produto-1\nhttps://loja.com/produto-2\nhttps://loja.com/produto-3"}
+                      value={manualUrls}
+                      onChange={e => setManualUrls(e.target.value)}
+                      rows={4}
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleManualUrlImport}
+                      disabled={!manualUrls.trim()}
+                    >
+                      <Plus className="w-3 h-3 mr-1" /> Adicionar URLs
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -485,12 +724,17 @@ export default function VisualScraperPage() {
 
             {/* Fields panel (only in select-fields step) */}
             {step === "select-fields" && (
-              <div className="w-72 border-l flex flex-col bg-background flex-shrink-0">
+              <div className="w-80 border-l flex flex-col bg-background flex-shrink-0">
                 <div className="p-3 border-b flex items-center justify-between">
                   <span className="text-sm font-semibold">Campos ({fields.length})</span>
-                  <Button size="sm" className="h-7 text-xs" onClick={handleGoToBatch} disabled={fields.length === 0}>
-                    Avançar <ArrowRight className="w-3 h-3 ml-1" />
-                  </Button>
+                  <div className="flex gap-1">
+                    {extractedLinks.filter(l => l.selected).length > 0 && (
+                      <Badge variant="outline" className="text-[10px]">{extractedLinks.filter(l => l.selected).length} URLs</Badge>
+                    )}
+                    <Button size="sm" className="h-7 text-xs" onClick={handleGoToBatch} disabled={fields.length === 0}>
+                      Avançar <ArrowRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="p-2 space-y-2">
@@ -525,11 +769,31 @@ export default function VisualScraperPage() {
                         <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
                           {typeIcons[field.type]} {field.preview || "(vazio)"}
                         </p>
-                        <p className="text-[9px] font-mono text-muted-foreground/40 truncate">{field.selector}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[9px] font-mono text-muted-foreground/40 truncate flex-1">{field.selector}</p>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <Checkbox
+                              checked={field.isVariation}
+                              onCheckedChange={() => handleToggleVariation(field.id)}
+                              className="h-3 w-3"
+                            />
+                            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                              <Layers className="w-2.5 h-2.5" /> Variação
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
+                {fields.some(f => f.isVariation) && (
+                  <div className="p-2 border-t bg-amber-50 dark:bg-amber-950/20">
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                      <Layers className="w-3 h-3" />
+                      Campos marcados como "Variação" serão extraídos como lista de opções (ex: cores, tamanhos).
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -539,18 +803,57 @@ export default function VisualScraperPage() {
       {/* Step: Links extraction */}
       {step === "links" && (
         <div className="flex-1 flex flex-col min-h-0 p-4 gap-3">
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => setStep("browse")}>
               <ArrowLeft className="w-3 h-3 mr-1" /> Voltar
             </Button>
             <h2 className="font-semibold">Links Encontrados</h2>
             <Badge>{extractedLinks.length} total</Badge>
             {selectedLinksCount > 0 && <Badge variant="secondary">{selectedLinksCount} selecionados</Badge>}
-            <div className="ml-auto flex gap-2">
+            <Badge variant="outline" className="text-[10px]">{crawledPages.length} pág. percorridas</Badge>
+            <div className="ml-auto flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => toggleAllLinks(true)}>Selecionar Todos</Button>
               <Button variant="outline" size="sm" onClick={() => toggleAllLinks(false)}>Limpar</Button>
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-3 h-3 mr-1" /> Importar URLs
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,.txt"
+                onChange={handleFileImport}
+                className="hidden"
+              />
             </div>
           </div>
+
+          {/* Pagination controls */}
+          {paginationUrls.length > 0 && (
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
+              <ChevronRight className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">
+                {paginationUrls.length} página(s) de paginação detetadas
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleFollowPagination()}
+                disabled={paginationLoading}
+                className="ml-auto"
+              >
+                {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
+                Próxima Página
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleFollowAllPagination}
+                disabled={paginationLoading}
+              >
+                {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+                Percorrer Todas ({paginationUrls.length})
+              </Button>
+            </div>
+          )}
 
           <Input
             placeholder="Filtrar links por URL ou texto..."
@@ -560,7 +863,7 @@ export default function VisualScraperPage() {
           />
 
           <p className="text-xs text-muted-foreground">
-            Selecione os links das páginas de produto. Depois vá a uma página de produto para definir os campos a extrair.
+            Selecione os links das páginas de produto. Depois clique no <Crosshair className="w-3 h-3 inline" /> para ir a uma página e definir os campos a extrair.
           </p>
 
           <ScrollArea className="flex-1 border rounded-lg">
@@ -635,6 +938,7 @@ export default function VisualScraperPage() {
                   {fields.map(f => (
                     <Badge key={f.id} variant="secondary" className="text-xs">
                       {typeIcons[f.type]} {f.name}
+                      {f.isVariation && <Layers className="w-2.5 h-2.5 ml-1 text-amber-500" />}
                     </Badge>
                   ))}
                 </div>
@@ -652,6 +956,13 @@ export default function VisualScraperPage() {
                   </Badge>
                 )}
               </div>
+
+              {fields.some(f => f.isVariation) && (
+                <div className="p-3 border rounded-lg bg-amber-50 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-400">
+                  <p className="flex items-center gap-1 font-medium"><Layers className="w-3 h-3" /> Variações detetadas</p>
+                  <p className="mt-1">Os campos de variação serão extraídos como lista. Cada combinação gerará uma linha separada nos resultados.</p>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(selectedLinksCount > 0 ? "links" : "select-fields")}>

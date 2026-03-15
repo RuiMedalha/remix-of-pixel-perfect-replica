@@ -99,23 +99,47 @@ Deno.serve(async (req) => {
 
         for (const field of fields) {
           try {
-            const el = doc.querySelector(field.selector);
-            if (el) {
-              switch (field.type) {
-                case 'image':
-                  extracted[field.name] = el.getAttribute('src') || el.querySelector('img')?.getAttribute('src') || '';
-                  break;
-                case 'link':
-                  extracted[field.name] = el.getAttribute('href') || '';
-                  break;
-                case 'html':
-                  extracted[field.name] = el.innerHTML || '';
-                  break;
-                default:
-                  extracted[field.name] = el.textContent?.trim() || '';
-              }
+            if (field.isVariation) {
+              // For variation fields, extract ALL matching elements as JSON array
+              const els = doc.querySelectorAll(field.selector);
+              const values: string[] = [];
+              els.forEach((el: any) => {
+                let val = '';
+                switch (field.type) {
+                  case 'image':
+                    val = el.getAttribute('src') || el.querySelector('img')?.getAttribute('src') || '';
+                    break;
+                  case 'link':
+                    val = el.getAttribute('href') || '';
+                    break;
+                  case 'html':
+                    val = el.innerHTML || '';
+                    break;
+                  default:
+                    val = el.textContent?.trim() || '';
+                }
+                if (val && !values.includes(val)) values.push(val);
+              });
+              extracted[field.name] = values.join(' | ');
             } else {
-              extracted[field.name] = '';
+              const el = doc.querySelector(field.selector);
+              if (el) {
+                switch (field.type) {
+                  case 'image':
+                    extracted[field.name] = el.getAttribute('src') || el.querySelector('img')?.getAttribute('src') || '';
+                    break;
+                  case 'link':
+                    extracted[field.name] = el.getAttribute('href') || '';
+                    break;
+                  case 'html':
+                    extracted[field.name] = el.innerHTML || '';
+                    break;
+                  default:
+                    extracted[field.name] = el.textContent?.trim() || '';
+                }
+              } else {
+                extracted[field.name] = '';
+              }
             }
           } catch {
             extracted[field.name] = '';
