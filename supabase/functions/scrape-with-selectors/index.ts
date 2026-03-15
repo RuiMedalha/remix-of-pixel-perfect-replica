@@ -4,7 +4,75 @@ const corsHeaders = {
 };
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { DOMParser as DenoDOM } from "https://deno.land/x/deno_dom@v0.1.48/deno-dom-wasm.ts";
+
+// Lightweight HTML element extractor using regex (no WASM DOM parser)
+function extractBySelector(html: string, selector: string): string[] {
+  // Support simple selectors: tag, .class, #id, tag.class, [attr], tag[attr=val]
+  const results: string[] = [];
+  
+  // Parse selector into tag + conditions
+  let tag = '';
+  let className = '';
+  let id = '';
+  let attr = '';
+  let attrVal = '';
+
+  const idMatch = selector.match(/#([\w-]+)/);
+  if (idMatch) id = idMatch[1];
+  
+  const classMatch = selector.match(/\.([\w-]+)/);
+  if (classMatch) className = classMatch[1];
+
+  const attrMatch = selector.match(/\[([\w-]+)(?:=['"]?([^'"\]]+)['"]?)?\]/);
+  if (attrMatch) { attr = attrMatch[1]; attrVal = attrMatch[2] || ''; }
+
+  const tagMatch = selector.match(/^(\w+)/);
+  if (tagMatch) tag = tagMatch[1].toLowerCase();
+
+  // Build regex to find matching elements
+  const tagPattern = tag || '[a-z][a-z0-9]*';
+  const openTagRegex = new RegExp(
+    `<(${tagPattern})(\\s[^>]*)?>([\\s\\S]*?)(?:<\\/\\1>|\\/>)`,
+    'gi'
+  );
+
+  let match;
+  while ((match = openTagRegex.exec(html)) !== null) {
+    const [fullMatch, matchedTag, attrs = '', innerHTML = ''] = match;
+    
+    // Check id
+    if (id && !new RegExp(`id\\s*=\\s*['"]${id}['"]`, 'i').test(attrs)) continue;
+    // Check class
+    if (className && !new RegExp(`class\\s*=\\s*['"][^'"]*\\b${className}\\b[^'"]*['"]`, 'i').test(attrs)) continue;
+    // Check attribute
+    if (attr) {
+      if (attrVal) {
+        if (!new RegExp(`${attr}\\s*=\\s*['"][^'"]*${attrVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^'"]*['"]`, 'i').test(attrs)) continue;
+      } else {
+        if (!new RegExp(`\\b${attr}\\b`, 'i').test(attrs)) continue;
+      }
+    }
+    
+    results.push(fullMatch);
+    if (results.length > 200) break; // Safety limit
+  }
+
+  return results;
+}
+
+function getTextContent(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function getAttribute(html: string, attr: string): string {
+  const match = html.match(new RegExp(`${attr}\\s*=\\s*['"]([^'"]+)['"]`, 'i'));
+  return match?.[1] || '';
+}
+
+function getInnerHTML(html: string): string {
+  const match = html.match(/^<[^>]+>([\s\S]*)<\/[^>]+>$/);
+  return match?.[1]?.trim() || '';
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -46,12 +114,12 @@ Deno.serve(async (req) => {
     const errors: any[] = [];
     let firecrawlCreditsUsed = 0;
 
-    for (const url of urls.slice(0, 100)) {
+    // Process max 10 URLs per invocation to avoid memory limits
+    for (const url of urls.slice(0, 10)) {
       try {
         let html = '';
 
         if (useFirecrawl && apiKey) {
-          // Paid: Firecrawl for JS-heavy sites
           const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
             headers: {
@@ -70,7 +138,6 @@ Deno.serve(async (req) => {
           html = data.data?.html || data.html || '';
           firecrawlCreditsUsed++;
         } else {
-          // FREE: Native fetch
           const response = await fetch(url, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -88,54 +155,52 @@ Deno.serve(async (req) => {
           html = await response.text();
         }
 
-        // Parse HTML and extract data using selectors
-        const doc = new DenoDOM().parseFromString(html, 'text/html');
-        if (!doc) {
-          errors.push({ url, error: 'Failed to parse HTML' });
-          continue;
+        // Limit HTML size to prevent memory issues
+        if (html.length > 2_000_000) {
+          html = html.substring(0, 2_000_000);
         }
 
         const extracted: Record<string, string> = { source_url: url };
 
         for (const field of fields) {
           try {
+            const elements = extractBySelector(html, field.selector);
+
             if (field.isVariation) {
-              // For variation fields, extract ALL matching elements as JSON array
-              const els = doc.querySelectorAll(field.selector);
               const values: string[] = [];
-              els.forEach((el: any) => {
+              for (const el of elements) {
                 let val = '';
                 switch (field.type) {
                   case 'image':
-                    val = el.getAttribute('src') || el.querySelector('img')?.getAttribute('src') || '';
+                    val = getAttribute(el, 'src') || '';
                     break;
                   case 'link':
-                    val = el.getAttribute('href') || '';
+                    val = getAttribute(el, 'href') || '';
                     break;
                   case 'html':
-                    val = el.innerHTML || '';
+                    val = getInnerHTML(el);
                     break;
                   default:
-                    val = el.textContent?.trim() || '';
+                    val = getTextContent(el);
                 }
                 if (val && !values.includes(val)) values.push(val);
-              });
+              }
               extracted[field.name] = values.join(' | ');
             } else {
-              const el = doc.querySelector(field.selector);
+              const el = elements[0];
               if (el) {
                 switch (field.type) {
                   case 'image':
-                    extracted[field.name] = el.getAttribute('src') || el.querySelector('img')?.getAttribute('src') || '';
+                    extracted[field.name] = getAttribute(el, 'src') || '';
                     break;
                   case 'link':
-                    extracted[field.name] = el.getAttribute('href') || '';
+                    extracted[field.name] = getAttribute(el, 'href') || '';
                     break;
                   case 'html':
-                    extracted[field.name] = el.innerHTML || '';
+                    extracted[field.name] = getInnerHTML(el);
                     break;
                   default:
-                    extracted[field.name] = el.textContent?.trim() || '';
+                    extracted[field.name] = getTextContent(el);
                 }
               } else {
                 extracted[field.name] = '';
@@ -151,12 +216,18 @@ Deno.serve(async (req) => {
         for (const field of fields) {
           if ((field.type === 'image' || field.type === 'link') && extracted[field.name]) {
             try {
-              extracted[field.name] = new URL(extracted[field.name], baseUrl.origin).href;
+              const vals = extracted[field.name].split(' | ');
+              extracted[field.name] = vals.map(v => {
+                try { return new URL(v, baseUrl.origin).href; } catch { return v; }
+              }).join(' | ');
             } catch { /* keep as-is */ }
           }
         }
 
         results.push(extracted);
+        
+        // Clear reference to free memory
+        html = '';
       } catch (err) {
         errors.push({ url, error: err instanceof Error ? err.message : 'Unknown error' });
       }
