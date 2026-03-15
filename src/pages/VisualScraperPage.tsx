@@ -1491,6 +1491,21 @@ export default function VisualScraperPage() {
                 </p>
               </div>
             )}
+
+            {crawlStats && !collectProgress && (
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-3 flex-wrap text-[10px] text-muted-foreground">
+                  <span className="font-medium text-foreground text-xs">Último crawl:</span>
+                  <Badge variant="outline" className="text-[10px]">{crawlStats.productsFound} produtos</Badge>
+                  <Badge variant="outline" className="text-[10px]">{crawlStats.categoriesProcessed} categorias</Badge>
+                  {crawlStats.subcategoriesFound > 0 && (
+                    <Badge variant="outline" className="text-[10px]">{crawlStats.subcategoriesFound} subcategorias</Badge>
+                  )}
+                  <Badge variant="outline" className="text-[10px]">{crawlStats.pagesProcessed} páginas</Badge>
+                  <Badge variant="outline" className="text-[10px]">profundidade {crawlStats.maxDepthReached}</Badge>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Filter & tools */}
