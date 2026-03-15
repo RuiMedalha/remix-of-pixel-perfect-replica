@@ -68,18 +68,16 @@ type AgentStep =
   | "results";      // 7. Results
 
 /* ────────────────────────────────────────────────
-   Link classification helpers (shared with Visual Scraper)
+   Link classification helpers
    ──────────────────────────────────────────────── */
 
-const NAV_URL_HINT = /(contact|about|legal|privacy|terms|cookies|gdpr|faq|blog|news|cart|checkout|account|login|search|facebook|instagram|linkedin|youtube)/i;
-const PRODUCT_URL_HINT = /(\/product(s)?\/|\/produto(s)?\/|\/p\/|\/item\/|\/model\/|\/md\d+)/i;
-const CATEGORY_URL_HINT = /(\/categor(y|ies)\/|\/categoria(s)?\/|\/collection(s)?\/|\/grupo(s)?\/|\/range\/|\/gama\/|\/famil(y|ies)\/|\/shop\/)/i;
+const NAV_URL_HINT = /(contact|about|legal|privacy|terms|cookies|gdpr|faq|blog|news|cart|checkout|account|login|search|facebook|instagram|linkedin|youtube|twitter|tiktok|pinterest)/i;
+const PRODUCT_URL_HINT = /(\/product(s)?\/|\/produto(s)?\/|\/p\/|\/item\/|\/model\/|\/md\d+|\.html$)/i;
+const CATEGORY_URL_HINT = /(\/categor(y|ies)\/|\/categoria(s)?\/|\/collection(s)?\/|\/grupo(s)?\/|\/range\/|\/gama\/|\/famil(y|ies)\/|\/shop\/|our-products|nos-produits|nuestros-productos)/i;
 const GROUP_URL_HINT = /(\/group(s)?\/|\/groupe(s)?\/|\/family|\/familia|\/series|\/linha|\/gama)/i;
-const NON_HTML_FILE_HINT = /\.(jpg|jpeg|png|webp|gif|svg|pdf|zip|rar|mp4|mp3|webm|avi)(\?|$)/i;
+const NON_HTML_FILE_HINT = /\.(jpg|jpeg|png|webp|gif|svg|pdf|zip|rar|mp4|mp3|webm|avi|css|js)(\?|$)/i;
 const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'];
-
-const NAV_CONTAINER_SELECTOR = 'nav, header, .menu, .navbar, .header, .breadcrumb, .social, [role="navigation"]';
-const FOOTER_CONTAINER_SELECTOR = 'footer, .footer, .footer-menu, .footer-links, .copyright, [role="contentinfo"]';
+const STRICT_NAV_HINT = /^(contact|about|legal|privacy|terms|cookies|login|cart|checkout|search|account)$/i;
 
 const canonicalizeUrl = (rawUrl: string): string => {
   try {
@@ -92,7 +90,7 @@ const canonicalizeUrl = (rawUrl: string): string => {
   } catch { return rawUrl; }
 };
 
-const classifyLinkFromDoc = (anchor: Element, fullUrl: string): 'product' | 'category' | 'navigation' | 'other' => {
+const classifyLinkFromDoc = (anchor: Element, fullUrl: string, includeAll: boolean): 'product' | 'category' | 'navigation' | 'other' => {
   const classes = (typeof anchor.className === 'string' ? anchor.className : '').toLowerCase();
   const href = (anchor.getAttribute('href') || '').toLowerCase();
   const text = (anchor.textContent || '').toLowerCase().trim();
@@ -100,16 +98,22 @@ const classifyLinkFromDoc = (anchor: Element, fullUrl: string): 'product' | 'cat
 
   if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return 'navigation';
   if (NON_HTML_FILE_HINT.test(normalizedUrl)) return 'other';
-  if (!!anchor.closest(`${NAV_CONTAINER_SELECTOR}, ${FOOTER_CONTAINER_SELECTOR}`)) return 'navigation';
-  if (NAV_URL_HINT.test(normalizedUrl) || NAV_URL_HINT.test(text)) return 'navigation';
+  
+  // Always check product/category patterns FIRST (even in nav)
   if (PRODUCT_URL_HINT.test(normalizedUrl)) return 'product';
   if (CATEGORY_URL_HINT.test(normalizedUrl)) return 'category';
   if (GROUP_URL_HINT.test(normalizedUrl)) return 'category';
-
+  
   const PRODUCT_CLASSES = ['productteaser', 'product-teaser', 'product-card', 'product-item', 'product-link'];
   const CATEGORY_CLASSES = ['categoryproductteaser', 'category-teaser', 'category-card', 'category-link'];
   if (PRODUCT_CLASSES.some(c => classes.includes(c))) return 'product';
   if (CATEGORY_CLASSES.some(c => classes.includes(c))) return 'category';
+  
+  // Only filter out strict navigation (external social, login, etc.)
+  if (!includeAll) {
+    if (STRICT_NAV_HINT.test(text)) return 'navigation';
+    if (/^(facebook|instagram|linkedin|youtube|twitter|tiktok)\.com/i.test(new URL(fullUrl).hostname)) return 'navigation';
+  }
 
   return 'other';
 };
