@@ -97,7 +97,8 @@ Deno.serve(async (req) => {
       modifiedHtml = '<head>' + baseHref + '</head>' + modifiedHtml;
     }
 
-    // Inject the appropriate script based on mode
+    // Inject cookie banner removal + the appropriate script based on mode
+    const cookieScript = buildCookieRemovalScript();
     const script = mode === 'select' ? buildSelectionScript() : buildBrowseScript();
 
     if (modifiedHtml.includes('</body>')) {
