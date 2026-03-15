@@ -1404,6 +1404,50 @@ export default function VisualScraperPage() {
           </Dialog>
         </div>
       )}
+
+      {/* Pattern Detection Dialog */}
+      <Dialog open={showPatternDialog} onOpenChange={setShowPatternDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5" />
+              Padrões de URL Detetados
+            </DialogTitle>
+            <DialogDescription>
+              O sistema agrupou os links por padrão de URL. Selecione os padrões que correspondem a <strong>páginas de produto</strong> para filtrar automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            {urlPatterns.map((p, idx) => (
+              <div
+                key={idx}
+                className={`border rounded-lg p-3 cursor-pointer transition-colors ${p.selected ? "bg-primary/10 border-primary" : "hover:bg-muted/50"}`}
+                onClick={() => setUrlPatterns(prev => prev.map((pp, i) => i === idx ? { ...pp, selected: !pp.selected } : pp))}
+              >
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={p.selected} onCheckedChange={() => setUrlPatterns(prev => prev.map((pp, i) => i === idx ? { ...pp, selected: !pp.selected } : pp))} />
+                  <code className="text-xs font-mono flex-1 truncate">{p.pattern}</code>
+                  <Badge variant="secondary" className="text-[10px]">{p.count} URLs</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 ml-6 truncate">
+                  Exemplo: {p.sample}
+                </p>
+              </div>
+            ))}
+            {urlPatterns.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum padrão encontrado.</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPatternDialog(false)}>Cancelar</Button>
+            <Button onClick={applyPatternSelection} disabled={!urlPatterns.some(p => p.selected)}>
+              Selecionar URLs Correspondentes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
