@@ -1460,11 +1460,24 @@ export default function VisualScraperPage() {
                       className="h-7 w-16 text-xs"
                     />
                   </div>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">Profundidade máx:</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={maxCrawlDepth}
+                      onChange={e => setMaxCrawlDepth(Number(e.target.value) || 5)}
+                      className="h-7 w-16 text-xs"
+                    />
+                  </div>
                 </div>
 
                 <div className="text-[10px] text-muted-foreground space-y-0.5">
                   <p><strong>Auto-detetar:</strong> analisa os links de paginação da página e segue automaticamente.</p>
                   <p><strong>Padrão manual:</strong> use <code className="bg-muted px-1 rounded">{"{n}"}</code> para o número da página. Ex: <code className="bg-muted px-1 rounded">?page={"{n}"}</code>, <code className="bg-muted px-1 rounded">/page/{"{n}"}/</code>, <code className="bg-muted px-1 rounded">&amp;p={"{n}"}</code></p>
+                  <p><strong>Profundidade:</strong> número máximo de níveis de subcategorias a explorar recursivamente (ex: Categoria → Subcategoria → Produtos = profundidade 2).</p>
                 </div>
               </div>
             )}
