@@ -583,94 +583,155 @@ export default function VisualScraperPage() {
     return null;
   };
 
-  /* ── Auto-collect: drill all categories with full pagination ── */
+  /* ── Recursive crawl: collects all product URLs from categories, subcategories, with pagination ── */
+  const crawlCategoryRecursive = async (
+    catUrl: string,
+    catLabel: string,
+    depth: number,
+    seen: Set<string>,
+    allProductUrls: string[],
+    stats: CrawlStats,
+  ): Promise<void> => {
+    if (depth > maxCrawlDepth) return;
+    stats.maxDepthReached = Math.max(stats.maxDepthReached, depth);
+
+    const crawledPages = new Set<string>();
+    let pageUrl: string | null = catUrl;
+    let detectedPattern: string | null = null;
+    let patternGenerated = false;
+
+    while (pageUrl && crawledPages.size < maxPagesPerCategory) {
+      crawledPages.add(pageUrl);
+      stats.pagesProcessed++;
+      setCollectProgress({
+        current: stats.categoriesProcessed,
+        total: stats.categoriesProcessed + 1,
+        label: `${catLabel} (pág ${crawledPages.size}, profundidade ${depth})`,
+        pages: stats.pagesProcessed,
+      });
+
+      try {
+        const { links, nextPages } = await extractLinksFromPage(pageUrl);
+
+        // Separate products and subcategories
+        const productLinks = links.filter(l => l.linkType === "produto");
+        const subCategoryLinks = links.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+
+        // Collect products from this page
+        const productsBefore = allProductUrls.length;
+        productLinks.forEach(l => {
+          if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
+        });
+        const newProds = allProductUrls.length - productsBefore;
+        stats.productsFound = allProductUrls.length;
+
+        // If this page has subcategories but NO products, it's a subcategory listing page — drill deeper
+        if (subCategoryLinks.length > 0 && productLinks.length === 0 && depth < maxCrawlDepth) {
+          stats.subcategoriesFound += subCategoryLinks.length;
+          for (const sub of subCategoryLinks) {
+            if (!seen.has(`__cat__${sub.url}`)) {
+              seen.add(`__cat__${sub.url}`);
+              stats.categoriesProcessed++;
+              const subLabel = sub.text || `Sub ${stats.categoriesProcessed}`;
+              setCollectProgress({
+                current: stats.categoriesProcessed,
+                total: stats.categoriesProcessed + subCategoryLinks.length,
+                label: `↳ ${subLabel} (profundidade ${depth + 1})`,
+                pages: stats.pagesProcessed,
+              });
+              await crawlCategoryRecursive(sub.url, subLabel, depth + 1, seen, allProductUrls, stats);
+            }
+          }
+          // After drilling subcategories, don't continue pagination on this level
+          break;
+        }
+
+        // If this page has BOTH products AND subcategories, collect products AND drill subcategories
+        if (subCategoryLinks.length > 0 && productLinks.length > 0 && depth < maxCrawlDepth) {
+          stats.subcategoriesFound += subCategoryLinks.length;
+          for (const sub of subCategoryLinks) {
+            if (!seen.has(`__cat__${sub.url}`)) {
+              seen.add(`__cat__${sub.url}`);
+              stats.categoriesProcessed++;
+              const subLabel = sub.text || `Sub ${stats.categoriesProcessed}`;
+              await crawlCategoryRecursive(sub.url, subLabel, depth + 1, seen, allProductUrls, stats);
+            }
+          }
+        }
+
+        // If no new products found on a pagination page, stop
+        if (crawledPages.size > 1 && newProds === 0) break;
+
+        // Determine next page (pagination)
+        let nextPage: string | null = null;
+        if (paginationMode === "pattern" && paginationPattern) {
+          if (!patternGenerated) {
+            const paginationUrls = generatePaginationUrls(catUrl, paginationPattern, maxPagesPerCategory);
+            paginationUrls.forEach(u => { if (!crawledPages.has(u)) nextPages.push(u); });
+            patternGenerated = true;
+          }
+          nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
+        } else {
+          if (!detectedPattern && nextPages.length > 0) {
+            detectedPattern = autoDetectPaginationPattern(nextPages, catUrl);
+          }
+          nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
+          if (!nextPage && detectedPattern && crawledPages.size < maxPagesPerCategory) {
+            const generatedUrls = generatePaginationUrls(catUrl, detectedPattern, maxPagesPerCategory);
+            nextPage = generatedUrls.find(u => !crawledPages.has(u)) || null;
+          }
+        }
+
+        pageUrl = nextPage;
+      } catch (err) {
+        console.warn(`Erro na página ${pageUrl}:`, err);
+        break;
+      }
+    }
+  };
+
+  /* ── Auto-collect: drill all categories recursively with full pagination ── */
   const handleAutoCollect = async () => {
-    const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected).map(l => l.url);
+    const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria") && l.selected).map(l => l.url);
     if (catUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
       toast.error("Nenhuma categoria ou produto encontrado.");
       return;
     }
 
     setLoading(true);
+    const stats: CrawlStats = { categoriesProcessed: 0, subcategoriesFound: 0, pagesProcessed: 0, productsFound: 0, maxDepthReached: 0 };
     setCollectProgress({ current: 0, total: catUrls.length || 1, label: "A iniciar...", pages: 0 });
+    setCrawlStats(null);
 
     try {
-      let allProductUrls: string[] = [];
+      const allProductUrls: string[] = [];
       const seen = new Set<string>();
-      let totalPagesProcessed = 0;
 
       // Add already-visible products
       currentLinks.filter(l => l.linkType === "produto").forEach(l => {
         if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
       });
+      stats.productsFound = allProductUrls.length;
 
-      // Drill each category with full pagination
+      // Recursively crawl each top-level category
       for (let i = 0; i < catUrls.length; i++) {
         const catUrl = catUrls[i];
         const catLabel = currentLinks.find(l => l.url === catUrl)?.text || `Cat ${i + 1}`;
-        setCollectProgress({ current: i + 1, total: catUrls.length, label: catLabel, pages: totalPagesProcessed });
+        stats.categoriesProcessed++;
+        seen.add(`__cat__${catUrl}`);
         
-        try {
-          const crawledPages = new Set<string>();
-          let pageUrl: string | null = catUrl;
-          let detectedPattern: string | null = null;
-          let patternGenerated = false;
-
-          while (pageUrl && crawledPages.size < maxPagesPerCategory) {
-            crawledPages.add(pageUrl);
-            totalPagesProcessed++;
-            setCollectProgress({ current: i + 1, total: catUrls.length, label: `${catLabel} (pág ${crawledPages.size})`, pages: totalPagesProcessed });
-
-            const { links, nextPages } = await extractLinksFromPage(pageUrl);
-            
-            // Collect products from this page
-            const productsBefore = allProductUrls.length;
-            links.filter(l => l.linkType === "produto").forEach(l => {
-              if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
-            });
-            const newProds = allProductUrls.length - productsBefore;
-
-            // If no new products found, this page is likely empty - stop
-            if (crawledPages.size > 1 && newProds === 0) break;
-
-            // Determine next page
-            let nextPage: string | null = null;
-
-            if (paginationMode === "pattern" && paginationPattern) {
-              // Use manual pattern
-              if (!patternGenerated) {
-                const paginationUrls = generatePaginationUrls(catUrl, paginationPattern, maxPagesPerCategory);
-                paginationUrls.forEach(u => { if (!crawledPages.has(u)) nextPages.push(u); });
-                patternGenerated = true;
-              }
-              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
-            } else {
-              // Auto mode: try detected pagination first
-              if (!detectedPattern && nextPages.length > 0) {
-                detectedPattern = autoDetectPaginationPattern(nextPages, catUrl);
-              }
-
-              // Try auto-detected links
-              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
-
-              // If no next page found but we detected a pattern, generate more
-              if (!nextPage && detectedPattern && crawledPages.size < maxPagesPerCategory) {
-                const generatedUrls = generatePaginationUrls(catUrl, detectedPattern, maxPagesPerCategory);
-                nextPage = generatedUrls.find(u => !crawledPages.has(u)) || null;
-              }
-            }
-
-            pageUrl = nextPage;
-          }
-        } catch (err) {
-          console.warn(`Erro na categoria ${catUrl}:`, err);
-        }
+        await crawlCategoryRecursive(catUrl, catLabel, 1, seen, allProductUrls, stats);
       }
 
       setProductUrls(allProductUrls);
+      setCrawlStats(stats);
       setCollectProgress(null);
       setStep("products");
-      toast.success(`${allProductUrls.length} URLs de produto de ${catUrls.length} categorias (${totalPagesProcessed} páginas)`);
+      toast.success(
+        `${allProductUrls.length} produtos de ${stats.categoriesProcessed} categorias` +
+        (stats.subcategoriesFound > 0 ? ` (${stats.subcategoriesFound} subcategorias)` : '') +
+        ` · ${stats.pagesProcessed} páginas · profundidade máx ${stats.maxDepthReached}`
+      );
     } catch (err: any) {
       toast.error("Erro na recolha automática", { description: err.message });
     } finally {
