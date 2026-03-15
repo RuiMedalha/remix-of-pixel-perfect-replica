@@ -1689,8 +1689,16 @@ export default function VisualScraperPage() {
             <h2 className="font-semibold text-sm">URLs de Produto Recolhidas</h2>
             <Badge>{productUrls.length} produtos</Badge>
             <div className="ml-auto flex gap-2">
+              <Button size="sm" variant="outline" onClick={handleAiFilterProducts} disabled={loading} title="IA filtra não-produtos">
+                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Brain className="w-3 h-3 mr-1" />}
+                Filtrar (IA)
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleAiAnalyzeFields} disabled={loading} title="IA deteta campos automaticamente">
+                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
+                Campos (IA)
+              </Button>
               <Button size="sm" variant="outline" onClick={() => handleOpenProductForFields()}>
-                <Crosshair className="w-3 h-3 mr-1" /> Selecionar Campos num Produto
+                <Crosshair className="w-3 h-3 mr-1" /> Selecionar Campos
               </Button>
               {fields.length > 0 && (
                 <Button size="sm" variant="default" onClick={handleRunExtraction}>
