@@ -1303,12 +1303,10 @@ export default function VisualScraperPage() {
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    // Auto-select ALL category/group links then drill
-                    setExtractedLinks(prev => prev.map(l =>
-                      (l.linkType === 'categoria' || l.linkType === 'grupo') ? { ...l, selected: true } : l
-                    ));
-                    // Small delay to let state update, then drill
-                    setTimeout(() => handleDrillCategories(), 100);
+                    const allCatUrls = extractedLinks
+                      .filter(l => l.linkType === 'categoria' || l.linkType === 'grupo')
+                      .map(l => l.url);
+                    handleDrillCategories(allCatUrls);
                   }}
                   disabled={drillLoading || (categoryLinks.length + groupLinks.length) === 0}
                 >
@@ -1318,7 +1316,7 @@ export default function VisualScraperPage() {
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={handleDrillCategories}
+                  onClick={() => handleDrillCategories()}
                   disabled={drillLoading || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).length === 0}
                 >
                   {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
