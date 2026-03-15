@@ -1237,35 +1237,12 @@ export default function VisualScraperPage() {
             </div>
           )}
 
-          {/* Drill + selection actions */}
-          {selectedLinksCount > 0 && (
-            <div className="flex items-center gap-2 p-3 border rounded-lg bg-primary/5 flex-shrink-0">
-              <span className="text-sm font-medium">{selectedLinksCount} selecionados</span>
-              <div className="ml-auto flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleDrillIntoSelected}
-                  disabled={drillLoading}
-                >
-                  {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
-                  Explorar Links ({selectedLinksCount}) — próxima camada
-                </Button>
-                {fields.length > 0 && (
-                  <Button size="sm" onClick={handleGoToBatch}>
-                    <Play className="w-3 h-3 mr-1" /> Extrair Dados ({selectedLinksCount} páginas)
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Pagination controls - always visible */}
+          {/* Step 1: Pagination controls - collect ALL product URLs first */}
           <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <ChevronRight className="w-4 h-4 text-primary" />
+              <Badge variant="outline" className="text-[10px]">Passo 1</Badge>
               <span className="text-sm font-medium">
-                Paginação {paginationUrls.length > 0 ? `(${paginationUrls.length} página(s) detetadas)` : '(nenhuma detetada)'}
+                Recolher Todos os Links {paginationUrls.length > 0 ? `— ${paginationUrls.length} página(s) de paginação detetadas` : ''}
               </span>
               {paginationUrls.length > 0 && (
                 <>
@@ -1325,17 +1302,105 @@ export default function VisualScraperPage() {
             )}
           </div>
 
-          <Input
-            placeholder="Filtrar links por URL ou texto..."
-            value={linkFilter}
-            onChange={e => setLinkFilter(e.target.value)}
-            className="max-w-md"
-          />
+          {/* Drill into sub-levels (categories → products) */}
+          {selectedLinksCount > 0 && (
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
+              <span className="text-sm font-medium">{selectedLinksCount} links selecionados</span>
+              <div className="ml-auto flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleDrillIntoSelected}
+                  disabled={drillLoading}
+                >
+                  {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
+                  Explorar Links ({selectedLinksCount}) — próxima camada
+                </Button>
+              </div>
+            </div>
+          )}
 
-          <p className="text-xs text-muted-foreground">
-            Selecione links e use <strong>"Explorar Links"</strong> para descer mais um nível (ex: categorias → subcategorias → produtos).
-            Quando estiver nas páginas de produto, clique no <Crosshair className="w-3 h-3 inline" /> para definir os campos a extrair.
-          </p>
+          {/* Step 2: Define fields - prominent CTA */}
+          {selectedLinksCount > 0 && (
+            <div className={`flex items-center gap-3 p-3 border-2 rounded-lg flex-shrink-0 ${fields.length > 0 ? 'border-primary/30 bg-primary/5' : 'border-dashed border-muted-foreground/30 bg-muted/20'}`}>
+              <Badge variant="outline" className="text-[10px]">Passo 2</Badge>
+              {fields.length > 0 ? (
+                <>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-primary">{fields.length} campos definidos ✓</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {fields.map(f => (
+                        <Badge key={f.id} variant="secondary" className="text-[10px]">
+                          {typeIcons[f.type]} {f.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const firstSelected = extractedLinks.find(l => l.selected);
+                    if (firstSelected) handleGoToProduct(firstSelected.url);
+                  }}>
+                    <Crosshair className="w-3 h-3 mr-1" /> Editar Campos
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Definir campos a extrair</p>
+                    <p className="text-xs text-muted-foreground">Abra um produto para escolher os campos (título, imagem, descrição, etc.)</p>
+                  </div>
+                  <Button size="sm" onClick={() => {
+                    const firstSelected = extractedLinks.find(l => l.selected);
+                    if (firstSelected) handleGoToProduct(firstSelected.url);
+                  }}>
+                    <Crosshair className="w-3 h-3 mr-1" /> Abrir Produto & Definir Campos
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Run batch extraction */}
+          {selectedLinksCount > 0 && fields.length > 0 && (
+            <div className="flex items-center gap-3 p-3 border-2 border-primary rounded-lg bg-primary/5 flex-shrink-0">
+              <Badge variant="outline" className="text-[10px]">Passo 3</Badge>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Tudo pronto!</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedLinksCount} produtos × {fields.length} campos
+                </p>
+              </div>
+              <Button onClick={handleGoToBatch}>
+                <Play className="w-4 h-4 mr-1" /> Extrair Todos ({selectedLinksCount} páginas)
+              </Button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Input
+              placeholder="Filtrar links por URL ou texto..."
+              value={linkFilter}
+              onChange={e => setLinkFilter(e.target.value)}
+              className="max-w-md"
+            />
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" size="sm" onClick={detectUrlPatterns}>
+                <Wand2 className="w-3 h-3 mr-1" /> Detetar Padrões
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => toggleAllLinks(true)}>Selecionar Todos</Button>
+              <Button variant="outline" size="sm" onClick={() => toggleAllLinks(false)}>Limpar</Button>
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-3 h-3 mr-1" /> Importar URLs
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,.txt"
+                onChange={handleFileImport}
+                className="hidden"
+              />
+            </div>
+          </div>
 
           <ScrollArea className="flex-1 border rounded-lg">
             <Table>
@@ -1375,21 +1440,6 @@ export default function VisualScraperPage() {
               </TableBody>
             </Table>
           </ScrollArea>
-
-          {selectedLinksCount > 0 && fields.length > 0 && (
-            <div className="flex justify-end">
-              <Button onClick={handleGoToBatch}>
-                <Play className="w-4 h-4 mr-1" /> Extrair {selectedLinksCount} páginas ({fields.length} campos)
-              </Button>
-            </div>
-          )}
-
-          {selectedLinksCount > 0 && fields.length === 0 && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground border rounded-lg p-3 bg-muted/30">
-              <Wand2 className="w-4 h-4" />
-              <span>Selecione links e depois clique no <Crosshair className="w-3 h-3 inline" /> de uma página para definir os campos a extrair.</span>
-            </div>
-          )}
         </div>
       )}
 
