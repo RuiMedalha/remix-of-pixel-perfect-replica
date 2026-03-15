@@ -54,6 +54,7 @@ import CatalogOperationsControlTowerPage from "./pages/CatalogOperationsControlT
 import SupplierPlaybooksPage from "./pages/SupplierPlaybooksPage";
 import AgentRuntimeConsolePage from "./pages/AgentRuntimeConsolePage";
 import CatalogWorkflowCenterPage from "./pages/CatalogWorkflowCenterPage";
+import VisualScraperPage from "./pages/VisualScraperPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -124,6 +125,7 @@ function ProtectedRoutes() {
           <Route path="/supplier-playbooks" element={<SupplierPlaybooksPage />} />
           <Route path="/agent-runtime" element={<AgentRuntimeConsolePage />} />
           <Route path="/workflow-center" element={<CatalogWorkflowCenterPage />} />
+          <Route path="/visual-scraper" element={<VisualScraperPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
