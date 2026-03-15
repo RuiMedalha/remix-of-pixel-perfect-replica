@@ -1298,8 +1298,8 @@ export default function VisualScraperPage() {
             {errors.length > 0 && <Badge variant="destructive">{errors.length} erros</Badge>}
             <div className="ml-auto flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setStep("batch")}>← Voltar</Button>
-              <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                <Download className="w-3 h-3 mr-1" /> CSV
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                <Download className="w-3 h-3 mr-1" /> Excel
               </Button>
               <Button size="sm" onClick={() => setShowSendDialog(true)}>
                 <ArrowRight className="w-3 h-3 mr-1" /> Enviar p/ Ingestão
