@@ -177,10 +177,11 @@ export default function WebsiteExtractionAgentPage() {
   const [productUrls, setProductUrls] = useState<string[]>([]);
   const [collectProgress, setCollectProgress] = useState<{ current: number; total: number; label?: string; pages?: number } | null>(null);
 
-  // Pagination config
+  // Pagination/crawl config
   const [paginationMode, setPaginationMode] = useState<"auto" | "pattern">("auto");
   const [paginationPattern, setPaginationPattern] = useState("");
-  const [maxPagesPerCategory, setMaxPagesPerCategory] = useState(50);
+  const [maxPagesPerCategory, setMaxPagesPerCategory] = useState(80);
+  const [maxCategoryDepth, setMaxCategoryDepth] = useState(4);
   const [showPaginationConfig, setShowPaginationConfig] = useState(false);
 
   // Fields
@@ -313,8 +314,11 @@ export default function WebsiteExtractionAgentPage() {
           const href = el.getAttribute("href");
           if (href) {
             try {
-              const full = new URL(href, baseUrl.origin).href;
-              if (!seenPages.has(full) && full !== pageUrl) { seenPages.add(full); nextPages.push(full); }
+              const full = canonicalizeUrl(new URL(href, pageUrl).href);
+              if (!seenPages.has(full) && full !== canonicalizeUrl(pageUrl) && new URL(full).hostname === baseUrl.hostname) {
+                seenPages.add(full);
+                nextPages.push(full);
+              }
             } catch { /* ignore */ }
           }
         });
@@ -328,12 +332,14 @@ export default function WebsiteExtractionAgentPage() {
         const href = a.getAttribute("href");
         if (!href) return;
         const isPageLink = /^(next|suivant|próxima?|seguinte|last|›|»|\d+)$/i.test(text)
-          || /[?&]page=\d/i.test(href) || /\/page\/\d/i.test(href);
+          || /[?&](?:page|paged|p)=\d/i.test(href)
+          || /\/(?:page|pagina|p)\/\d/i.test(href);
         if (isPageLink) {
           try {
-            const full = new URL(href, baseUrl.origin).href;
-            if (!seenPages.has(full) && full !== pageUrl && new URL(full).hostname === baseUrl.hostname) {
-              seenPages.add(full); nextPages.push(full);
+            const full = canonicalizeUrl(new URL(href, pageUrl).href);
+            if (!seenPages.has(full) && full !== canonicalizeUrl(pageUrl) && new URL(full).hostname === baseUrl.hostname) {
+              seenPages.add(full);
+              nextPages.push(full);
             }
           } catch { /* ignore */ }
         }
@@ -514,30 +520,32 @@ export default function WebsiteExtractionAgentPage() {
     if (!currentLayer) return;
     setLoading(true);
     try {
-      let remaining = [...currentLayer.paginationUrls];
+      let remaining = currentLayer.paginationUrls.map(p => canonicalizeUrl(p));
       const crawled = new Set<string>();
-      const existingUrls = new Set(currentLinks.map(l => l.url));
+      const existingUrls = new Set(currentLinks.map(l => canonicalizeUrl(l.url)));
       let newLinks: ExtractedLink[] = [];
       let totalNew = 0;
 
       if (paginationMode === "pattern" && paginationPattern && remaining.length === 0) {
-        remaining = generatePaginationUrls(currentLayer.sourceUrl, paginationPattern, maxPagesPerCategory);
+        remaining = generatePaginationUrls(currentLayer.sourceUrl, paginationPattern, maxPagesPerCategory)
+          .map(p => canonicalizeUrl(p));
       }
 
       while (remaining.length > 0 && crawled.size < maxPagesPerCategory) {
-        const targetUrl = remaining.shift()!;
+        const targetUrl = canonicalizeUrl(remaining.shift()!);
         if (crawled.has(targetUrl)) continue;
         crawled.add(targetUrl);
 
         const { links, nextPages } = await extractLinksFromPage(targetUrl);
-        const unique = links.filter(l => !existingUrls.has(l.url));
-        if (unique.length === 0 && crawled.size > 1) break;
-        unique.forEach(l => existingUrls.add(l.url));
+        const unique = links.filter(l => !existingUrls.has(canonicalizeUrl(l.url)));
+        unique.forEach(l => existingUrls.add(canonicalizeUrl(l.url)));
         newLinks = [...newLinks, ...unique];
         totalNew += unique.length;
 
         if (paginationMode === "auto") {
-          nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+          nextPages.map(p => canonicalizeUrl(p)).forEach(p => {
+            if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p);
+          });
         }
       }
 
@@ -567,78 +575,152 @@ export default function WebsiteExtractionAgentPage() {
     toast.success(`${prods.length} URLs de produto recolhidas`);
   };
 
-  /* ── Auto-collect: drill all categories with full pagination ── */
+  /* ── Auto-collect: recursively traverse categories, subcategories and pagination ── */
   const handleAutoCollect = async () => {
-    const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected).map(l => l.url);
-    if (catUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
+    const selectedCategoryUrls = currentLinks
+      .filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected)
+      .map(l => canonicalizeUrl(l.url));
+
+    const seedUrls = selectedCategoryUrls.length > 0
+      ? selectedCategoryUrls
+      : [canonicalizeUrl(currentUrl)].filter(Boolean);
+
+    if (seedUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
       toast.error("Nenhuma categoria ou produto encontrado.");
       return;
     }
 
+    const isLikelySubcategoryLink = (link: ExtractedLink, parentUrl: string) => {
+      if (link.linkType === "produto") return false;
+      const text = (link.text || "").trim();
+
+      try {
+        const parent = new URL(parentUrl);
+        const child = new URL(link.url);
+        const lowerUrl = link.url.toLowerCase();
+
+        if (child.hostname !== parent.hostname) return false;
+        if (NON_HTML_FILE_HINT.test(lowerUrl)) return false;
+        if (NAV_URL_HINT.test(lowerUrl) || STRICT_NAV_HINT.test(text.toLowerCase())) return false;
+        if (/[?&](?:page|paged|p)=\d/i.test(lowerUrl) || /\/(?:page|pagina|p)\/\d/i.test(lowerUrl)) return false;
+
+        if (link.linkType === "categoria" || link.linkType === "grupo") return true;
+
+        const parentParts = parent.pathname.split("/").filter(Boolean);
+        const childParts = child.pathname.split("/").filter(Boolean);
+        const sharesPrefix =
+          parentParts.length > 0 &&
+          childParts.slice(0, parentParts.length).join("/") === parentParts.join("/");
+        const isDeeper = childParts.length >= parentParts.length + 1;
+        const hasCategoryTextHint = /(categoria|cole[cç][aã]o|grupo|linha|gama|fam[ií]lia|série|serie|subcategoria)/i.test(text);
+
+        return (sharesPrefix && isDeeper && text.length > 1 && !/^\d+$/.test(text)) || hasCategoryTextHint;
+      } catch {
+        return false;
+      }
+    };
+
+    const buildPaginationCandidates = (basePageUrl: string, nextPages: string[], detectedPattern?: string | null) => {
+      const candidates = new Set<string>(nextPages.map(p => canonicalizeUrl(p)));
+
+      if (paginationMode === "pattern" && paginationPattern) {
+        generatePaginationUrls(basePageUrl, paginationPattern, maxPagesPerCategory)
+          .forEach(u => candidates.add(canonicalizeUrl(u)));
+      } else if (detectedPattern) {
+        generatePaginationUrls(basePageUrl, detectedPattern, maxPagesPerCategory)
+          .forEach(u => candidates.add(canonicalizeUrl(u)));
+      }
+
+      return [...candidates].filter(p => p !== canonicalizeUrl(basePageUrl));
+    };
+
     setLoading(true);
-    setCollectProgress({ current: 0, total: catUrls.length || 1, label: "A iniciar...", pages: 0 });
+    setCollectProgress({ current: 0, total: seedUrls.length, label: "A iniciar...", pages: 0 });
 
     try {
-      let allProductUrls: string[] = [];
-      const seen = new Set<string>();
+      const allProductUrls: string[] = [];
+      const seenProducts = new Set<string>();
       let totalPagesProcessed = 0;
 
-      currentLinks.filter(l => l.linkType === "produto").forEach(l => {
-        if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
-      });
-
-      for (let i = 0; i < catUrls.length; i++) {
-        const catUrl = catUrls[i];
-        const catLabel = currentLinks.find(l => l.url === catUrl)?.text || `Cat ${i + 1}`;
-        setCollectProgress({ current: i + 1, total: catUrls.length, label: catLabel, pages: totalPagesProcessed });
-
-        try {
-          const crawledPages = new Set<string>();
-          let pageUrl: string | null = catUrl;
-          let detectedPattern: string | null = null;
-          let patternGenerated = false;
-
-          while (pageUrl && crawledPages.size < maxPagesPerCategory) {
-            crawledPages.add(pageUrl);
-            totalPagesProcessed++;
-            setCollectProgress({ current: i + 1, total: catUrls.length, label: `${catLabel} (pág ${crawledPages.size})`, pages: totalPagesProcessed });
-
-            const { links, nextPages } = await extractLinksFromPage(pageUrl);
-            const productsBefore = allProductUrls.length;
-            links.filter(l => l.linkType === "produto").forEach(l => {
-              if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
-            });
-            if (crawledPages.size > 1 && allProductUrls.length === productsBefore) break;
-
-            let nextPage: string | null = null;
-
-            if (paginationMode === "pattern" && paginationPattern) {
-              if (!patternGenerated) {
-                const paginationUrls = generatePaginationUrls(catUrl, paginationPattern, maxPagesPerCategory);
-                paginationUrls.forEach(u => { if (!crawledPages.has(u)) nextPages.push(u); });
-                patternGenerated = true;
-              }
-              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
-            } else {
-              if (!detectedPattern && nextPages.length > 0) {
-                detectedPattern = autoDetectPaginationPattern(nextPages, catUrl);
-              }
-              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
-              if (!nextPage && detectedPattern && crawledPages.size < maxPagesPerCategory) {
-                const generatedUrls = generatePaginationUrls(catUrl, detectedPattern, maxPagesPerCategory);
-                nextPage = generatedUrls.find(u => !crawledPages.has(u)) || null;
-              }
-            }
-
-            pageUrl = nextPage;
+      currentLinks
+        .filter(l => l.linkType === "produto")
+        .forEach(l => {
+          const normalized = canonicalizeUrl(l.url);
+          if (!seenProducts.has(normalized)) {
+            seenProducts.add(normalized);
+            allProductUrls.push(normalized);
           }
-        } catch { /* skip failed category */ }
+        });
+
+      for (let i = 0; i < seedUrls.length; i++) {
+        const seedUrl = seedUrls[i];
+        const catLabel = currentLinks.find(l => canonicalizeUrl(l.url) === seedUrl)?.text || `Categoria ${i + 1}`;
+
+        const queue: Array<{ url: string; depth: number; paginationPattern: string | null }> = [
+          { url: seedUrl, depth: 0, paginationPattern: null },
+        ];
+        const queued = new Set<string>([seedUrl]);
+        const visited = new Set<string>();
+
+        while (queue.length > 0 && visited.size < maxPagesPerCategory) {
+          const node = queue.shift()!;
+          const pageUrl = canonicalizeUrl(node.url);
+          queued.delete(pageUrl);
+
+          if (visited.has(pageUrl)) continue;
+          visited.add(pageUrl);
+
+          totalPagesProcessed++;
+          setCollectProgress({
+            current: i + 1,
+            total: seedUrls.length,
+            label: `${catLabel} · nível ${node.depth + 1} · pág ${visited.size}`,
+            pages: totalPagesProcessed,
+          });
+
+          const { links, nextPages } = await extractLinksFromPage(pageUrl);
+
+          // 1) Collect product URLs
+          links
+            .filter(l => l.linkType === "produto")
+            .forEach(l => {
+              const normalized = canonicalizeUrl(l.url);
+              if (!seenProducts.has(normalized)) {
+                seenProducts.add(normalized);
+                allProductUrls.push(normalized);
+              }
+            });
+
+          // 2) Follow pagination at the same depth
+          const detectedPattern = node.paginationPattern || autoDetectPaginationPattern(nextPages, pageUrl);
+          const paginationCandidates = buildPaginationCandidates(pageUrl, nextPages, detectedPattern);
+
+          paginationCandidates.forEach(p => {
+            if (!visited.has(p) && !queued.has(p) && visited.size + queue.length < maxPagesPerCategory) {
+              queue.push({ url: p, depth: node.depth, paginationPattern: detectedPattern });
+              queued.add(p);
+            }
+          });
+
+          // 3) Traverse subcategories recursively
+          if (node.depth < maxCategoryDepth) {
+            links
+              .filter(l => isLikelySubcategoryLink(l, pageUrl))
+              .forEach(l => {
+                const subUrl = canonicalizeUrl(l.url);
+                if (!visited.has(subUrl) && !queued.has(subUrl) && visited.size + queue.length < maxPagesPerCategory) {
+                  queue.push({ url: subUrl, depth: node.depth + 1, paginationPattern: null });
+                  queued.add(subUrl);
+                }
+              });
+          }
+        }
       }
 
       setProductUrls(allProductUrls);
       setCollectProgress(null);
       setStep("products");
-      toast.success(`${allProductUrls.length} URLs de produto de ${catUrls.length} categorias (${totalPagesProcessed} páginas)`);
+      toast.success(`${allProductUrls.length} URLs de produto recolhidas (${totalPagesProcessed} páginas processadas)`);
     } catch (err: any) {
       toast.error("Erro na recolha automática", { description: err.message });
     } finally {
@@ -1131,9 +1213,19 @@ export default function WebsiteExtractionAgentPage() {
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] text-muted-foreground">Máx págs:</span>
                     <Input
-                      type="number" min={2} max={200}
+                      type="number" min={2} max={500}
                       value={maxPagesPerCategory}
-                      onChange={e => setMaxPagesPerCategory(Number(e.target.value) || 50)}
+                      onChange={e => setMaxPagesPerCategory(Number(e.target.value) || 80)}
+                      className="h-7 w-16 text-xs"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">Prof.:</span>
+                    <Input
+                      type="number" min={1} max={10}
+                      value={maxCategoryDepth}
+                      onChange={e => setMaxCategoryDepth(Math.max(1, Number(e.target.value) || 4))}
                       className="h-7 w-16 text-xs"
                     />
                   </div>
