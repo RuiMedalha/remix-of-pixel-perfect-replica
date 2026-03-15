@@ -1534,6 +1534,7 @@ export default function VisualScraperPage() {
                         <SelectTrigger className="h-6 text-[10px] w-24"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="categoria">Categoria</SelectItem>
+                          <SelectItem value="subcategoria">Subcategoria</SelectItem>
                           <SelectItem value="grupo">Grupo</SelectItem>
                           <SelectItem value="produto">Produto</SelectItem>
                           <SelectItem value="outro">Outro</SelectItem>
