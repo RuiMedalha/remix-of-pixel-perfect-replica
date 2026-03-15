@@ -103,6 +103,10 @@ export default function VisualScraperPage() {
   const [urlPatterns, setUrlPatterns] = useState<{ pattern: string; count: number; sample: string; selected: boolean }[]>([]);
   const [showPatternDialog, setShowPatternDialog] = useState(false);
 
+  // Agent-assisted category flow
+  const [showCategoryAgentDialog, setShowCategoryAgentDialog] = useState(false);
+  const [categoryAgentSelection, setCategoryAgentSelection] = useState<Record<string, boolean>>({});
+
   // Listen for messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -177,26 +181,63 @@ export default function VisualScraperPage() {
   const CATEGORY_LINK_CLASSES = [
     'categoryproductteaser', 'category-teaser', 'category-card', 'category-link',
   ];
-  const NAV_CONTAINERS = ['nav', 'header', 'footer', '.menu', '.navbar', '.footer', '.header', '.breadcrumb', '.social'];
 
-  const classifyLink = (anchor: Element, doc: Document): 'product' | 'category' | 'navigation' | 'other' => {
-    const classes = (anchor.className || '').toLowerCase();
+  const NAV_CONTAINER_SELECTOR = 'nav, header, .menu, .navbar, .header, .breadcrumb, .social, [role="navigation"]';
+  const FOOTER_CONTAINER_SELECTOR = 'footer, .footer, .footer-menu, .footer-links, .copyright, [role="contentinfo"]';
+  const MAIN_CONTENT_SELECTOR = 'main, #Main-wrapper, .NodeCategory, .NodeCategoriesList, .item-list, .products, .product-list, .catalog, [role="main"]';
+
+  const NAV_URL_HINT = /(contact|about|legal|privacy|terms|cookies|gdpr|faq|blog|news|cart|checkout|account|login|search|facebook|instagram|linkedin|youtube)/i;
+  const PRODUCT_URL_HINT = /(\/product(s)?\/|\/produto(s)?\/|\/p\/|\/item\/|\/model\/|\/md\d+)/i;
+  const CATEGORY_URL_HINT = /(\/categor(y|ies)\/|\/categoria(s)?\/|\/collection(s)?\/|\/grupo(s)?\/|\/range\/|\/gama\/|\/famil(y|ies)\/|\/shop\/)/i;
+  const GROUP_URL_HINT = /(\/group(s)?\/|\/groupe(s)?\/|\/family|\/familia|\/series|\/linha|\/gama)/i;
+  const NON_HTML_FILE_HINT = /\.(jpg|jpeg|png|webp|gif|svg|pdf|zip|rar|mp4|mp3|webm|avi)(\?|$)/i;
+  const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'];
+
+  const canonicalizeUrl = (rawUrl: string): string => {
+    try {
+      const parsed = new URL(rawUrl);
+      parsed.hash = '';
+      TRACKING_PARAMS.forEach(param => parsed.searchParams.delete(param));
+      parsed.pathname = parsed.pathname.replace(/\/+/g, '/');
+      if (parsed.pathname.length > 1) {
+        parsed.pathname = parsed.pathname.replace(/\/+$/, '');
+      }
+      return parsed.toString();
+    } catch {
+      return rawUrl;
+    }
+  };
+
+  const classifyLink = (anchor: Element, fullUrl: string): 'product' | 'category' | 'navigation' | 'other' => {
+    const classes = (typeof anchor.className === 'string' ? anchor.className : '').toLowerCase();
     const href = (anchor.getAttribute('href') || '').toLowerCase();
-    
-    // Check if link itself has product/category class
-    if (PRODUCT_LINK_CLASSES.some(c => classes.includes(c))) return 'product';
-    if (CATEGORY_LINK_CLASSES.some(c => classes.includes(c))) return 'category';
+    const text = (anchor.textContent || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '').toLowerCase().trim();
+    const normalizedUrl = fullUrl.toLowerCase();
 
-    // Check if inside a nav/footer container
-    const isInNav = !!anchor.closest('nav, header, footer, .menu, .navbar, .footer-menu, .header-menu, .Breadcrumb, .social-links, .GeographicRedirection');
-    if (isInNav) return 'navigation';
+    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+      return 'navigation';
+    }
 
-    // Check if inside main content area
-    const isInMain = !!anchor.closest('main, #Main-wrapper, .NodeCategory, .NodeCategoriesList, .item-list, .products, .product-list, .catalog, [role="main"]');
-    if (isInMain) return 'product';
+    if (NON_HTML_FILE_HINT.test(normalizedUrl)) return 'other';
 
-    // URL heuristics - contact, legal pages etc.
-    if (/\/(contact|about|legal|privacy|terms|faq|blog|news|cart|checkout|account|login|search)/.test(href)) return 'navigation';
+    const inNavigationContainer = !!anchor.closest(`${NAV_CONTAINER_SELECTOR}, ${FOOTER_CONTAINER_SELECTOR}`);
+    if (inNavigationContainer) return 'navigation';
+
+    if (NAV_URL_HINT.test(normalizedUrl) || NAV_URL_HINT.test(text)) return 'navigation';
+
+    if (PRODUCT_LINK_CLASSES.some(c => classes.includes(c)) || PRODUCT_URL_HINT.test(normalizedUrl)) return 'product';
+    if (CATEGORY_LINK_CLASSES.some(c => classes.includes(c)) || CATEGORY_URL_HINT.test(normalizedUrl)) return 'category';
+
+    const isInMainContent = !!anchor.closest(MAIN_CONTENT_SELECTOR);
+    if (isInMainContent) {
+      try {
+        const depth = new URL(fullUrl).pathname.split('/').filter(Boolean).length;
+        if (depth >= 4) return 'product';
+        if (depth >= 2) return 'category';
+      } catch {
+        return 'other';
+      }
+    }
 
     return 'other';
   };
@@ -219,32 +260,46 @@ export default function VisualScraperPage() {
 
     anchors.forEach(a => {
       try {
-        let href = a.getAttribute("href") || "";
-        if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
-        const fullUrl = new URL(href, baseUrl.origin).href;
-        if (seen.has(fullUrl) || fullUrl === pageUrl) return;
+        const href = a.getAttribute("href") || "";
+        if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+
+        const resolvedUrl = new URL(href, pageUrl).href;
+        const fullUrl = canonicalizeUrl(resolvedUrl);
+        if (seen.has(fullUrl) || fullUrl === canonicalizeUrl(pageUrl)) return;
         seen.add(fullUrl);
+
         if (new URL(fullUrl).hostname !== baseUrl.hostname) return;
 
-        const linkType = classifyLink(a, doc);
-        if (linkType === 'navigation') return; // Skip nav/footer/header links entirely
+        const linkType = classifyLink(a, fullUrl);
+        if (linkType === 'navigation') return;
 
         const isContentLink = linkType === 'product' || linkType === 'category';
         if (isContentLink) hasProductLinks = true;
 
+        const cleanText = (a.textContent || a.getAttribute("aria-label") || a.getAttribute("title") || "")
+          .trim()
+          .replace(/\s+/g, ' ')
+          .substring(0, 120);
+
+        const inferredType: LinkType = linkType === 'product'
+          ? 'produto'
+          : GROUP_URL_HINT.test(fullUrl.toLowerCase())
+            ? 'grupo'
+            : 'categoria';
+
         links.push({
           url: fullUrl,
-          text: (a.textContent || "").trim().replace(/\s+/g, ' ').substring(0, 120),
+          text: cleanText,
           selected: isContentLink,
-          linkType: linkType === 'product' ? 'produto' : linkType === 'category' ? 'categoria' : 'outro',
+          linkType: inferredType,
         });
       } catch { /* ignore */ }
     });
 
-    // If we found content links, deselect the "other" ones
-    if (hasProductLinks) {
-      // Already handled: content links are selected, others are not
-    }
+    // If we found product/category links, hide generic "outro" links to avoid footer noise
+    const cleanedLinks = hasProductLinks
+      ? links.filter(link => link.linkType !== 'outro')
+      : links;
 
     // Detect pagination links (next page, page 2, 3, etc.)
     const paginationSelectors = [
@@ -298,7 +353,7 @@ export default function VisualScraperPage() {
       });
     }
 
-    return { links, nextPages };
+    return { links: cleanedLinks, nextPages };
   };
 
   // Initial link extraction
@@ -306,12 +361,23 @@ export default function VisualScraperPage() {
     setLoading(true);
     try {
       const { links, nextPages } = await extractLinksFromPage(currentUrl);
+      const categoryCandidates = links.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+      const productCandidates = links.filter(l => l.linkType === "produto");
+
       setExtractedLinks(links);
       setLinkLayers([{ label: currentUrl, links, sourceUrls: [currentUrl] }]);
       setPaginationUrls(nextPages);
       setCrawledPages([currentUrl]);
       setStep("links");
-      toast.success(`${links.length} links encontrados. ${nextPages.length} páginas de paginação detetadas.`);
+
+      if (categoryCandidates.length > 0) {
+        setCategoryAgentSelection(Object.fromEntries(categoryCandidates.map(link => [link.url, true])));
+        setShowCategoryAgentDialog(true);
+      }
+
+      toast.success(
+        `${links.length} links encontrados (${categoryCandidates.length} categorias/grupos · ${productCandidates.length} produtos).`
+      );
     } catch (err: any) {
       toast.error("Erro ao extrair links", { description: err.message });
     } finally {
@@ -500,8 +566,48 @@ export default function VisualScraperPage() {
     setStep("select-fields");
   };
 
+  const openCategoryAgentDialog = () => {
+    const categoryCandidates = extractedLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+    if (categoryCandidates.length === 0) {
+      toast.error("Não existem categorias/grupos para explorar.");
+      return;
+    }
+
+    setCategoryAgentSelection(prev => {
+      const next = { ...prev };
+      categoryCandidates.forEach(link => {
+        if (!(link.url in next)) next[link.url] = true;
+      });
+      return next;
+    });
+
+    setShowCategoryAgentDialog(true);
+  };
+
+  const setAllCategoryAgentSelection = (selected: boolean) => {
+    const categoryCandidates = extractedLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+    setCategoryAgentSelection(Object.fromEntries(categoryCandidates.map(link => [link.url, selected])));
+  };
+
+  const handleRunCategoryAgentFlow = async (autoRunProducts: boolean) => {
+    const selectedUrls = Object.entries(categoryAgentSelection)
+      .filter(([, selected]) => selected)
+      .map(([url]) => url);
+
+    if (selectedUrls.length === 0) {
+      toast.error("Selecione pelo menos uma categoria/grupo.");
+      return;
+    }
+
+    setShowCategoryAgentDialog(false);
+    await handleDrillCategories(selectedUrls, { autoRunProducts });
+  };
+
   // Drill into selected links of type "categoria" or "grupo" to find products
-  const handleDrillCategories = async (overrideUrls?: string[]) => {
+  const handleDrillCategories = async (
+    overrideUrls?: string[],
+    options?: { autoRunProducts?: boolean },
+  ) => {
     const selectedUrls = overrideUrls || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).map(l => l.url);
     if (selectedUrls.length === 0) {
       toast.error("Selecione URLs de categoria ou grupo para explorar.");
@@ -518,6 +624,7 @@ export default function VisualScraperPage() {
 
       const allNewLinks: ExtractedLink[] = [];
       const allNextPages: string[] = [];
+      const discoveredProductUrls: string[] = [];
       const seenUrls = new Set<string>();
 
       for (let i = 0; i < selectedUrls.length; i += 5) {
@@ -532,6 +639,9 @@ export default function VisualScraperPage() {
               if (!seenUrls.has(link.url)) {
                 seenUrls.add(link.url);
                 allNewLinks.push(link);
+                if (link.linkType === "produto") {
+                  discoveredProductUrls.push(link.url);
+                }
               }
             });
             r.value.nextPages.forEach(p => {
@@ -545,10 +655,29 @@ export default function VisualScraperPage() {
         }
       }
 
+      const uniqueNextPages = [...new Set(allNextPages)];
+      const uniqueProductUrls = [...new Set(discoveredProductUrls)];
+
       setExtractedLinks(allNewLinks);
-      setPaginationUrls([...new Set(allNextPages)]);
+      setPaginationUrls(uniqueNextPages);
       setCrawledPages(prev => [...prev, ...selectedUrls]);
       toast.success(`${allNewLinks.length} links encontrados de ${selectedUrls.length} páginas.`);
+
+      if (options?.autoRunProducts) {
+        if (uniqueProductUrls.length === 0) {
+          toast.error("O agente não encontrou páginas de produto nas categorias selecionadas.");
+          return;
+        }
+
+        setBatchUrls(uniqueProductUrls);
+
+        if (fields.length === 0) {
+          toast.info("Produtos encontrados. Defina os campos no Passo 3 e depois execute a extração.");
+          return;
+        }
+
+        await runBatchExtraction(uniqueProductUrls);
+      }
     } catch (err: any) {
       toast.error("Erro ao explorar links", { description: err.message });
     } finally {
@@ -791,10 +920,12 @@ export default function VisualScraperPage() {
     setStep("batch");
   };
 
-  const handleRunBatch = async () => {
-    const productUrls = batchUrls.length > 0
-      ? batchUrls
-      : productLinks.map(l => l.url);
+  const runBatchExtraction = async (overrideUrls?: string[]) => {
+    const productUrls = overrideUrls && overrideUrls.length > 0
+      ? overrideUrls
+      : batchUrls.length > 0
+        ? batchUrls
+        : productLinks.map(l => l.url);
     let urls = productUrls.length > 0 ? productUrls : [currentUrl];
 
     setBatchLoading(true);
@@ -844,7 +975,9 @@ export default function VisualScraperPage() {
     } finally {
       setBatchLoading(false);
     }
-  };
+  }; 
+
+  const handleRunBatch = () => runBatchExtraction();
 
   const handleExportExcel = () => {
     if (results.length === 0) return;
@@ -942,6 +1075,8 @@ export default function VisualScraperPage() {
   const productLinks = extractedLinks.filter(l => l.linkType === 'produto');
   const categoryLinks = extractedLinks.filter(l => l.linkType === 'categoria');
   const groupLinks = extractedLinks.filter(l => l.linkType === 'grupo');
+  const categoryAgentCandidates = extractedLinks.filter(l => l.linkType === 'categoria' || l.linkType === 'grupo');
+  const selectedCategoryAgentCount = Object.values(categoryAgentSelection).filter(Boolean).length;
 
   const typeIcons: Record<string, React.ReactNode> = {
     text: <Type className="w-3 h-3" />,
@@ -1317,6 +1452,14 @@ export default function VisualScraperPage() {
               <div className="ml-auto flex gap-2">
                 <Button
                   size="sm"
+                  variant="secondary"
+                  onClick={openCategoryAgentDialog}
+                  disabled={drillLoading || (categoryLinks.length + groupLinks.length) === 0}
+                >
+                  <Wand2 className="w-3 h-3 mr-1" /> Agente (Lista)
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => {
                     const allCatUrls = extractedLinks
@@ -1331,7 +1474,7 @@ export default function VisualScraperPage() {
                 </Button>
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="outline"
                   onClick={() => handleDrillCategories()}
                   disabled={drillLoading || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).length === 0}
                 >
@@ -1707,6 +1850,86 @@ export default function VisualScraperPage() {
           </Dialog>
         </div>
       )}
+
+      {/* Agent Category Selection Dialog */}
+      <Dialog open={showCategoryAgentDialog} onOpenChange={setShowCategoryAgentDialog}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5" />
+              Agente de Categorias
+            </DialogTitle>
+            <DialogDescription>
+              Escolha as categorias/grupos para o agente explorar automaticamente, gerar a lista de produtos e preparar a execução.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px]">
+              {categoryAgentCandidates.length} categorias/grupos
+            </Badge>
+            <Badge variant="outline" className="text-[10px]">
+              {selectedCategoryAgentCount} selecionados
+            </Badge>
+            <div className="ml-auto flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setAllCategoryAgentSelection(true)}>
+                Selecionar tudo
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setAllCategoryAgentSelection(false)}>
+                Limpar
+              </Button>
+            </div>
+          </div>
+
+          <ScrollArea className="h-80 border rounded-lg">
+            <div className="p-2 space-y-1.5">
+              {categoryAgentCandidates.map(link => (
+                <label key={link.url} className="flex items-start gap-2 border rounded-md p-2 cursor-pointer hover:bg-muted/40">
+                  <Checkbox
+                    checked={!!categoryAgentSelection[link.url]}
+                    onCheckedChange={(checked) => setCategoryAgentSelection(prev => ({ ...prev, [link.url]: !!checked }))}
+                  />
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-xs truncate">{link.text || "Sem texto"}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate" title={link.url}>{link.url}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px]">{link.linkType}</Badge>
+                </label>
+              ))}
+              {categoryAgentCandidates.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhuma categoria/grupo disponível nesta camada.</p>
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setShowCategoryAgentDialog(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleRunCategoryAgentFlow(false)}
+              disabled={selectedCategoryAgentCount === 0 || drillLoading}
+            >
+              {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
+              Explorar e listar produtos
+            </Button>
+            <Button
+              onClick={() => handleRunCategoryAgentFlow(true)}
+              disabled={selectedCategoryAgentCount === 0 || drillLoading || fields.length === 0}
+            >
+              {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+              Explorar + correr produtos
+            </Button>
+          </DialogFooter>
+
+          {fields.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Defina os campos no Passo 3 para ativar a execução automática dos produtos.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Pattern Detection Dialog */}
       <Dialog open={showPatternDialog} onOpenChange={setShowPatternDialog}>
