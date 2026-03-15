@@ -484,6 +484,14 @@ export default function VisualScraperPage() {
 
   const handleSendToProducts = async () => {
     if (!activeWorkspace?.id || results.length === 0) return;
+
+    // Check at least title is mapped
+    const hasTitle = Object.values(scraperMapping).some(v => v === "title");
+    if (!hasTitle) {
+      toast.error("Mapeie pelo menos o campo Título antes de enviar.");
+      return;
+    }
+
     setBatchLoading(true);
     try {
       const { data: job, error: jobError } = await supabase
@@ -494,20 +502,29 @@ export default function VisualScraperPage() {
           source_type: "api" as any,
           source_ref: currentUrl,
           status: "pending" as any,
-          config: { type: "visual_scraper", fields: fields.map(f => f.name) },
+          config: { type: "visual_scraper", fields: fields.map(f => f.name), mapping: scraperMapping },
         } as any)
         .select("id")
         .single();
 
       if (jobError) throw jobError;
 
-      const items = results.map((row, idx) => ({
-        job_id: job.id,
-        item_index: idx,
-        source_data: row,
-        mapped_data: row,
-        status: "pending" as any,
-      }));
+      // Build mapped_data using the mapping
+      const items = results.map((row, idx) => {
+        const mapped: Record<string, string> = {};
+        Object.entries(scraperMapping).forEach(([scraperField, productField]) => {
+          if (productField && productField !== "__ignore__" && row[scraperField]) {
+            mapped[productField] = row[scraperField];
+          }
+        });
+        return {
+          job_id: job.id,
+          item_index: idx,
+          source_data: row,
+          mapped_data: mapped,
+          status: "pending" as any,
+        };
+      });
 
       for (let i = 0; i < items.length; i += 50) {
         await supabase.from("ingestion_job_items").insert(items.slice(i, i + 50) as any);
