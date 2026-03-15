@@ -1165,33 +1165,70 @@ export default function VisualScraperPage() {
             </div>
           )}
 
-          {/* Pagination controls */}
-          {paginationUrls.length > 0 && (
-            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
+          {/* Pagination controls - always visible */}
+          <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <ChevronRight className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium">
-                {paginationUrls.length} página(s) de paginação detetadas
+                Paginação {paginationUrls.length > 0 ? `(${paginationUrls.length} página(s) detetadas)` : '(nenhuma detetada)'}
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleFollowPagination()}
-                disabled={paginationLoading}
-                className="ml-auto"
-              >
-                {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
-                Próxima Página
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleFollowAllPagination}
-                disabled={paginationLoading}
-              >
-                {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
-                Percorrer Todas ({paginationUrls.length})
-              </Button>
+              {paginationUrls.length > 0 && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleFollowPagination()}
+                    disabled={paginationLoading}
+                    className="ml-auto"
+                  >
+                    {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
+                    Próxima Página
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleFollowAllPagination}
+                    disabled={paginationLoading}
+                  >
+                    {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+                    Percorrer Todas ({paginationUrls.length})
+                  </Button>
+                </>
+              )}
             </div>
-          )}
+            {/* Manual pagination URL input */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Adicionar URL de paginação manualmente (ex: ?page=2)..."
+                className="text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value.trim();
+                    if (val) {
+                      try {
+                        const fullUrl = val.startsWith('http') ? val : new URL(val, currentUrl).href;
+                        if (!paginationUrls.includes(fullUrl)) {
+                          setPaginationUrls(prev => [...prev, fullUrl]);
+                          (e.target as HTMLInputElement).value = '';
+                          toast.success('URL de paginação adicionada.');
+                        }
+                      } catch { toast.error('URL inválida'); }
+                    }
+                  }
+                }}
+              />
+            </div>
+            {paginationUrls.length > 0 && (
+              <div className="flex flex-wrap gap-1 max-h-20 overflow-auto">
+                {paginationUrls.map((pu, i) => (
+                  <Badge key={i} variant="outline" className="text-[10px] cursor-pointer" onClick={() => {
+                    setPaginationUrls(prev => prev.filter((_, idx) => idx !== i));
+                  }}>
+                    {new URL(pu).pathname.slice(-40)} ✕
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
 
           <Input
             placeholder="Filtrar links por URL ou texto..."
