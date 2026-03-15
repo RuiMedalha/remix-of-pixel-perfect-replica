@@ -450,7 +450,7 @@ export default function VisualScraperPage() {
   /* ── Follow pagination ── */
   const handleFollowPagination = async () => {
     const currentLayer = layers[layers.length - 1];
-    if (!currentLayer || currentLayer.paginationUrls.length === 0) return;
+    if (!currentLayer) return;
     setLoading(true);
     try {
       let remaining = [...currentLayer.paginationUrls];
@@ -459,18 +459,30 @@ export default function VisualScraperPage() {
       let newLinks: ExtractedLink[] = [];
       let totalNew = 0;
 
-      while (remaining.length > 0 && crawled.size < 30) {
+      // If using manual pattern, generate pagination URLs
+      if (paginationMode === "pattern" && paginationPattern && remaining.length === 0) {
+        remaining = generatePaginationUrls(currentLayer.sourceUrl, paginationPattern, maxPagesPerCategory);
+      }
+
+      while (remaining.length > 0 && crawled.size < maxPagesPerCategory) {
         const targetUrl = remaining.shift()!;
         if (crawled.has(targetUrl)) continue;
         crawled.add(targetUrl);
 
         const { links, nextPages } = await extractLinksFromPage(targetUrl);
         const unique = links.filter(l => !existingUrls.has(l.url));
+        
+        // Stop if no new links found (empty page)
+        if (unique.length === 0 && crawled.size > 1) break;
+        
         unique.forEach(l => existingUrls.add(l.url));
         newLinks = [...newLinks, ...unique];
         totalNew += unique.length;
 
-        nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+        // Add discovered next pages
+        if (paginationMode === "auto") {
+          nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+        }
       }
 
       setCurrentLinks(prev => [...prev, ...newLinks]);
