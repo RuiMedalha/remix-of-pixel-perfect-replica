@@ -353,7 +353,7 @@ export default function VisualScraperPage() {
       });
     }
 
-    return { links, nextPages };
+    return { links: cleanedLinks, nextPages };
   };
 
   // Initial link extraction
