@@ -296,10 +296,10 @@ export default function VisualScraperPage() {
       } catch { /* ignore */ }
     });
 
-    // If we found content links, deselect the "other" ones
-    if (hasProductLinks) {
-      // Already handled: content links are selected, others are not
-    }
+    // If we found product/category links, hide generic "outro" links to avoid footer noise
+    const cleanedLinks = hasProductLinks
+      ? links.filter(link => link.linkType !== 'outro')
+      : links;
 
     // Detect pagination links (next page, page 2, 3, etc.)
     const paginationSelectors = [
