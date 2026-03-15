@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useWebsiteExtractionAgent } from "@/hooks/useWebsiteExtractionAgent";
 import { DEFAULT_PRODUCT_FIELDS } from "@/hooks/useUploadCatalog";
+import { ExcelPreviewTable } from "@/components/scraper/ExcelPreviewTable";
 
 /* ────────────────────────────────────────────────
    Types
@@ -1781,38 +1782,22 @@ export default function WebsiteExtractionAgentPage() {
             </div>
           </div>
 
-          <ScrollArea className="flex-1 border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">#</TableHead>
-                  {results[0] && Object.keys(results[0]).map(key => (
-                    <TableHead key={key} className="text-xs">{key}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {results.map((row, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
-                    {Object.values(row).map((val, ci) => (
-                      <TableCell key={ci} className="text-xs max-w-48 truncate" title={val}>
-                        {val?.startsWith("http") ? <a href={val} target="_blank" rel="noreferrer" className="text-primary underline">{val.substring(0, 40)}...</a> : (val?.substring(0, 100) || "—")}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+          <ExcelPreviewTable
+            data={results}
+            mapping={scraperMapping}
+            onMappingChange={setScraperMapping}
+            maxPreviewRows={100}
+          />
 
           {/* Send to ingestion dialog */}
           <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Mapear Campos → Produto</DialogTitle>
                 <DialogDescription>Associe cada campo ao campo correspondente do produto.</DialogDescription>
               </DialogHeader>
+
+              {/* Inline mapping */}
               <div className="space-y-3">
                 {results[0] && Object.keys(results[0]).map(scraperKey => (
                   <div key={scraperKey} className="grid grid-cols-[1fr,auto,1fr] items-center gap-2">
@@ -1828,6 +1813,25 @@ export default function WebsiteExtractionAgentPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Preview of mapped first product */}
+              {Object.keys(scraperMapping).length > 0 && results.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Pré-visualização (1º produto)</p>
+                  <div className="border rounded-lg p-2 space-y-1 bg-muted/30">
+                    {Object.entries(scraperMapping).map(([scraperKey, productField]) => {
+                      const pf = DEFAULT_PRODUCT_FIELDS.find(f => f.key === productField);
+                      return (
+                        <div key={scraperKey} className="flex gap-2 text-xs">
+                          <Badge variant="secondary" className="text-[10px] shrink-0">{pf?.label || productField}</Badge>
+                          <span className="truncate text-muted-foreground">{results[0][scraperKey]?.substring(0, 120) || "—"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <DialogFooter className="mt-4">
                 <Button variant="outline" onClick={() => setShowSendDialog(false)}>Cancelar</Button>
                 <Button onClick={handleSendToProducts} disabled={batchLoading || !Object.values(scraperMapping).includes("title")}>

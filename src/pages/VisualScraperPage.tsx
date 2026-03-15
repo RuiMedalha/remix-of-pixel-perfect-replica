@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { DEFAULT_PRODUCT_FIELDS } from "@/hooks/useUploadCatalog";
+import { ExcelPreviewTable } from "@/components/scraper/ExcelPreviewTable";
 import {
   Globe, Loader2, MousePointerClick, Trash2, Play, Download,
   Eye, Link2, Image as ImageIcon, Type, FileText, ArrowRight, ArrowLeft, X,
@@ -1702,32 +1703,12 @@ export default function VisualScraperPage() {
             </div>
           </div>
 
-          <ScrollArea className="flex-1 border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">#</TableHead>
-                  {results[0] && Object.keys(results[0]).map(key => (
-                    <TableHead key={key} className="text-xs">{key}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {results.map((row, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
-                    {Object.values(row).map((val, ci) => (
-                      <TableCell key={ci} className="text-xs max-w-48 truncate" title={val}>
-                        {val?.startsWith("http") ? (
-                          <a href={val} target="_blank" rel="noreferrer" className="text-primary underline">{val.substring(0, 40)}...</a>
-                        ) : (val?.substring(0, 100) || "—")}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+          <ExcelPreviewTable
+            data={results}
+            mapping={scraperMapping}
+            onMappingChange={setScraperMapping}
+            maxPreviewRows={100}
+          />
 
           {/* Send to ingestion dialog */}
           <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
