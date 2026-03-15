@@ -499,7 +499,7 @@ export default function VisualScraperPage() {
       const existingUrls = new Set(extractedLinks.map(l => l.url));
       const newLinks: ExtractedLink[] = urls
         .filter(u => !existingUrls.has(u))
-        .map(u => ({ url: u, text: "", selected: true }));
+        .map(u => ({ url: u, text: "", selected: true, linkType: "produto" as LinkType }));
 
       setExtractedLinks(prev => [...prev, ...newLinks]);
       setStep("links");
