@@ -475,8 +475,6 @@ export default function VisualScraperPage() {
   };
 
   // ── Smart URL Pattern Detection ──
-  const [urlPatterns, setUrlPatterns] = useState<{ pattern: string; count: number; sample: string; selected: boolean }[]>([]);
-  const [showPatternDialog, setShowPatternDialog] = useState(false);
 
   const detectUrlPatterns = () => {
     // Group URLs by path structure (replace numeric/uuid segments with placeholders)
