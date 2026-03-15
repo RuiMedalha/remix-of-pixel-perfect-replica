@@ -541,17 +541,30 @@ const IngestionHubPage = () => {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : !jobs || jobs.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center py-12 text-muted-foreground">
-                <Database className="w-10 h-10 mb-3" />
-                <p className="font-medium">Sem jobs de ingestão</p>
-                <p className="text-sm">Importe dados no separador "Importar"</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {jobs.map(job => {
+          ) : (() => {
+            // Separate jobs: pending/active vs completed history
+            const pendingJobs = (jobs || []).filter(j => ["queued", "parsing", "mapping", "dry_run", "importing"].includes(j.status));
+            const historyJobs = (jobs || []).filter(j => ["done", "error"].includes(j.status));
+            
+            if (!jobs || jobs.length === 0) return (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12 text-muted-foreground">
+                  <Database className="w-10 h-10 mb-3" />
+                  <p className="font-medium">Sem jobs de ingestão</p>
+                  <p className="text-sm">Importe dados no separador "Importar"</p>
+                </CardContent>
+              </Card>
+            );
+            
+            return (
+              <div className="space-y-6">
+                {/* Active / Pending Jobs */}
+                {pendingJobs.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" /> Em Processamento ({pendingJobs.length})
+                    </h3>
+                    {pendingJobs.map(job => {
                 const st = statusLabels[job.status] || statusLabels.queued;
                 return (
                   <Card key={job.id} className="hover:border-primary/30 transition-colors">
