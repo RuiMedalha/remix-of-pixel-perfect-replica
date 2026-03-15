@@ -537,7 +537,6 @@ export default function WebsiteExtractionAgentPage() {
 
         const { links, nextPages } = await extractLinksFromPage(targetUrl);
         const unique = links.filter(l => !existingUrls.has(l.url));
-        if (unique.length === 0 && crawled.size > 1) break;
         unique.forEach(l => existingUrls.add(l.url));
         newLinks = [...newLinks, ...unique];
         totalNew += unique.length;
