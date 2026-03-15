@@ -1075,6 +1075,8 @@ export default function VisualScraperPage() {
   const productLinks = extractedLinks.filter(l => l.linkType === 'produto');
   const categoryLinks = extractedLinks.filter(l => l.linkType === 'categoria');
   const groupLinks = extractedLinks.filter(l => l.linkType === 'grupo');
+  const categoryAgentCandidates = extractedLinks.filter(l => l.linkType === 'categoria' || l.linkType === 'grupo');
+  const selectedCategoryAgentCount = Object.values(categoryAgentSelection).filter(Boolean).length;
 
   const typeIcons: Record<string, React.ReactNode> = {
     text: <Type className="w-3 h-3" />,
