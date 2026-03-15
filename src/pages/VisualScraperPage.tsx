@@ -236,15 +236,16 @@ export default function VisualScraperPage() {
         const inferPurpose: FieldPurpose = (type === "link" || tagName === "a" || href) ? "category_url" : "field";
 
         setFields(prev => {
-          const autoName = inferPurpose === "category_url" ? `URL Cat ${prev.length + 1}` : inferPurpose === "product_url" ? `URL Prod ${prev.length + 1}` : `Campo ${prev.length + 1}`;
+          const autoName = inferPurpose === "category_url" ? `URL Cat ${prev.length + 1}` : `Campo ${prev.length + 1}`;
           return [...prev, {
-          id: crypto.randomUUID(),
-          name: autoName,
-          selector, type,
-          preview: preview.substring(0, 200),
-          isVariation: false,
-          purpose: inferPurpose,
-        }]);
+            id: crypto.randomUUID(),
+            name: autoName,
+            selector, type,
+            preview: preview.substring(0, 200),
+            isVariation: false,
+            purpose: inferPurpose,
+          }];
+        });
         toast.success("Elemento selecionado!", { description: preview.substring(0, 80) });
       } else if (e.data?.type === "element-deselected") {
         setFields(prev => prev.filter(f => f.selector !== e.data.selector));
