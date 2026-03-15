@@ -1416,7 +1416,7 @@ export default function VisualScraperPage() {
               {/* Auto-collect */}
               <Button size="sm" variant="secondary" onClick={handleAutoCollect} disabled={loading}>
                 {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
-                Auto-recolher produtos (c/ paginação)
+                Auto-recolher produtos (recursivo c/ paginação)
               </Button>
 
               {/* Manual collect */}
