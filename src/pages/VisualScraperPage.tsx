@@ -646,6 +646,11 @@ export default function VisualScraperPage() {
       toast.error("Selecione pelo menos um campo.");
       return;
     }
+    // Store selected links as batch URLs if not already stored
+    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
+    if (selected.length > 0 && batchUrls.length === 0) {
+      setBatchUrls(selected);
+    }
     setStep("batch");
   };
 
