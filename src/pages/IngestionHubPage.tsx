@@ -804,9 +804,11 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
 
 // ─── Item Detail Dialog — shows all data with field selection ───
 function ItemDetailDialog({
-  item, onClose, currentIndex, totalItems, onPrevious, onNext,
+  item, allItems, jobId, onClose, currentIndex, totalItems, onPrevious, onNext,
 }: {
   item: any;
+  allItems: any[];
+  jobId: string;
   onClose: () => void;
   currentIndex: number;
   totalItems: number;
