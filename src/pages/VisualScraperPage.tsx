@@ -1022,7 +1022,7 @@ export default function VisualScraperPage() {
                   </div>
                 </ScrollArea>
                 <div className="p-2 border-t">
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setFields(prev => [...prev, { id: crypto.randomUUID(), name: `Campo ${prev.length + 1}`, selector: "", type: "text", preview: "", isVariation: false }])}>
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setFields(prev => [...prev, { id: crypto.randomUUID(), name: `Campo ${prev.length + 1}`, selector: "", type: "text", preview: "", isVariation: false, purpose: "field" }])}>
                     <Plus className="w-3 h-3 mr-1" /> Adicionar Campo Manual
                   </Button>
                 </div>
