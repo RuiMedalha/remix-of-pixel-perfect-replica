@@ -720,7 +720,14 @@ export default function VisualScraperPage() {
 
   /* ── Auto-collect: drill all categories recursively with full pagination ── */
   const handleAutoCollect = async () => {
-    const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria") && l.selected).map(l => l.url);
+    // Auto-select ALL categories if none are manually selected
+    let catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria") && l.selected).map(l => l.url);
+    
+    if (catUrls.length === 0) {
+      // No manual selection — use ALL categories/groups/subcategories automatically
+      catUrls = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria").map(l => l.url);
+    }
+    
     if (catUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
       toast.error("Nenhuma categoria ou produto encontrado.");
       return;
@@ -735,7 +742,7 @@ export default function VisualScraperPage() {
       const allProductUrls: string[] = [...productUrls]; // Start with already accumulated products
       const seen = new Set<string>(allProductUrls);
 
-      // Add already-visible products from current level
+      // Add ALL product-typed links from current level (not just selected)
       currentLinks.filter(l => l.linkType === "produto").forEach(l => {
         if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
       });
