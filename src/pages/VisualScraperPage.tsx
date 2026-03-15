@@ -1372,6 +1372,9 @@ export default function VisualScraperPage() {
                 <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "categoria" } : l))}>
                   Seleção → Categoria
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "subcategoria" } : l))}>
+                  Seleção → Subcategoria
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "grupo" } : l))}>
                   Seleção → Grupo
                 </Button>
