@@ -236,6 +236,47 @@ Deno.serve(async (req) => {
 
         const extracted: Record<string, string> = { source_url: url };
 
+        // Extract variations automatically (selects, swatches)
+        const variationSelectors = [
+          { selector: 'select[name*="attribute"]', label: 'variation_select' },
+          { selector: '.variations select', label: 'variation_select' },
+          { selector: 'select[id*="pa_"]', label: 'variation_select' },
+          { selector: '.swatch-anchor', label: 'variation_swatch' },
+          { selector: '.variation-selector', label: 'variation_select' },
+          { selector: '[data-attribute_name]', label: 'variation_attr' },
+        ];
+
+        // Check if any field is a variation field; if none defined, auto-detect
+        const hasVariationField = fields.some((f: any) => f.isVariation && f.name.toLowerCase().includes('varia'));
+        if (!hasVariationField) {
+          for (const vs of variationSelectors) {
+            const varEls = findElements(html, vs.selector);
+            if (varEls.length > 0) {
+              // Extract option values from select elements
+              const optionRe = /<option[^>]*value=['"]([^'"]+)['"][^>]*>([^<]*)<\/option>/gi;
+              const allOptions: string[] = [];
+              for (const vel of varEls) {
+                const inner = getInnerHtml(html, vel.outerStart, vel.tag);
+                let optMatch;
+                while ((optMatch = optionRe.exec(inner)) !== null) {
+                  const val = (optMatch[2] || optMatch[1]).trim();
+                  if (val && val.length > 0) allOptions.push(val);
+                }
+                // Reset regex
+                optionRe.lastIndex = 0;
+              }
+              if (allOptions.length > 0) {
+                // Get the attribute name from the select name or data attribute
+                const attrName = getAttr(varEls[0].attrs, 'data-attribute_name')
+                  || getAttr(varEls[0].attrs, 'name')?.replace('attribute_', '').replace('pa_', '')
+                  || 'variação';
+                extracted[`Variações (${attrName})`] = [...new Set(allOptions)].join(' | ');
+              }
+              break;
+            }
+          }
+        }
+
         for (const field of fields) {
           try {
             extracted[field.name] = extractField(html, field.selector, field.type, field.isVariation);
