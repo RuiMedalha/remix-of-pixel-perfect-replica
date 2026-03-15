@@ -429,7 +429,8 @@ export default function VisualScraperPage() {
 
   /* ── Accumulate products from currentLinks into productUrls ── */
   const accumulateCurrentProducts = () => {
-    const prods = currentLinks.filter(l => l.linkType === "produto" && l.selected);
+    // Accumulate ALL links typed as "produto", not just selected ones
+    const prods = currentLinks.filter(l => l.linkType === "produto");
     if (prods.length > 0) {
       setProductUrls(prev => {
         const existing = new Set(prev);
