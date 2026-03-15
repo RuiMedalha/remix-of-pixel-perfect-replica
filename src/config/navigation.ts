@@ -41,6 +41,7 @@ import {
   Route,
   TowerControl,
   GitMerge,
+  MousePointerClick,
   type LucideIcon,
 } from "lucide-react";
 
