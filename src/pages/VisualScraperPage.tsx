@@ -1452,6 +1452,14 @@ export default function VisualScraperPage() {
               <div className="ml-auto flex gap-2">
                 <Button
                   size="sm"
+                  variant="secondary"
+                  onClick={openCategoryAgentDialog}
+                  disabled={drillLoading || (categoryLinks.length + groupLinks.length) === 0}
+                >
+                  <Wand2 className="w-3 h-3 mr-1" /> Agente (Lista)
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => {
                     const allCatUrls = extractedLinks
@@ -1466,7 +1474,7 @@ export default function VisualScraperPage() {
                 </Button>
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="outline"
                   onClick={() => handleDrillCategories()}
                   disabled={drillLoading || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).length === 0}
                 >
