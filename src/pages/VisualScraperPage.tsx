@@ -233,12 +233,16 @@ export default function VisualScraperPage() {
         if (tagName === "img" || src) { type = "image"; preview = src || ""; }
         else if (tagName === "a" || href) { type = "link"; preview = href || text || ""; }
 
+        const inferPurpose: FieldPurpose = (type === "link" || tagName === "a" || href) ? "category_url" : "field";
+        const autoName = inferPurpose === "category_url" ? `URL Cat ${prev.length + 1}` : inferPurpose === "product_url" ? `URL Prod ${prev.length + 1}` : `Campo ${prev.length + 1}`;
+
         setFields(prev => [...prev, {
           id: crypto.randomUUID(),
-          name: `Campo ${prev.length + 1}`,
+          name: autoName,
           selector, type,
           preview: preview.substring(0, 200),
           isVariation: false,
+          purpose: inferPurpose,
         }]);
         toast.success("Elemento selecionado!", { description: preview.substring(0, 80) });
       } else if (e.data?.type === "element-deselected") {
