@@ -181,26 +181,63 @@ export default function VisualScraperPage() {
   const CATEGORY_LINK_CLASSES = [
     'categoryproductteaser', 'category-teaser', 'category-card', 'category-link',
   ];
-  const NAV_CONTAINERS = ['nav', 'header', 'footer', '.menu', '.navbar', '.footer', '.header', '.breadcrumb', '.social'];
 
-  const classifyLink = (anchor: Element, doc: Document): 'product' | 'category' | 'navigation' | 'other' => {
-    const classes = (anchor.className || '').toLowerCase();
+  const NAV_CONTAINER_SELECTOR = 'nav, header, .menu, .navbar, .header, .breadcrumb, .social, [role="navigation"]';
+  const FOOTER_CONTAINER_SELECTOR = 'footer, .footer, .footer-menu, .footer-links, .copyright, [role="contentinfo"]';
+  const MAIN_CONTENT_SELECTOR = 'main, #Main-wrapper, .NodeCategory, .NodeCategoriesList, .item-list, .products, .product-list, .catalog, [role="main"]';
+
+  const NAV_URL_HINT = /(contact|about|legal|privacy|terms|cookies|gdpr|faq|blog|news|cart|checkout|account|login|search|facebook|instagram|linkedin|youtube)/i;
+  const PRODUCT_URL_HINT = /(\/product(s)?\/|\/produto(s)?\/|\/p\/|\/item\/|\/model\/|\/md\d+)/i;
+  const CATEGORY_URL_HINT = /(\/categor(y|ies)\/|\/categoria(s)?\/|\/collection(s)?\/|\/grupo(s)?\/|\/range\/|\/gama\/|\/famil(y|ies)\/|\/shop\/)/i;
+  const GROUP_URL_HINT = /(\/group(s)?\/|\/groupe(s)?\/|\/family|\/familia|\/series|\/linha|\/gama)/i;
+  const NON_HTML_FILE_HINT = /\.(jpg|jpeg|png|webp|gif|svg|pdf|zip|rar|mp4|mp3|webm|avi)(\?|$)/i;
+  const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'];
+
+  const canonicalizeUrl = (rawUrl: string): string => {
+    try {
+      const parsed = new URL(rawUrl);
+      parsed.hash = '';
+      TRACKING_PARAMS.forEach(param => parsed.searchParams.delete(param));
+      parsed.pathname = parsed.pathname.replace(/\/+/g, '/');
+      if (parsed.pathname.length > 1) {
+        parsed.pathname = parsed.pathname.replace(/\/+$/, '');
+      }
+      return parsed.toString();
+    } catch {
+      return rawUrl;
+    }
+  };
+
+  const classifyLink = (anchor: Element, fullUrl: string): 'product' | 'category' | 'navigation' | 'other' => {
+    const classes = (typeof anchor.className === 'string' ? anchor.className : '').toLowerCase();
     const href = (anchor.getAttribute('href') || '').toLowerCase();
-    
-    // Check if link itself has product/category class
-    if (PRODUCT_LINK_CLASSES.some(c => classes.includes(c))) return 'product';
-    if (CATEGORY_LINK_CLASSES.some(c => classes.includes(c))) return 'category';
+    const text = (anchor.textContent || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '').toLowerCase().trim();
+    const normalizedUrl = fullUrl.toLowerCase();
 
-    // Check if inside a nav/footer container
-    const isInNav = !!anchor.closest('nav, header, footer, .menu, .navbar, .footer-menu, .header-menu, .Breadcrumb, .social-links, .GeographicRedirection');
-    if (isInNav) return 'navigation';
+    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+      return 'navigation';
+    }
 
-    // Check if inside main content area
-    const isInMain = !!anchor.closest('main, #Main-wrapper, .NodeCategory, .NodeCategoriesList, .item-list, .products, .product-list, .catalog, [role="main"]');
-    if (isInMain) return 'product';
+    if (NON_HTML_FILE_HINT.test(normalizedUrl)) return 'other';
 
-    // URL heuristics - contact, legal pages etc.
-    if (/\/(contact|about|legal|privacy|terms|faq|blog|news|cart|checkout|account|login|search)/.test(href)) return 'navigation';
+    const inNavigationContainer = !!anchor.closest(`${NAV_CONTAINER_SELECTOR}, ${FOOTER_CONTAINER_SELECTOR}`);
+    if (inNavigationContainer) return 'navigation';
+
+    if (NAV_URL_HINT.test(normalizedUrl) || NAV_URL_HINT.test(text)) return 'navigation';
+
+    if (PRODUCT_LINK_CLASSES.some(c => classes.includes(c)) || PRODUCT_URL_HINT.test(normalizedUrl)) return 'product';
+    if (CATEGORY_LINK_CLASSES.some(c => classes.includes(c)) || CATEGORY_URL_HINT.test(normalizedUrl)) return 'category';
+
+    const isInMainContent = !!anchor.closest(MAIN_CONTENT_SELECTOR);
+    if (isInMainContent) {
+      try {
+        const depth = new URL(fullUrl).pathname.split('/').filter(Boolean).length;
+        if (depth >= 4) return 'product';
+        if (depth >= 2) return 'category';
+      } catch {
+        return 'other';
+      }
+    }
 
     return 'other';
   };
