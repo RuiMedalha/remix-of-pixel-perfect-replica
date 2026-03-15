@@ -975,7 +975,9 @@ export default function VisualScraperPage() {
     } finally {
       setBatchLoading(false);
     }
-  };
+  }; 
+
+  const handleRunBatch = () => runBatchExtraction();
 
   const handleExportExcel = () => {
     if (results.length === 0) return;
