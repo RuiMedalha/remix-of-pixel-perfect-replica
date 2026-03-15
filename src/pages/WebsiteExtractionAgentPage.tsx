@@ -272,7 +272,6 @@ export default function WebsiteExtractionAgentPage() {
     const baseUrl = new URL(pageUrl);
     const links: ExtractedLink[] = [];
     const seen = new Set<string>();
-    let hasContentLinks = false;
 
     anchors.forEach(a => {
       try {
@@ -281,23 +280,24 @@ export default function WebsiteExtractionAgentPage() {
         const fullUrl = canonicalizeUrl(new URL(href, pageUrl).href);
         if (seen.has(fullUrl) || fullUrl === canonicalizeUrl(pageUrl)) return;
         seen.add(fullUrl);
+        // Only keep same-domain links
         if (new URL(fullUrl).hostname !== baseUrl.hostname) return;
 
-        const linkType = classifyLinkFromDoc(a, fullUrl);
-        if (linkType === 'navigation') return;
-        if (linkType === 'product' || linkType === 'category') hasContentLinks = true;
+        const linkType = classifyLinkFromDoc(a, fullUrl, includeAllLinks);
+        // In includeAll mode, only skip pure navigation (# / javascript / mailto)
+        // In filtered mode, skip navigation classified links
+        if (!includeAllLinks && linkType === 'navigation') return;
 
         const cleanText = (a.textContent || a.getAttribute("aria-label") || a.getAttribute("title") || "")
           .trim().replace(/\s+/g, ' ').substring(0, 120);
 
         const inferredType: LinkType = linkType === 'product' ? 'produto'
-          : GROUP_URL_HINT.test(fullUrl.toLowerCase()) ? 'grupo' : 'categoria';
+          : (linkType === 'category' || GROUP_URL_HINT.test(fullUrl.toLowerCase())) ? 'categoria' 
+          : linkType === 'navigation' ? 'outro' : 'outro';
 
-        links.push({ url: fullUrl, text: cleanText, selected: linkType !== 'other', linkType: inferredType });
+        links.push({ url: fullUrl, text: cleanText, selected: linkType === 'product' || linkType === 'category', linkType: inferredType });
       } catch { /* ignore */ }
     });
-
-    const cleanedLinks = hasContentLinks ? links.filter(l => l.linkType !== 'outro') : links;
 
     // Detect pagination
     const paginationSelectors = [
@@ -340,7 +340,67 @@ export default function WebsiteExtractionAgentPage() {
       });
     }
 
-    return { links: cleanedLinks, nextPages };
+    return { links, nextPages };
+  };
+
+  /* ── Deep crawl: recursively discover ALL internal links ── */
+  const handleDeepCrawl = async () => {
+    setLoading(true);
+    try {
+      const crawled = new Set<string>();
+      const allLinks: ExtractedLink[] = [];
+      const allLinkUrls = new Set<string>();
+      const queue = [currentUrl];
+      const maxCrawl = 100;
+      let processed = 0;
+
+      while (queue.length > 0 && crawled.size < maxCrawl) {
+        const batch = queue.splice(0, 3);
+        const results = await Promise.allSettled(batch.map(async u => {
+          if (crawled.has(u)) return { links: [] as ExtractedLink[], nextPages: [] as string[] };
+          crawled.add(u);
+          return extractLinksFromPage(u);
+        }));
+
+        results.forEach(r => {
+          if (r.status === "fulfilled") {
+            r.value.links.forEach(link => {
+              if (!allLinkUrls.has(link.url)) {
+                allLinkUrls.add(link.url);
+                allLinks.push(link);
+                // Queue internal pages for further crawling
+                if (link.linkType === "categoria" || link.linkType === "grupo") {
+                  if (!crawled.has(link.url) && !queue.includes(link.url)) queue.push(link.url);
+                }
+              }
+            });
+          }
+        });
+
+        processed += batch.length;
+        setCollectProgress({ current: processed, total: Math.min(processed + queue.length, maxCrawl), label: `Crawl profundo: ${allLinks.length} links`, pages: processed });
+      }
+
+      setCurrentLinks(allLinks);
+      setLayers([{
+        label: `Crawl completo (${crawled.size} páginas)`,
+        links: allLinks,
+        sourceUrl: currentUrl,
+        hasPagination: false,
+        paginationUrls: [],
+      }]);
+      setStep("categories");
+      setCollectProgress(null);
+
+      const cats = allLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo").length;
+      const prods = allLinks.filter(l => l.linkType === "produto").length;
+      toast.success(`Crawl completo: ${allLinks.length} links (${cats} categorias · ${prods} produtos) de ${crawled.size} páginas`);
+    } catch (err: any) {
+      toast.error("Erro no crawl", { description: err.message });
+    } finally {
+      setLoading(false);
+      setCollectProgress(null);
+    }
   };
 
   /* ── Step: Browse → Extract links ── */
@@ -404,10 +464,54 @@ export default function WebsiteExtractionAgentPage() {
     } finally { setLoading(false); }
   };
 
+  /* ── Generate pagination URLs from a pattern ── */
+  const generatePaginationUrls = (baseUrl: string, pattern: string, maxPages: number): string[] => {
+    const urls: string[] = [];
+    for (let n = 2; n <= maxPages; n++) {
+      const pageStr = pattern.replace(/\{n\}/g, String(n));
+      try {
+        const base = new URL(baseUrl);
+        if (pageStr.startsWith("?") || pageStr.startsWith("&")) {
+          const paramParts = pageStr.replace(/^[?&]/, "").split("=");
+          if (paramParts.length === 2) base.searchParams.set(paramParts[0], paramParts[1]);
+          urls.push(base.toString());
+        } else if (pageStr.startsWith("/")) {
+          base.pathname = base.pathname.replace(/\/+$/, "") + pageStr;
+          urls.push(base.toString());
+        } else {
+          urls.push(baseUrl.replace(/\/$/, "") + pageStr);
+        }
+      } catch { urls.push(baseUrl.replace(/\/$/, "") + pageStr); }
+    }
+    return urls;
+  };
+
+  /* ── Auto-detect pagination pattern ── */
+  const autoDetectPaginationPattern = (nextPages: string[], baseUrl: string): string | null => {
+    if (nextPages.length === 0) return null;
+    try {
+      const base = new URL(baseUrl);
+      for (const np of nextPages) {
+        const page = new URL(np);
+        for (const [key, val] of page.searchParams.entries()) {
+          if (/^\d+$/.test(val) && !base.searchParams.has(key)) return `?${key}={n}`;
+        }
+        const baseParts = base.pathname.split("/").filter(Boolean);
+        const pageParts = page.pathname.split("/").filter(Boolean);
+        if (pageParts.length > baseParts.length) {
+          const diff = pageParts.slice(baseParts.length);
+          if (diff.length === 1 && /^\d+$/.test(diff[0])) return `/page/{n}`;
+          if (diff.length === 2 && diff[0] === "page" && /^\d+$/.test(diff[1])) return `/page/{n}/`;
+        }
+      }
+    } catch { /* ignore */ }
+    return null;
+  };
+
   /* ── Follow pagination on current layer ── */
   const handleFollowPagination = async () => {
     const currentLayer = layers[layers.length - 1];
-    if (!currentLayer || currentLayer.paginationUrls.length === 0) return;
+    if (!currentLayer) return;
     setLoading(true);
     try {
       let remaining = [...currentLayer.paginationUrls];
@@ -416,22 +520,28 @@ export default function WebsiteExtractionAgentPage() {
       let newLinks: ExtractedLink[] = [];
       let totalNew = 0;
 
-      while (remaining.length > 0 && crawled.size < 30) {
+      if (paginationMode === "pattern" && paginationPattern && remaining.length === 0) {
+        remaining = generatePaginationUrls(currentLayer.sourceUrl, paginationPattern, maxPagesPerCategory);
+      }
+
+      while (remaining.length > 0 && crawled.size < maxPagesPerCategory) {
         const targetUrl = remaining.shift()!;
         if (crawled.has(targetUrl)) continue;
         crawled.add(targetUrl);
 
         const { links, nextPages } = await extractLinksFromPage(targetUrl);
         const unique = links.filter(l => !existingUrls.has(l.url));
+        if (unique.length === 0 && crawled.size > 1) break;
         unique.forEach(l => existingUrls.add(l.url));
         newLinks = [...newLinks, ...unique];
         totalNew += unique.length;
 
-        nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+        if (paginationMode === "auto") {
+          nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+        }
       }
 
       setCurrentLinks(prev => [...prev, ...newLinks]);
-      // Update layer
       setLayers(prev => {
         const updated = [...prev];
         const last = { ...updated[updated.length - 1] };
@@ -457,7 +567,7 @@ export default function WebsiteExtractionAgentPage() {
     toast.success(`${prods.length} URLs de produto recolhidas`);
   };
 
-  /* ── Auto-collect: drill all categories recursively then collect products ── */
+  /* ── Auto-collect: drill all categories with full pagination ── */
   const handleAutoCollect = async () => {
     const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected).map(l => l.url);
     if (catUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
@@ -466,34 +576,61 @@ export default function WebsiteExtractionAgentPage() {
     }
 
     setLoading(true);
-    setCollectProgress({ current: 0, total: catUrls.length || 1 });
+    setCollectProgress({ current: 0, total: catUrls.length || 1, label: "A iniciar...", pages: 0 });
 
     try {
       let allProductUrls: string[] = [];
       const seen = new Set<string>();
+      let totalPagesProcessed = 0;
 
-      // Add already-visible products
       currentLinks.filter(l => l.linkType === "produto").forEach(l => {
         if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
       });
 
-      // Drill each category
       for (let i = 0; i < catUrls.length; i++) {
-        setCollectProgress({ current: i + 1, total: catUrls.length });
-        try {
-          let pageUrl: string | null = catUrls[i];
-          const crawledPages = new Set<string>();
+        const catUrl = catUrls[i];
+        const catLabel = currentLinks.find(l => l.url === catUrl)?.text || `Cat ${i + 1}`;
+        setCollectProgress({ current: i + 1, total: catUrls.length, label: catLabel, pages: totalPagesProcessed });
 
-          while (pageUrl && crawledPages.size < 20) {
+        try {
+          const crawledPages = new Set<string>();
+          let pageUrl: string | null = catUrl;
+          let detectedPattern: string | null = null;
+          let patternGenerated = false;
+
+          while (pageUrl && crawledPages.size < maxPagesPerCategory) {
             crawledPages.add(pageUrl);
+            totalPagesProcessed++;
+            setCollectProgress({ current: i + 1, total: catUrls.length, label: `${catLabel} (pág ${crawledPages.size})`, pages: totalPagesProcessed });
+
             const { links, nextPages } = await extractLinksFromPage(pageUrl);
+            const productsBefore = allProductUrls.length;
             links.filter(l => l.linkType === "produto").forEach(l => {
               if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
             });
+            if (crawledPages.size > 1 && allProductUrls.length === productsBefore) break;
 
-            // Follow pagination within this category
-            const nextPage = nextPages.find(p => !crawledPages.has(p));
-            pageUrl = nextPage || null;
+            let nextPage: string | null = null;
+
+            if (paginationMode === "pattern" && paginationPattern) {
+              if (!patternGenerated) {
+                const paginationUrls = generatePaginationUrls(catUrl, paginationPattern, maxPagesPerCategory);
+                paginationUrls.forEach(u => { if (!crawledPages.has(u)) nextPages.push(u); });
+                patternGenerated = true;
+              }
+              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
+            } else {
+              if (!detectedPattern && nextPages.length > 0) {
+                detectedPattern = autoDetectPaginationPattern(nextPages, catUrl);
+              }
+              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
+              if (!nextPage && detectedPattern && crawledPages.size < maxPagesPerCategory) {
+                const generatedUrls = generatePaginationUrls(catUrl, detectedPattern, maxPagesPerCategory);
+                nextPage = generatedUrls.find(u => !crawledPages.has(u)) || null;
+              }
+            }
+
+            pageUrl = nextPage;
           }
         } catch { /* skip failed category */ }
       }
@@ -501,7 +638,7 @@ export default function WebsiteExtractionAgentPage() {
       setProductUrls(allProductUrls);
       setCollectProgress(null);
       setStep("products");
-      toast.success(`${allProductUrls.length} URLs de produto recolhidas de ${catUrls.length} categorias`);
+      toast.success(`${allProductUrls.length} URLs de produto de ${catUrls.length} categorias (${totalPagesProcessed} páginas)`);
     } catch (err: any) {
       toast.error("Erro na recolha automática", { description: err.message });
     } finally {
