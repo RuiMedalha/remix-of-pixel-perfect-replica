@@ -965,6 +965,8 @@ export default function VisualScraperPage() {
   /* ── Drill into a single category URL from the fields panel ── */
   const handleDrillCategoryField = async (fieldUrl: string, fieldName: string) => {
     const resolvedUrl = fieldUrl.startsWith("http") ? fieldUrl : `${new URL(currentUrl).origin}${fieldUrl}`;
+    // Accumulate products before drilling
+    accumulateCurrentProducts();
     setLoading(true);
     try {
       const { links, nextPages } = await extractLinksFromPage(resolvedUrl);
