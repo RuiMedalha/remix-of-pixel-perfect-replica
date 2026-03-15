@@ -501,8 +501,8 @@ export default function VisualScraperPage() {
   };
 
   // Drill into selected links of type "categoria" or "grupo" to find products
-  const handleDrillCategories = async () => {
-    const selectedUrls = extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).map(l => l.url);
+  const handleDrillCategories = async (overrideUrls?: string[]) => {
+    const selectedUrls = overrideUrls || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).map(l => l.url);
     if (selectedUrls.length === 0) {
       toast.error("Selecione URLs de categoria ou grupo para explorar.");
       return;
