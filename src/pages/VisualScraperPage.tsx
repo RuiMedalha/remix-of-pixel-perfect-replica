@@ -1295,10 +1295,26 @@ export default function VisualScraperPage() {
 
           {/* ─── Section B: Explorar Categorias/Grupos ─── */}
           {(categoryLinks.length > 0 || groupLinks.length > 0) && (
-            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0 flex-wrap">
               <Badge variant="outline" className="text-[10px]">Passo 2</Badge>
               <span className="text-sm font-medium">Explorar categorias/grupos para encontrar produtos</span>
               <div className="ml-auto flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    // Auto-select ALL category/group links then drill
+                    setExtractedLinks(prev => prev.map(l =>
+                      (l.linkType === 'categoria' || l.linkType === 'grupo') ? { ...l, selected: true } : l
+                    ));
+                    // Small delay to let state update, then drill
+                    setTimeout(() => handleDrillCategories(), 100);
+                  }}
+                  disabled={drillLoading || (categoryLinks.length + groupLinks.length) === 0}
+                >
+                  {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+                  Explorar Todas ({categoryLinks.length + groupLinks.length})
+                </Button>
                 <Button
                   size="sm"
                   variant="secondary"
