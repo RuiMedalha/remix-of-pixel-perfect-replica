@@ -84,6 +84,7 @@ export default function VisualScraperPage() {
   const [batchLoading, setBatchLoading] = useState(false);
   const [results, setResults] = useState<ExtractedRow[]>([]);
   const [errors, setErrors] = useState<any[]>([]);
+  const [batchUrls, setBatchUrls] = useState<string[]>([]);
 
   // Dialogs
   const [showSendDialog, setShowSendDialog] = useState(false);
