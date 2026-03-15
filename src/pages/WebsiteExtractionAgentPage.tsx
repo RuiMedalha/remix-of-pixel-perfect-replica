@@ -742,7 +742,277 @@ export default function WebsiteExtractionAgentPage() {
     }
   };
 
-  /* ── Open a product page for field selection ── */
+  /* ── SMART AGENT: Full auto-discovery ── */
+  const [agentLog, setAgentLog] = useState<string[]>([]);
+  const [smartAgentRunning, setSmartAgentRunning] = useState(false);
+
+  const addAgentLog = (msg: string) => setAgentLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+
+  const handleSmartAgent = async () => {
+    if (!url.trim()) { toast.error("Insira um URL primeiro."); return; }
+    setSmartAgentRunning(true);
+    setAgentLog([]);
+    setStep("browse");
+
+    try {
+      // STEP 1: Load the homepage
+      addAgentLog("🔍 A carregar a página inicial...");
+      const { data: homeData, error: homeError } = await supabase.functions.invoke("proxy-page", {
+        body: { url: url.trim(), useFirecrawl, mode: "browse" },
+      });
+      if (homeError || homeData?.error) throw new Error(homeData?.error || homeError?.message || "Erro ao carregar página");
+
+      setHtmlContent(homeData.html);
+      setCurrentUrl(homeData.sourceUrl);
+      setPageTitle(homeData.metadata?.title || url);
+      setNavHistory([homeData.sourceUrl]);
+
+      // STEP 2: Analyze homepage HTML for product zone links
+      addAgentLog("🧠 A analisar a página para encontrar zonas de produtos...");
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(homeData.html, "text/html");
+      const baseUrl = new URL(homeData.sourceUrl);
+      const allAnchors = doc.querySelectorAll("a[href]");
+
+      // Find links whose text matches product zone keywords
+      const productZoneLinks: { url: string; text: string; score: number }[] = [];
+      const seenUrls = new Set<string>();
+
+      allAnchors.forEach(a => {
+        try {
+          const href = a.getAttribute("href") || "";
+          if (!href || href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
+          const fullUrl = canonicalizeUrl(new URL(href, homeData.sourceUrl).href);
+          if (seenUrls.has(fullUrl)) return;
+          if (new URL(fullUrl).hostname !== baseUrl.hostname) return;
+          if (NON_HTML_FILE_HINT.test(fullUrl)) return;
+          if (NAV_URL_HINT.test(fullUrl)) return;
+          seenUrls.add(fullUrl);
+
+          const text = (a.textContent || "").trim().toLowerCase();
+          const ariaLabel = (a.getAttribute("aria-label") || "").toLowerCase();
+          const title = (a.getAttribute("title") || "").toLowerCase();
+          const combinedText = `${text} ${ariaLabel} ${title}`;
+
+          // Score based on keyword match
+          let score = 0;
+          if (PRODUCT_ZONE_REGEX.test(combinedText)) score += 10;
+          if (CATEGORY_URL_HINT.test(fullUrl)) score += 8;
+          if (PRODUCT_URL_HINT.test(fullUrl)) score += 5;
+          if (GROUP_URL_HINT.test(fullUrl)) score += 6;
+          // Bonus for being in nav/header/main menu
+          const parentNav = a.closest("nav, header, .main-menu, .main-nav, #menu, .menu, .navigation");
+          if (parentNav && score > 0) score += 3;
+          // Bonus for shorter paths (closer to root = more likely a category index)
+          const pathDepth = new URL(fullUrl).pathname.split("/").filter(Boolean).length;
+          if (pathDepth <= 2 && score > 0) score += 2;
+
+          if (score > 0) {
+            productZoneLinks.push({ url: fullUrl, text: (a.textContent || "").trim(), score });
+          }
+        } catch { /* ignore */ }
+      });
+
+      // Sort by score descending
+      productZoneLinks.sort((a, b) => b.score - a.score);
+
+      if (productZoneLinks.length === 0) {
+        addAgentLog("⚠️ Não encontrei links de produtos na homepage. A tentar crawl completo...");
+        // Fallback: do a deep crawl from homepage
+        toast.info("Nenhuma zona de produtos detetada. A executar crawl completo...");
+        setSmartAgentRunning(false);
+        handleDeepCrawl();
+        return;
+      }
+
+      // Take top product zone links as seed categories (max 20 unique entry points)
+      const seedCategories = productZoneLinks.slice(0, 20);
+      addAgentLog(`✅ Encontrei ${productZoneLinks.length} links de produtos. Top ${seedCategories.length} zonas:`);
+      seedCategories.forEach((l, i) => addAgentLog(`   ${i + 1}. [${l.score}pts] ${l.text} → ${l.url}`));
+
+      // STEP 3: Explore each seed URL recursively (categories → subcategories → pagination → products)
+      addAgentLog("🚀 A explorar categorias, subcategorias e paginação...");
+      setStep("categories");
+
+      const allProductUrls: string[] = [];
+      const seenProducts = new Set<string>();
+      const allCategoryLinks: ExtractedLink[] = [];
+      let totalPagesProcessed = 0;
+
+      // Convert seed links to ExtractedLink format for the UI
+      const seedExtractedLinks: ExtractedLink[] = seedCategories.map(l => ({
+        url: l.url, text: l.text, selected: true, linkType: "categoria" as LinkType,
+      }));
+      setCurrentLinks(seedExtractedLinks);
+      setLayers([{
+        label: `Smart Agent - ${seedCategories.length} zonas detetadas`,
+        links: seedExtractedLinks,
+        sourceUrl: homeData.sourceUrl,
+        hasPagination: false,
+        paginationUrls: [],
+      }]);
+
+      for (let i = 0; i < seedCategories.length; i++) {
+        const seed = seedCategories[i];
+        addAgentLog(`📂 [${i + 1}/${seedCategories.length}] A explorar: ${seed.text}`);
+
+        const queue: Array<{ url: string; depth: number; paginationPattern: string | null }> = [
+          { url: seed.url, depth: 0, paginationPattern: null },
+        ];
+        const queued = new Set<string>([seed.url]);
+        const visited = new Set<string>();
+
+        while (queue.length > 0 && visited.size < maxPagesPerCategory) {
+          const node = queue.shift()!;
+          const pageUrl = canonicalizeUrl(node.url);
+          if (visited.has(pageUrl)) continue;
+          visited.add(pageUrl);
+          totalPagesProcessed++;
+
+          setCollectProgress({
+            current: i + 1,
+            total: seedCategories.length,
+            label: `${seed.text} · nível ${node.depth + 1} · pág ${visited.size} · ${allProductUrls.length} produtos`,
+            pages: totalPagesProcessed,
+          });
+
+          try {
+            const { links, nextPages } = await extractLinksFromPage(pageUrl);
+
+            // Collect products
+            let newProductsOnPage = 0;
+            links.filter(l => l.linkType === "produto").forEach(l => {
+              const normalized = canonicalizeUrl(l.url);
+              if (!seenProducts.has(normalized)) {
+                seenProducts.add(normalized);
+                allProductUrls.push(normalized);
+                newProductsOnPage++;
+              }
+            });
+
+            if (newProductsOnPage > 0) {
+              addAgentLog(`   +${newProductsOnPage} produtos (total: ${allProductUrls.length})`);
+            }
+
+            // Follow pagination
+            const detectedPattern = node.paginationPattern || autoDetectPaginationPattern(nextPages, pageUrl);
+            if (detectedPattern || nextPages.length > 0) {
+              const paginationCandidates = new Set<string>(nextPages.map(p => canonicalizeUrl(p)));
+              if (detectedPattern) {
+                generatePaginationUrls(pageUrl, detectedPattern, maxPagesPerCategory)
+                  .forEach(u => paginationCandidates.add(canonicalizeUrl(u)));
+              }
+              paginationCandidates.forEach(p => {
+                if (p !== canonicalizeUrl(pageUrl) && !visited.has(p) && !queued.has(p) && visited.size + queue.length < maxPagesPerCategory) {
+                  queue.push({ url: p, depth: node.depth, paginationPattern: detectedPattern });
+                  queued.add(p);
+                }
+              });
+            }
+
+            // Detect and follow subcategories
+            if (node.depth < maxCategoryDepth) {
+              const subCatLinks = links.filter(l => {
+                if (l.linkType === "produto") return false;
+                const lUrl = l.url.toLowerCase();
+                const lText = (l.text || "").toLowerCase();
+                if (l.linkType === "categoria" || l.linkType === "grupo") return true;
+                // Check if child URL is deeper in path hierarchy
+                try {
+                  const parent = new URL(pageUrl);
+                  const child = new URL(l.url);
+                  if (child.hostname !== parent.hostname) return false;
+                  if (NON_HTML_FILE_HINT.test(lUrl) || NAV_URL_HINT.test(lUrl)) return false;
+                  const parentParts = parent.pathname.split("/").filter(Boolean);
+                  const childParts = child.pathname.split("/").filter(Boolean);
+                  const sharesPrefix = parentParts.length > 0 && childParts.slice(0, parentParts.length).join("/") === parentParts.join("/");
+                  const isDeeper = childParts.length >= parentParts.length + 1;
+                  return (sharesPrefix && isDeeper && lText.length > 1) || CATEGORY_URL_HINT.test(lUrl) || GROUP_URL_HINT.test(lUrl);
+                } catch { return false; }
+              });
+
+              subCatLinks.forEach(l => {
+                const subUrl = canonicalizeUrl(l.url);
+                if (!visited.has(subUrl) && !queued.has(subUrl) && visited.size + queue.length < maxPagesPerCategory) {
+                  queue.push({ url: subUrl, depth: node.depth + 1, paginationPattern: null });
+                  queued.add(subUrl);
+                }
+              });
+            }
+          } catch (e) {
+            addAgentLog(`   ⚠️ Erro na página ${pageUrl}: ${e instanceof Error ? e.message : "erro"}`);
+          }
+        }
+
+        addAgentLog(`   ✓ ${seed.text}: ${visited.size} páginas exploradas`);
+      }
+
+      setCollectProgress(null);
+      addAgentLog(`\n🎯 Total: ${allProductUrls.length} URLs de produto encontradas em ${totalPagesProcessed} páginas`);
+
+      if (allProductUrls.length === 0) {
+        addAgentLog("⚠️ Nenhum produto encontrado. Verifique o site ou ajuste os parâmetros.");
+        toast.warning("Nenhum produto encontrado automaticamente.");
+        setSmartAgentRunning(false);
+        return;
+      }
+
+      // STEP 4: Set product URLs and auto-detect fields on first product
+      setProductUrls(allProductUrls);
+      setStep("products");
+      addAgentLog(`📋 A abrir um produto para auto-detetar campos...`);
+
+      // Load first product page and auto-detect fields
+      const sampleUrl = allProductUrls[0];
+      const { data: productPageData } = await supabase.functions.invoke("proxy-page", {
+        body: { url: sampleUrl, useFirecrawl, mode: "select" },
+      });
+
+      if (productPageData?.html) {
+        setHtmlContent(productPageData.html);
+        setCurrentUrl(productPageData.sourceUrl || sampleUrl);
+        setIframeMode("select");
+
+        // Auto-detect fields from the HTML
+        const productDoc = parser.parseFromString(productPageData.html, "text/html");
+        const detected: SelectedField[] = [];
+        for (const spec of FIELD_DETECTION_RULES) {
+          for (const sel of spec.selectors) {
+            try {
+              const el = productDoc.querySelector(sel);
+              if (el) {
+                let preview = "";
+                if (spec.type === "image") preview = el.getAttribute("src") || el.querySelector("img")?.getAttribute("src") || "";
+                else preview = (el.textContent || "").trim().substring(0, 200);
+                if (preview && preview.length > 1) {
+                  detected.push({ id: crypto.randomUUID(), name: spec.name, selector: sel, type: spec.type, preview, isVariation: spec.isVariation || false });
+                  break;
+                }
+              }
+            } catch { /* invalid selector */ }
+          }
+        }
+
+        if (detected.length > 0) {
+          setFields(detected);
+          addAgentLog(`✅ ${detected.length} campos detetados automaticamente: ${detected.map(d => d.name).join(", ")}`);
+          setStep("fields");
+        } else {
+          addAgentLog("⚠️ Não consegui detetar campos. Selecione-os manualmente.");
+          setStep("products");
+        }
+      }
+
+      toast.success(`Smart Agent: ${allProductUrls.length} produtos encontrados, ${totalPagesProcessed} páginas analisadas`);
+    } catch (err: any) {
+      addAgentLog(`❌ Erro: ${err.message}`);
+      toast.error("Erro no Smart Agent", { description: err.message });
+    } finally {
+      setSmartAgentRunning(false);
+      setCollectProgress(null);
+    }
+  };
+
   const handleOpenProductForFields = (productUrl?: string) => {
     const target = productUrl || productUrls[0];
     if (!target) return;
