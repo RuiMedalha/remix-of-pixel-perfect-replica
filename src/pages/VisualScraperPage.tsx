@@ -911,12 +911,27 @@ export default function VisualScraperPage() {
     setExtractedLinks(prev => prev.map(l => l.url === url ? { ...l, selected: !l.selected } : l));
   };
 
+  const changeLinkType = (url: string, linkType: LinkType) => {
+    setExtractedLinks(prev => prev.map(l => l.url === url ? { ...l, linkType } : l));
+  };
+
+  const setAllSelectedType = (linkType: LinkType) => {
+    setExtractedLinks(prev => prev.map(l => l.selected ? { ...l, linkType } : l));
+  };
+
+  const removeLink = (url: string) => {
+    setExtractedLinks(prev => prev.filter(l => l.url !== url));
+  };
+
   const filteredLinks = extractedLinks.filter(l =>
     !linkFilter || l.url.toLowerCase().includes(linkFilter.toLowerCase()) ||
     l.text.toLowerCase().includes(linkFilter.toLowerCase())
   );
 
   const selectedLinksCount = extractedLinks.filter(l => l.selected).length;
+  const productLinks = extractedLinks.filter(l => l.linkType === 'produto');
+  const categoryLinks = extractedLinks.filter(l => l.linkType === 'categoria');
+  const groupLinks = extractedLinks.filter(l => l.linkType === 'grupo');
 
   const typeIcons: Record<string, React.ReactNode> = {
     text: <Type className="w-3 h-3" />,
