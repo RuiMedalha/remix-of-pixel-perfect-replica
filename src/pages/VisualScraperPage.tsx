@@ -501,8 +501,8 @@ export default function VisualScraperPage() {
   };
 
   // Drill into selected links of type "categoria" or "grupo" to find products
-  const handleDrillCategories = async () => {
-    const selectedUrls = extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).map(l => l.url);
+  const handleDrillCategories = async (overrideUrls?: string[]) => {
+    const selectedUrls = overrideUrls || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).map(l => l.url);
     if (selectedUrls.length === 0) {
       toast.error("Selecione URLs de categoria ou grupo para explorar.");
       return;
@@ -1295,14 +1295,28 @@ export default function VisualScraperPage() {
 
           {/* ─── Section B: Explorar Categorias/Grupos ─── */}
           {(categoryLinks.length > 0 || groupLinks.length > 0) && (
-            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0 flex-wrap">
               <Badge variant="outline" className="text-[10px]">Passo 2</Badge>
               <span className="text-sm font-medium">Explorar categorias/grupos para encontrar produtos</span>
               <div className="ml-auto flex gap-2">
                 <Button
                   size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const allCatUrls = extractedLinks
+                      .filter(l => l.linkType === 'categoria' || l.linkType === 'grupo')
+                      .map(l => l.url);
+                    handleDrillCategories(allCatUrls);
+                  }}
+                  disabled={drillLoading || (categoryLinks.length + groupLinks.length) === 0}
+                >
+                  {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+                  Explorar Todas ({categoryLinks.length + groupLinks.length})
+                </Button>
+                <Button
+                  size="sm"
                   variant="secondary"
-                  onClick={handleDrillCategories}
+                  onClick={() => handleDrillCategories()}
                   disabled={drillLoading || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).length === 0}
                 >
                   {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
@@ -1322,14 +1336,27 @@ export default function VisualScraperPage() {
                     <p className="text-sm font-medium text-primary">{fields.length} campos definidos ✓</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {fields.map(f => (
-                        <Badge key={f.id} variant="secondary" className="text-[10px] gap-1">
+                        <Badge key={f.id} variant="secondary" className="text-[10px] gap-1 items-center">
                           {typeIcons[f.type]} {f.name}
-                          <button onClick={(e) => { e.stopPropagation(); handleRemoveField(f.id); }} className="ml-1 hover:text-destructive">
+                          <label className="flex items-center gap-0.5 cursor-pointer ml-1" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={f.isVariation}
+                              onCheckedChange={() => handleToggleVariation(f.id)}
+                              className="h-2.5 w-2.5"
+                            />
+                            <Layers className={`w-2.5 h-2.5 ${f.isVariation ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
+                          </label>
+                          <button onClick={(e) => { e.stopPropagation(); handleRemoveField(f.id); }} className="ml-0.5 hover:text-destructive">
                             <X className="w-2.5 h-2.5" />
                           </button>
                         </Badge>
                       ))}
                     </div>
+                    {fields.some(f => f.isVariation) && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                        <Layers className="w-3 h-3" /> Campos com ícone amarelo serão extraídos como lista de opções
+                      </p>
+                    )}
                   </div>
                   <Button size="sm" variant="outline" onClick={() => {
                     const firstProduct = productLinks[0];
