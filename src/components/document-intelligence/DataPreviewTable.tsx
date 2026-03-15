@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Eye, Image, Package, PencilLine, Search, ShieldCheck, ThumbsUp,
+  Eye, Image, Package, PencilLine, Search, ShieldCheck, ThumbsUp, FileText, Layers,
 } from "lucide-react";
 
 interface DetectedProduct {
@@ -19,6 +19,8 @@ interface DetectedProduct {
   _confidence?: number;
   _warnings?: string[];
   _approved?: boolean;
+  _sources?: string[];
+  _pages?: number[];
 }
 
 interface Props {
@@ -33,7 +35,7 @@ const DISPLAY_LABELS: Record<string, string> = {
   sku: "SKU", original_title: "Título", original_description: "Descrição",
   original_price: "Preço", category: "Categoria", dimensions: "Dimensões",
   weight: "Peso", material: "Material", title: "Título", description: "Descrição",
-  price: "Preço", color_options: "Cores", technical_specs: "Especificações",
+  price: "Preço", color_options: "Cores", technical_specs: "Especificações Técnicas",
   short_description: "Descrição Curta", brand: "Marca", model: "Modelo",
   quantity: "Quantidade", unit: "Unidade", reference: "Referência",
   image_url: "Imagem URL", image_urls: "Imagens", image_description: "Desc. Imagem",
@@ -75,7 +77,7 @@ function getAllColumns(products: DetectedProduct[]): string[] {
   });
 }
 
-const SUMMARY_COLUMNS = ["sku", "reference", "title", "original_title", "price", "original_price", "category", "image_url"];
+const SUMMARY_COLUMNS = ["sku", "reference", "title", "original_title", "price", "original_price", "category", "brand", "image_url"];
 
 export function DataPreviewTable({ products: rawProducts, columns: columnsProp, editable = false, onProductsChange, showApproval = false }: Props) {
   const flattenedProducts = useMemo(() => {
@@ -127,6 +129,7 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
   const allApproved = approvedCount === tableProducts.length;
   const lowConfidenceCount = tableProducts.filter((p) => { const c = getConfidence(p); return c !== null && c < 60; }).length;
   const hasImages = tableProducts.some((p) => p.image_url || p.image_urls || p.image_description);
+  const mergedCount = tableProducts.filter((p) => p._sources && p._sources.length > 1).length;
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -134,7 +137,6 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
   const visibleProducts = filteredProducts.slice(startIndex, startIndex + pageSize);
 
   const handleCellChange = (absoluteIndex: number, column: string, value: string) => {
-    // absoluteIndex is relative to filteredProducts; find real index
     const realProduct = filteredProducts[absoluteIndex];
     const realIndex = tableProducts.indexOf(realProduct);
     if (realIndex === -1) return;
@@ -168,6 +170,13 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
 
   const selectedProduct = selectedProductIndex !== null ? filteredProducts[selectedProductIndex] : null;
 
+  // Navigate products inside modal
+  const navigateProduct = (direction: "prev" | "next") => {
+    if (selectedProductIndex === null) return;
+    const newIndex = direction === "prev" ? selectedProductIndex - 1 : selectedProductIndex + 1;
+    if (newIndex >= 0 && newIndex < filteredProducts.length) setSelectedProductIndex(newIndex);
+  };
+
   return (
     <>
       <Card className="border-border/60 shadow-sm">
@@ -183,6 +192,11 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                 </Badge>
               )}
               <Badge variant="default" className="text-xs">{tableProducts.length} produtos</Badge>
+              {mergedCount > 0 && (
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  <Layers className="h-3 w-3" /> {mergedCount} unificados por SKU
+                </Badge>
+              )}
               {hasImages && (
                 <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                   <Image className="h-3 w-3" /> Imagens detetadas
@@ -235,6 +249,7 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                       </TableHead>
                     ))}
                     <TableHead className="text-xs whitespace-nowrap font-semibold">Confiança</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap font-semibold">Fontes</TableHead>
                     <TableHead className="text-xs w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -244,6 +259,7 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                     const absoluteIndex = startIndex + rowIndex;
                     const confidence = getConfidence(product);
                     const isApproved = product._approved;
+                    const sourceCount = product._sources?.length || 1;
 
                     return (
                       <TableRow
@@ -285,6 +301,13 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                             )}
                             <span className="text-xs font-mono">{confidence !== null ? `${confidence}%` : "—"}</span>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {sourceCount > 1 ? (
+                            <Badge variant="secondary" className="text-[10px]">{sourceCount} fontes</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">1</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setSelectedProductIndex(absoluteIndex); }}>
@@ -343,19 +366,21 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2 text-sm">
                 <Package className="h-4 w-4 text-primary" />
-                Produto #{selectedProductIndex !== null ? selectedProductIndex + 1 : ""}
+                Produto #{selectedProductIndex !== null ? selectedProductIndex + 1 : ""} de {filteredProducts.length}
               </DialogTitle>
-              {showApproval && selectedProductIndex !== null && (
-                <Button
-                  size="sm"
-                  variant={selectedProduct?._approved ? "default" : "outline"}
-                  onClick={() => handleApprove(selectedProductIndex!)}
-                  className="gap-1"
-                >
-                  <ThumbsUp className="h-3 w-3" />
-                  {selectedProduct?._approved ? "Aprovado ✓" : "Aprovar"}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {showApproval && selectedProductIndex !== null && (
+                  <Button
+                    size="sm"
+                    variant={selectedProduct?._approved ? "default" : "outline"}
+                    onClick={() => handleApprove(selectedProductIndex!)}
+                    className="gap-1"
+                  >
+                    <ThumbsUp className="h-3 w-3" />
+                    {selectedProduct?._approved ? "Aprovado ✓" : "Aprovar"}
+                  </Button>
+                )}
+              </div>
             </div>
           </DialogHeader>
           <ScrollArea className="flex-1 pr-2">
@@ -367,64 +392,108 @@ export function DataPreviewTable({ products: rawProducts, columns: columnsProp, 
                     {formatCellValue(selectedProduct.title || selectedProduct.original_title || selectedProduct.sku || "Sem título")}
                   </p>
                   {selectedProduct.sku && <p className="text-xs text-muted-foreground font-mono mt-0.5">SKU: {selectedProduct.sku}</p>}
+                  {/* Source info */}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {selectedProduct._sources?.map((s: string, i: number) => (
+                      <Badge key={i} variant="outline" className="text-[10px]">
+                        <FileText className="h-2.5 w-2.5 mr-0.5" /> {s}
+                      </Badge>
+                    ))}
+                    {selectedProduct._pages?.map((p: number, i: number) => (
+                      <Badge key={`p${i}`} variant="secondary" className="text-[10px]">
+                        Pág. {p}
+                      </Badge>
+                    ))}
+                    {selectedProduct._confidence != null && (
+                      <Badge variant={selectedProduct._confidence >= 80 ? "default" : "secondary"} className="text-[10px]">
+                        {selectedProduct._confidence}% confiança
+                      </Badge>
+                    )}
+                  </div>
                 </div>
+
+                {/* Image preview */}
+                {(selectedProduct.image_url || selectedProduct.image_urls?.length > 0) && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <Image className="h-3 w-3" /> Imagens Extraídas
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {[...(selectedProduct.image_urls || []), selectedProduct.image_url].filter(Boolean).map((url: string, i: number) => (
+                        <div key={i} className="relative group">
+                          <img
+                            src={url}
+                            alt={`Produto imagem ${i + 1}`}
+                            className="h-16 w-16 object-cover rounded border border-border"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                          <p className="text-[9px] text-muted-foreground truncate max-w-[64px]">{url.split("/").pop()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {allColumns.map((column) => {
                   if (column === "title" || column === "original_title" || column === "sku") return null;
+                  if (column === "image_url" || column === "image_urls") return null; // shown above
                   const value = formatCellValue(selectedProduct[column]);
                   if (!value && !editable) return null;
                   const isLong = value.length > 80;
                   return (
                     <div key={column} className="space-y-1">
-                      <Label className="text-xs font-medium text-muted-foreground">
+                      <Label className="text-xs font-semibold text-muted-foreground">
                         {DISPLAY_LABELS[column] || column}
                       </Label>
                       {editable ? (
                         isLong ? (
-                          <Textarea value={value} onChange={(e) => handleCellChange(selectedProductIndex!, column, e.target.value)} className="text-sm min-h-[80px]" />
+                          <Textarea
+                            value={value}
+                            onChange={(e) => handleCellChange(selectedProductIndex!, column, e.target.value)}
+                            className="text-xs min-h-[60px]"
+                          />
                         ) : (
-                          <Input value={value} onChange={(e) => handleCellChange(selectedProductIndex!, column, e.target.value)} className="text-sm" />
+                          <Input
+                            value={value}
+                            onChange={(e) => handleCellChange(selectedProductIndex!, column, e.target.value)}
+                            className="h-8 text-xs"
+                          />
                         )
                       ) : (
-                        <p className="text-sm bg-muted/50 rounded px-3 py-2 whitespace-pre-wrap break-words">
-                          {value || <span className="text-muted-foreground italic">—</span>}
-                        </p>
+                        <p className="text-sm bg-muted/30 rounded px-2 py-1.5 whitespace-pre-wrap">{value || "—"}</p>
                       )}
                     </div>
                   );
                 })}
-
-                {/* Confidence */}
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Confiança da Extração</Label>
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      const c = getConfidence(selectedProduct);
-                      return (
-                        <>
-                          {c !== null && c >= 80 ? <CheckCircle className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                          <span className="text-sm font-mono">{c !== null ? `${c}%` : "—"}</span>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
               </div>
             )}
           </ScrollArea>
 
-          {/* Bottom navigation */}
-          {selectedProductIndex !== null && (
-            <div className="flex items-center justify-between pt-3 border-t">
-              <Button size="sm" variant="outline" disabled={selectedProductIndex === 0} onClick={() => setSelectedProductIndex((i) => (i !== null ? i - 1 : null))}>
-                <ChevronLeft className="h-3 w-3 mr-1" /> Anterior
-              </Button>
-              <span className="text-xs text-muted-foreground font-medium">{selectedProductIndex + 1} / {filteredProducts.length}</span>
-              <Button size="sm" variant="outline" disabled={selectedProductIndex === filteredProducts.length - 1} onClick={() => setSelectedProductIndex((i) => (i !== null ? i + 1 : null))}>
-                Seguinte <ChevronRight className="h-3 w-3 ml-1" />
-              </Button>
-            </div>
-          )}
+          {/* Navigation at bottom of modal */}
+          <Separator />
+          <div className="flex items-center justify-between pt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigateProduct("prev")}
+              disabled={selectedProductIndex === null || selectedProductIndex === 0}
+              className="gap-1"
+            >
+              <ChevronLeft className="h-3 w-3" /> Anterior
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {selectedProductIndex !== null ? selectedProductIndex + 1 : 0} / {filteredProducts.length}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigateProduct("next")}
+              disabled={selectedProductIndex === null || selectedProductIndex >= filteredProducts.length - 1}
+              className="gap-1"
+            >
+              Próximo <ChevronRight className="h-3 w-3" />
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

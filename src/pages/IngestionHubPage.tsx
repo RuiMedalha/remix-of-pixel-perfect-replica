@@ -541,46 +541,103 @@ const IngestionHubPage = () => {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : !jobs || jobs.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center py-12 text-muted-foreground">
-                <Database className="w-10 h-10 mb-3" />
-                <p className="font-medium">Sem jobs de ingestão</p>
-                <p className="text-sm">Importe dados no separador "Importar"</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {jobs.map(job => {
-                const st = statusLabels[job.status] || statusLabels.queued;
-                return (
-                  <Card key={job.id} className="hover:border-primary/30 transition-colors">
-                    <CardContent className="flex items-center gap-4 py-3">
-                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailJob(job)}>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">{job.file_name || `Job ${job.id.slice(0, 8)}`}</p>
-                          <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
-                          <Badge variant="outline" className="text-[10px]">{job.mode === "dry_run" ? "Preview" : "Live"}</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {job.total_rows} linhas · {job.imported_rows} importados · {job.updated_rows} atualizados · {job.failed_rows} erros
-                          {job.created_at && ` · ${format(new Date(job.created_at), "dd/MM HH:mm")}`}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {job.status === "dry_run" && (
-                          <Button size="sm" variant="outline" onClick={() => handleRunExistingJob(job.id)}>
-                            <Play className="w-3 h-3 mr-1" /> Executar
-                          </Button>
-                        )}
-                        <IngestionJobActionsDropdown job={job} onAction={handleJobAction} />
-                      </div>
+          ) : (() => {
+            // Separate jobs: pending/active vs completed history
+            const pendingJobs = (jobs || []).filter(j => ["queued", "parsing", "mapping", "dry_run", "importing"].includes(j.status));
+            const historyJobs = (jobs || []).filter(j => ["done", "error"].includes(j.status));
+            
+            if (!jobs || jobs.length === 0) return (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12 text-muted-foreground">
+                  <Database className="w-10 h-10 mb-3" />
+                  <p className="font-medium">Sem jobs de ingestão</p>
+                  <p className="text-sm">Importe dados no separador "Importar"</p>
+                </CardContent>
+              </Card>
+            );
+            
+            return (
+              <div className="space-y-6">
+                {/* Active / Pending Jobs */}
+                {pendingJobs.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" /> Em Processamento ({pendingJobs.length})
+                    </h3>
+                    {pendingJobs.map(job => {
+                      const st = statusLabels[job.status] || statusLabels.queued;
+                      return (
+                        <Card key={job.id} className="hover:border-primary/30 transition-colors">
+                          <CardContent className="flex items-center gap-4 py-3">
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailJob(job)}>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium truncate">{job.file_name || `Job ${job.id.slice(0, 8)}`}</p>
+                                <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
+                                <Badge variant="outline" className="text-[10px]">{job.mode === "dry_run" ? "Preview" : "Live"}</Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {job.total_rows} linhas · {job.imported_rows} importados · {job.updated_rows} atualizados · {job.failed_rows} erros
+                                {job.created_at && ` · ${format(new Date(job.created_at), "dd/MM HH:mm")}`}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {job.status === "dry_run" && (
+                                <Button size="sm" variant="outline" onClick={() => handleRunExistingJob(job.id)}>
+                                  <Play className="w-3 h-3 mr-1" /> Executar
+                                </Button>
+                              )}
+                              <IngestionJobActionsDropdown job={job} onAction={handleJobAction} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Completed History */}
+                {historyJobs.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-primary" /> Histórico Concluído ({historyJobs.length})
+                    </h3>
+                    {historyJobs.map(job => {
+                      const st = statusLabels[job.status] || statusLabels.queued;
+                      return (
+                        <Card key={job.id} className="hover:border-primary/30 transition-colors">
+                          <CardContent className="flex items-center gap-4 py-3">
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailJob(job)}>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium truncate">{job.file_name || `Job ${job.id.slice(0, 8)}`}</p>
+                                <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
+                                <Badge variant="outline" className="text-[10px]">{job.mode === "dry_run" ? "Preview" : "Live"}</Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {job.total_rows} linhas · {job.imported_rows} importados · {job.updated_rows} atualizados · {job.failed_rows} erros
+                                {job.created_at && ` · ${format(new Date(job.created_at), "dd/MM HH:mm")}`}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <IngestionJobActionsDropdown job={job} onAction={handleJobAction} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {pendingJobs.length === 0 && historyJobs.length === 0 && (
+                  <Card>
+                    <CardContent className="flex flex-col items-center py-12 text-muted-foreground">
+                      <Database className="w-10 h-10 mb-3" />
+                      <p className="font-medium">Sem jobs de ingestão</p>
                     </CardContent>
                   </Card>
-                );
-              })}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 
