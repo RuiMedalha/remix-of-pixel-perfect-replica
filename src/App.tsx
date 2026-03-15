@@ -55,6 +55,7 @@ import SupplierPlaybooksPage from "./pages/SupplierPlaybooksPage";
 import AgentRuntimeConsolePage from "./pages/AgentRuntimeConsolePage";
 import CatalogWorkflowCenterPage from "./pages/CatalogWorkflowCenterPage";
 import VisualScraperPage from "./pages/VisualScraperPage";
+import WebsiteExtractionAgentPage from "./pages/WebsiteExtractionAgentPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
