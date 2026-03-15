@@ -163,7 +163,10 @@ export default function VisualScraperPage() {
       setResults(data.results || []);
       setErrors(data.errors || []);
       setStep("results");
-      toast.success(`${data.extracted} URLs extraídas com sucesso!`);
+      const costMsg = data.firecrawlCreditsUsed > 0 
+        ? `(${data.firecrawlCreditsUsed} créditos Firecrawl)` 
+        : "(gratuito)";
+      toast.success(`${data.extracted} URLs extraídas ${costMsg}`);
     } catch (err: any) {
       toast.error("Erro na extração em lote", { description: err.message });
     } finally {
