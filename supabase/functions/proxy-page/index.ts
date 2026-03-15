@@ -102,9 +102,9 @@ Deno.serve(async (req) => {
     const script = mode === 'select' ? buildSelectionScript() : buildBrowseScript();
 
     if (modifiedHtml.includes('</body>')) {
-      modifiedHtml = modifiedHtml.replace('</body>', script + '</body>');
+      modifiedHtml = modifiedHtml.replace('</body>', cookieScript + script + '</body>');
     } else {
-      modifiedHtml += script;
+      modifiedHtml += cookieScript + script;
     }
 
     return new Response(
