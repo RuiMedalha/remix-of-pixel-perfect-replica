@@ -731,10 +731,10 @@ export default function VisualScraperPage() {
     setCrawlStats(null);
 
     try {
-      const allProductUrls: string[] = [];
-      const seen = new Set<string>();
+      const allProductUrls: string[] = [...productUrls]; // Start with already accumulated products
+      const seen = new Set<string>(allProductUrls);
 
-      // Add already-visible products
+      // Add already-visible products from current level
       currentLinks.filter(l => l.linkType === "produto").forEach(l => {
         if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
       });
