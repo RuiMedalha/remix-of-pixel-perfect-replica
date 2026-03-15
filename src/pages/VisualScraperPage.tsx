@@ -936,6 +936,9 @@ export default function VisualScraperPage() {
                   <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-300">
                     <Crosshair className="w-3 h-3 mr-1" /> Modo Seleção
                   </Badge>
+                  <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={handleAutoDetectFields} disabled={loading}>
+                    <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-detetar Campos
+                  </Button>
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { loadPage(currentUrl, "browse"); setStep("browse"); }}>
                     <Navigation className="w-3.5 h-3.5 mr-1" /> Voltar a Navegar
                   </Button>
