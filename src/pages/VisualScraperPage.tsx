@@ -45,6 +45,12 @@ interface ExtractedLink {
   selected: boolean;
 }
 
+interface LinkLayer {
+  label: string;
+  links: ExtractedLink[];
+  sourceUrls: string[];
+}
+
 type Mode = "browse" | "select";
 type Step = "url" | "browse" | "links" | "select-fields" | "batch" | "results";
 
@@ -60,12 +66,14 @@ export default function VisualScraperPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [navHistory, setNavHistory] = useState<string[]>([]);
 
-  // Links extraction
+  // Links extraction - multi-layer
   const [extractedLinks, setExtractedLinks] = useState<ExtractedLink[]>([]);
+  const [linkLayers, setLinkLayers] = useState<LinkLayer[]>([]);
   const [linkFilter, setLinkFilter] = useState("");
   const [paginationLoading, setPaginationLoading] = useState(false);
   const [paginationUrls, setPaginationUrls] = useState<string[]>([]);
   const [crawledPages, setCrawledPages] = useState<string[]>([]);
+  const [drillLoading, setDrillLoading] = useState(false);
 
   // Manual URL import
   const [manualUrls, setManualUrls] = useState("");
@@ -221,6 +229,7 @@ export default function VisualScraperPage() {
     try {
       const { links, nextPages } = await extractLinksFromPage(currentUrl);
       setExtractedLinks(links);
+      setLinkLayers([{ label: currentUrl, links, sourceUrls: [currentUrl] }]);
       setPaginationUrls(nextPages);
       setCrawledPages([currentUrl]);
       setStep("links");
@@ -230,6 +239,78 @@ export default function VisualScraperPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Drill into selected links — extract links from all selected URLs simultaneously
+  const handleDrillIntoSelected = async () => {
+    const selectedUrls = extractedLinks.filter(l => l.selected).map(l => l.url);
+    if (selectedUrls.length === 0) {
+      toast.error("Selecione pelo menos um link para explorar.");
+      return;
+    }
+
+    setDrillLoading(true);
+    try {
+      // Save current layer
+      setLinkLayers(prev => [...prev, {
+        label: `Camada ${prev.length + 1} (${selectedUrls.length} páginas)`,
+        links: extractedLinks,
+        sourceUrls: selectedUrls,
+      }]);
+
+      // Extract links from all selected URLs in parallel (batches of 5)
+      const allNewLinks: ExtractedLink[] = [];
+      const allNextPages: string[] = [];
+      const seenUrls = new Set<string>();
+
+      for (let i = 0; i < selectedUrls.length; i += 5) {
+        const batch = selectedUrls.slice(i, i + 5);
+        const results = await Promise.allSettled(
+          batch.map(u => extractLinksFromPage(u))
+        );
+
+        results.forEach(r => {
+          if (r.status === "fulfilled") {
+            r.value.links.forEach(link => {
+              if (!seenUrls.has(link.url)) {
+                seenUrls.add(link.url);
+                allNewLinks.push(link);
+              }
+            });
+            r.value.nextPages.forEach(p => {
+              if (!seenUrls.has(p)) allNextPages.push(p);
+            });
+          }
+        });
+
+        if (selectedUrls.length > 5) {
+          toast.info(`Progresso: ${Math.min(i + 5, selectedUrls.length)}/${selectedUrls.length} páginas exploradas...`);
+        }
+      }
+
+      setExtractedLinks(allNewLinks);
+      setPaginationUrls([...new Set(allNextPages)]);
+      setCrawledPages(prev => [...prev, ...selectedUrls]);
+      toast.success(`${allNewLinks.length} links encontrados de ${selectedUrls.length} páginas.`);
+    } catch (err: any) {
+      toast.error("Erro ao explorar links", { description: err.message });
+    } finally {
+      setDrillLoading(false);
+    }
+  };
+
+  // Go back to previous layer
+  const handleLayerBack = () => {
+    if (linkLayers.length <= 1) {
+      setStep("browse");
+      return;
+    }
+    const prevLayers = [...linkLayers];
+    prevLayers.pop();
+    const previousLayer = prevLayers[prevLayers.length - 1];
+    setLinkLayers(prevLayers);
+    setExtractedLinks(previousLayer.links);
+    setPaginationUrls([]);
   };
 
   // Follow pagination to get more product links
@@ -823,8 +904,8 @@ export default function VisualScraperPage() {
       {step === "links" && (
         <div className="flex-1 flex flex-col min-h-0 p-4 gap-3">
           <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => setStep("browse")}>
-              <ArrowLeft className="w-3 h-3 mr-1" /> Voltar
+            <Button variant="outline" size="sm" onClick={handleLayerBack}>
+              <ArrowLeft className="w-3 h-3 mr-1" /> {linkLayers.length > 1 ? "Camada Anterior" : "Voltar"}
             </Button>
             <h2 className="font-semibold">Links Encontrados</h2>
             <Badge>{extractedLinks.length} total</Badge>
@@ -845,6 +926,54 @@ export default function VisualScraperPage() {
               />
             </div>
           </div>
+
+          {/* Layer breadcrumbs */}
+          {linkLayers.length > 1 && (
+            <div className="flex items-center gap-1 flex-wrap text-xs text-muted-foreground border rounded-lg p-2 bg-muted/20 flex-shrink-0">
+              <Layers className="w-3.5 h-3.5 mr-1" />
+              {linkLayers.map((layer, idx) => (
+                <span key={idx} className="flex items-center gap-1">
+                  {idx > 0 && <ChevronRight className="w-3 h-3" />}
+                  <button
+                    className={`hover:underline ${idx === linkLayers.length - 1 ? "font-semibold text-foreground" : ""}`}
+                    onClick={() => {
+                      if (idx < linkLayers.length - 1) {
+                        const sliced = linkLayers.slice(0, idx + 1);
+                        setLinkLayers(sliced);
+                        setExtractedLinks(sliced[sliced.length - 1].links);
+                        setPaginationUrls([]);
+                      }
+                    }}
+                  >
+                    {layer.label.length > 40 ? layer.label.substring(0, 40) + "…" : layer.label}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Drill + selection actions */}
+          {selectedLinksCount > 0 && (
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-primary/5 flex-shrink-0">
+              <span className="text-sm font-medium">{selectedLinksCount} selecionados</span>
+              <div className="ml-auto flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleDrillIntoSelected}
+                  disabled={drillLoading}
+                >
+                  {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
+                  Explorar Links ({selectedLinksCount}) — próxima camada
+                </Button>
+                {fields.length > 0 && (
+                  <Button size="sm" onClick={handleGoToBatch}>
+                    <Play className="w-3 h-3 mr-1" /> Extrair Dados ({selectedLinksCount} páginas)
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Pagination controls */}
           {paginationUrls.length > 0 && (
@@ -882,7 +1011,8 @@ export default function VisualScraperPage() {
           />
 
           <p className="text-xs text-muted-foreground">
-            Selecione os links das páginas de produto. Depois clique no <Crosshair className="w-3 h-3 inline" /> para ir a uma página e definir os campos a extrair.
+            Selecione links e use <strong>"Explorar Links"</strong> para descer mais um nível (ex: categorias → subcategorias → produtos).
+            Quando estiver nas páginas de produto, clique no <Crosshair className="w-3 h-3 inline" /> para definir os campos a extrair.
           </p>
 
           <ScrollArea className="flex-1 border rounded-lg">
