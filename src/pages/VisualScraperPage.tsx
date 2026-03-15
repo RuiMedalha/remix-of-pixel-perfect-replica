@@ -1278,7 +1278,7 @@ export default function VisualScraperPage() {
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(selectedLinksCount > 0 ? "links" : "select-fields")}>
+                <Button variant="outline" onClick={() => setStep((batchUrls.length > 0 || selectedLinksCount > 0) ? "links" : "select-fields")}>
                   ← Voltar
                 </Button>
                 <Button onClick={handleRunBatch} disabled={batchLoading}>
