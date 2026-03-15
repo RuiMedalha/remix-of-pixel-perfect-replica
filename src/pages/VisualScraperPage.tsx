@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -14,7 +15,8 @@ import {
   Globe, Loader2, MousePointerClick, Trash2, Play, Download,
   Eye, Link2, Image as ImageIcon, Type, FileText, ArrowRight, ArrowLeft, X,
   Zap, Coins, List, Navigation, Crosshair, ExternalLink, RefreshCw, Wand2,
-  Upload, ChevronRight, Layers, FileSpreadsheet, Plus,
+  Upload, ChevronRight, Layers, FileSpreadsheet, Plus, Target, AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -24,7 +26,10 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+/* ────────────────────────────────────────────────
+   Types
+   ──────────────────────────────────────────────── */
 
 interface SelectedField {
   id: string;
@@ -48,14 +53,124 @@ interface ExtractedLink {
   linkType: LinkType;
 }
 
-interface LinkLayer {
+interface SiteLayer {
   label: string;
   links: ExtractedLink[];
-  sourceUrls: string[];
+  sourceUrl: string;
+  hasPagination: boolean;
+  paginationUrls: string[];
 }
 
-type Mode = "browse" | "select";
-type Step = "url" | "browse" | "links" | "select-fields" | "batch" | "results";
+type Step =
+  | "url"          // 1. Enter URL
+  | "browse"       // 2. Browse site in iframe
+  | "categories"   // 3. View/select category layers, drill, pagination
+  | "products"     // 4. Collected product URLs
+  | "fields"       // 5. Open product page, select fields visually
+  | "extract"      // 6. Running extraction
+  | "results";     // 7. Results table
+
+/* ────────────────────────────────────────────────
+   Link classification helpers
+   ──────────────────────────────────────────────── */
+
+const NAV_URL_HINT = /(contact|about|legal|privacy|terms|cookies|gdpr|faq|blog|news|cart|checkout|account|login|search|facebook|instagram|linkedin|youtube)/i;
+const PRODUCT_URL_HINT = /(\/product(s)?\/|\/produto(s)?\/|\/p\/|\/item\/|\/model\/|\/md\d+)/i;
+const CATEGORY_URL_HINT = /(\/categor(y|ies)\/|\/categoria(s)?\/|\/collection(s)?\/|\/grupo(s)?\/|\/range\/|\/gama\/|\/famil(y|ies)\/|\/shop\/)/i;
+const GROUP_URL_HINT = /(\/group(s)?\/|\/groupe(s)?\/|\/family|\/familia|\/series|\/linha|\/gama)/i;
+const NON_HTML_FILE_HINT = /\.(jpg|jpeg|png|webp|gif|svg|pdf|zip|rar|mp4|mp3|webm|avi)(\?|$)/i;
+const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'];
+
+const NAV_CONTAINER_SELECTOR = 'nav, header, .menu, .navbar, .header, .breadcrumb, .social, [role="navigation"]';
+const FOOTER_CONTAINER_SELECTOR = 'footer, .footer, .footer-menu, .footer-links, .copyright, [role="contentinfo"]';
+const MAIN_CONTENT_SELECTOR = 'main, #Main-wrapper, .NodeCategory, .NodeCategoriesList, .item-list, .products, .product-list, .catalog, [role="main"]';
+
+const PRODUCT_LINK_CLASSES = [
+  'productteaser', 'product-teaser', 'product-card', 'product-item',
+  'product-link', 'product-tile', 'woocommerce-loop-product__link',
+];
+const CATEGORY_LINK_CLASSES = [
+  'categoryproductteaser', 'category-teaser', 'category-card', 'category-link',
+];
+
+const canonicalizeUrl = (rawUrl: string): string => {
+  try {
+    const parsed = new URL(rawUrl);
+    parsed.hash = '';
+    TRACKING_PARAMS.forEach(param => parsed.searchParams.delete(param));
+    parsed.pathname = parsed.pathname.replace(/\/+/g, '/');
+    if (parsed.pathname.length > 1) parsed.pathname = parsed.pathname.replace(/\/+$/, '');
+    return parsed.toString();
+  } catch { return rawUrl; }
+};
+
+const classifyLink = (anchor: Element, fullUrl: string): 'product' | 'category' | 'navigation' | 'other' => {
+  const classes = (typeof anchor.className === 'string' ? anchor.className : '').toLowerCase();
+  const href = (anchor.getAttribute('href') || '').toLowerCase();
+  const text = (anchor.textContent || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '').toLowerCase().trim();
+  const normalizedUrl = fullUrl.toLowerCase();
+
+  if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return 'navigation';
+  if (NON_HTML_FILE_HINT.test(normalizedUrl)) return 'other';
+  if (!!anchor.closest(`${NAV_CONTAINER_SELECTOR}, ${FOOTER_CONTAINER_SELECTOR}`)) return 'navigation';
+  if (NAV_URL_HINT.test(normalizedUrl) || NAV_URL_HINT.test(text)) return 'navigation';
+  if (PRODUCT_LINK_CLASSES.some(c => classes.includes(c)) || PRODUCT_URL_HINT.test(normalizedUrl)) return 'product';
+  if (CATEGORY_LINK_CLASSES.some(c => classes.includes(c)) || CATEGORY_URL_HINT.test(normalizedUrl)) return 'category';
+
+  const isInMainContent = !!anchor.closest(MAIN_CONTENT_SELECTOR);
+  if (isInMainContent) {
+    try {
+      const depth = new URL(fullUrl).pathname.split('/').filter(Boolean).length;
+      if (depth >= 4) return 'product';
+      if (depth >= 2) return 'category';
+    } catch { return 'other'; }
+  }
+
+  return 'other';
+};
+
+/* ────────────────────────────────────────────────
+   Auto-detect field selectors
+   ──────────────────────────────────────────────── */
+const FIELD_DETECTION_RULES: { name: string; selectors: string[]; type: SelectedField["type"]; isVariation?: boolean }[] = [
+  { name: "Título", selectors: ["h1.product_title", "h1.product-title", "h1[itemprop='name']", ".ProductTop-title", "h1.entry-title", "h1"], type: "text" },
+  { name: "Modelo", selectors: [".ProductTop-name", ".product-model", ".product-subtitle"], type: "text" },
+  { name: "Gama", selectors: [".ProductTop-gamme", ".product-range", ".product-line"], type: "text" },
+  { name: "Referência", selectors: [".ProductMain-features-ref", ".sku", "[itemprop='sku']", ".product-sku", ".product-reference", ".ref-number"], type: "text" },
+  { name: "Preço", selectors: [".price ins .amount", ".price .amount", "[itemprop='price']", ".product-price", ".woocommerce-Price-amount", ".price"], type: "text" },
+  { name: "Preço Original", selectors: [".price del .amount", ".was-price", ".old-price", ".regular-price"], type: "text" },
+  { name: "Descrição", selectors: [".ProductMain-desc-content", ".woocommerce-product-details__short-description", "#tab-description", "[itemprop='description']", ".product-description"], type: "html" },
+  { name: "Imagem Principal", selectors: [".ProductMain-images-slider-item img", ".woocommerce-product-gallery__image img", ".product-image img", "[itemprop='image']", ".wp-post-image"], type: "image" },
+  { name: "Galeria Imagens", selectors: [".ProductMain-images-slider-item:not(:first-child) img", ".woocommerce-product-gallery__image:not(:first-child) img", ".product-thumbnails img", ".gallery-item img"], type: "image", isVariation: true },
+  { name: "Características", selectors: [".Features-list", ".ProductMain-features-list table", ".product-specs", ".specifications", ".tech-specs"], type: "html" },
+  { name: "Benefícios", selectors: [".ProductMain-quantity-list", ".product-benefits", ".key-features"], type: "html" },
+  { name: "Capacidade", selectors: [".ProductMain-quantity-title", ".product-capacity"], type: "text" },
+  { name: "Categoria", selectors: [".posted_in a", "[itemprop='category']", ".breadcrumb a:last-child"], type: "text" },
+  { name: "Marca", selectors: ["[itemprop='brand']", ".product-brand", ".brand a"], type: "text" },
+  { name: "Peso", selectors: [".product_weight", "[itemprop='weight']", ".weight-value"], type: "text" },
+  { name: "Dimensões", selectors: [".product_dimensions", ".dimensions-value"], type: "text" },
+  { name: "Stock", selectors: [".stock", ".availability", "[itemprop='availability']", ".in-stock", ".product-stock"], type: "text" },
+  { name: "Variações", selectors: ["select[name^='attribute'] option:not([value=''])", ".variations select option:not([value=''])", ".swatch-anchor"], type: "text", isVariation: true },
+  { name: "EAN/GTIN", selectors: ["[itemprop='gtin13']", "[itemprop='gtin']", ".ean-value", ".barcode"], type: "text" },
+  { name: "Documentos", selectors: [".btn-download a", ".ProductDetails a[href$='.pdf']", "a[href$='.pdf']"], type: "link", isVariation: true },
+];
+
+/* ────────────────────────────────────────────────
+   Step config
+   ──────────────────────────────────────────────── */
+const STEP_CONFIG: { key: Step; label: string; icon: typeof Globe }[] = [
+  { key: "url", label: "URL", icon: Globe },
+  { key: "browse", label: "Navegar", icon: Navigation },
+  { key: "categories", label: "Categorias", icon: Layers },
+  { key: "products", label: "Produtos", icon: Target },
+  { key: "fields", label: "Campos", icon: Crosshair },
+  { key: "extract", label: "Extrair", icon: Play },
+  { key: "results", label: "Resultados", icon: CheckCircle2 },
+];
+
+/* ════════════════════════════════════════════════
+   MAIN COMPONENT
+   ════════════════════════════════════════════════ */
 
 export default function VisualScraperPage() {
   const { activeWorkspace } = useWorkspaceContext();
@@ -65,49 +180,45 @@ export default function VisualScraperPage() {
   const [loading, setLoading] = useState(false);
   const [htmlContent, setHtmlContent] = useState("");
   const [pageTitle, setPageTitle] = useState("");
-  const [fields, setFields] = useState<SelectedField[]>([]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [navHistory, setNavHistory] = useState<string[]>([]);
-
-  // Links extraction - multi-layer
-  const [extractedLinks, setExtractedLinks] = useState<ExtractedLink[]>([]);
-  const [linkLayers, setLinkLayers] = useState<LinkLayer[]>([]);
-  const [linkFilter, setLinkFilter] = useState("");
-  const [paginationLoading, setPaginationLoading] = useState(false);
-  const [paginationUrls, setPaginationUrls] = useState<string[]>([]);
-  const [crawledPages, setCrawledPages] = useState<string[]>([]);
-  const [drillLoading, setDrillLoading] = useState(false);
-
-  // Manual URL import
-  const [manualUrls, setManualUrls] = useState("");
-  const [urlImportTab, setUrlImportTab] = useState<"extract" | "import">("extract");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Batch state
-  const [batchLoading, setBatchLoading] = useState(false);
-  const [results, setResults] = useState<ExtractedRow[]>([]);
-  const [errors, setErrors] = useState<any[]>([]);
-  const [batchUrls, setBatchUrls] = useState<string[]>([]);
-
-  // Dialogs
-  const [showSendDialog, setShowSendDialog] = useState(false);
-  const [scraperMapping, setScraperMapping] = useState<Record<string, string>>({});
+  const [iframeMode, setIframeMode] = useState<"browse" | "select">("browse");
 
   // Cost control
   const [useFirecrawl, setUseFirecrawl] = useState(false);
 
-  // Current iframe mode
-  const [iframeMode, setIframeMode] = useState<Mode>("browse");
+  // Category layers
+  const [layers, setLayers] = useState<SiteLayer[]>([]);
+  const [currentLinks, setCurrentLinks] = useState<ExtractedLink[]>([]);
+  const [linkFilter, setLinkFilter] = useState("");
 
-  // Smart pattern detection
-  const [urlPatterns, setUrlPatterns] = useState<{ pattern: string; count: number; sample: string; selected: boolean }[]>([]);
+  // Collected product URLs
+  const [productUrls, setProductUrls] = useState<string[]>([]);
+  const [collectProgress, setCollectProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Fields
+  const [fields, setFields] = useState<SelectedField[]>([]);
+
+  // Batch/Results
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [results, setResults] = useState<ExtractedRow[]>([]);
+  const [errors, setErrors] = useState<any[]>([]);
+
+  // Dialogs
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [scraperMapping, setScraperMapping] = useState<Record<string, string>>({});
   const [showPatternDialog, setShowPatternDialog] = useState(false);
+  const [urlPatterns, setUrlPatterns] = useState<{ pattern: string; count: number; sample: string; selected: boolean }[]>([]);
 
-  // Agent-assisted category flow
+  // Manual URL import
+  const [manualUrls, setManualUrls] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Category agent dialog
   const [showCategoryAgentDialog, setShowCategoryAgentDialog] = useState(false);
   const [categoryAgentSelection, setCategoryAgentSelection] = useState<Record<string, boolean>>({});
 
-  // Listen for messages from iframe
+  /* ── Listen for iframe messages ── */
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === "navigate") {
@@ -119,15 +230,13 @@ export default function VisualScraperPage() {
         if (tagName === "img" || src) { type = "image"; preview = src || ""; }
         else if (tagName === "a" || href) { type = "link"; preview = href || text || ""; }
 
-        const newField: SelectedField = {
+        setFields(prev => [...prev, {
           id: crypto.randomUUID(),
-          name: `Campo ${fields.length + 1}`,
-          selector,
-          type,
+          name: `Campo ${prev.length + 1}`,
+          selector, type,
           preview: preview.substring(0, 200),
           isVariation: false,
-        };
-        setFields(prev => [...prev, newField]);
+        }]);
         toast.success("Elemento selecionado!", { description: preview.substring(0, 80) });
       } else if (e.data?.type === "element-deselected") {
         setFields(prev => prev.filter(f => f.selector !== e.data.selector));
@@ -137,7 +246,8 @@ export default function VisualScraperPage() {
     return () => window.removeEventListener("message", handler);
   }, [fields.length, useFirecrawl]);
 
-  const loadPage = async (targetUrl: string, mode: Mode) => {
+  /* ── Page loading ── */
+  const loadPage = async (targetUrl: string, mode: "browse" | "select") => {
     if (!targetUrl.trim()) return;
     setLoading(true);
     try {
@@ -146,12 +256,10 @@ export default function VisualScraperPage() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       setHtmlContent(data.html);
       setCurrentUrl(data.sourceUrl);
       setPageTitle(data.metadata?.title || targetUrl);
       setIframeMode(mode);
-
       if (mode === "browse") {
         setNavHistory(prev => [...prev, data.sourceUrl]);
         if (step === "url") setStep("browse");
@@ -173,81 +281,11 @@ export default function VisualScraperPage() {
     }
   };
 
-  // ── Smart link classification helpers ──
-  const PRODUCT_LINK_CLASSES = [
-    'productteaser', 'product-teaser', 'product-card', 'product-item',
-    'product-link', 'product-tile', 'woocommerce-loop-product__link',
-  ];
-  const CATEGORY_LINK_CLASSES = [
-    'categoryproductteaser', 'category-teaser', 'category-card', 'category-link',
-  ];
-
-  const NAV_CONTAINER_SELECTOR = 'nav, header, .menu, .navbar, .header, .breadcrumb, .social, [role="navigation"]';
-  const FOOTER_CONTAINER_SELECTOR = 'footer, .footer, .footer-menu, .footer-links, .copyright, [role="contentinfo"]';
-  const MAIN_CONTENT_SELECTOR = 'main, #Main-wrapper, .NodeCategory, .NodeCategoriesList, .item-list, .products, .product-list, .catalog, [role="main"]';
-
-  const NAV_URL_HINT = /(contact|about|legal|privacy|terms|cookies|gdpr|faq|blog|news|cart|checkout|account|login|search|facebook|instagram|linkedin|youtube)/i;
-  const PRODUCT_URL_HINT = /(\/product(s)?\/|\/produto(s)?\/|\/p\/|\/item\/|\/model\/|\/md\d+)/i;
-  const CATEGORY_URL_HINT = /(\/categor(y|ies)\/|\/categoria(s)?\/|\/collection(s)?\/|\/grupo(s)?\/|\/range\/|\/gama\/|\/famil(y|ies)\/|\/shop\/)/i;
-  const GROUP_URL_HINT = /(\/group(s)?\/|\/groupe(s)?\/|\/family|\/familia|\/series|\/linha|\/gama)/i;
-  const NON_HTML_FILE_HINT = /\.(jpg|jpeg|png|webp|gif|svg|pdf|zip|rar|mp4|mp3|webm|avi)(\?|$)/i;
-  const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'];
-
-  const canonicalizeUrl = (rawUrl: string): string => {
-    try {
-      const parsed = new URL(rawUrl);
-      parsed.hash = '';
-      TRACKING_PARAMS.forEach(param => parsed.searchParams.delete(param));
-      parsed.pathname = parsed.pathname.replace(/\/+/g, '/');
-      if (parsed.pathname.length > 1) {
-        parsed.pathname = parsed.pathname.replace(/\/+$/, '');
-      }
-      return parsed.toString();
-    } catch {
-      return rawUrl;
-    }
-  };
-
-  const classifyLink = (anchor: Element, fullUrl: string): 'product' | 'category' | 'navigation' | 'other' => {
-    const classes = (typeof anchor.className === 'string' ? anchor.className : '').toLowerCase();
-    const href = (anchor.getAttribute('href') || '').toLowerCase();
-    const text = (anchor.textContent || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '').toLowerCase().trim();
-    const normalizedUrl = fullUrl.toLowerCase();
-
-    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
-      return 'navigation';
-    }
-
-    if (NON_HTML_FILE_HINT.test(normalizedUrl)) return 'other';
-
-    const inNavigationContainer = !!anchor.closest(`${NAV_CONTAINER_SELECTOR}, ${FOOTER_CONTAINER_SELECTOR}`);
-    if (inNavigationContainer) return 'navigation';
-
-    if (NAV_URL_HINT.test(normalizedUrl) || NAV_URL_HINT.test(text)) return 'navigation';
-
-    if (PRODUCT_LINK_CLASSES.some(c => classes.includes(c)) || PRODUCT_URL_HINT.test(normalizedUrl)) return 'product';
-    if (CATEGORY_LINK_CLASSES.some(c => classes.includes(c)) || CATEGORY_URL_HINT.test(normalizedUrl)) return 'category';
-
-    const isInMainContent = !!anchor.closest(MAIN_CONTENT_SELECTOR);
-    if (isInMainContent) {
-      try {
-        const depth = new URL(fullUrl).pathname.split('/').filter(Boolean).length;
-        if (depth >= 4) return 'product';
-        if (depth >= 2) return 'category';
-      } catch {
-        return 'other';
-      }
-    }
-
-    return 'other';
-  };
-
-  // Extract links + detect pagination from a page
+  /* ── Extract links from a URL ── */
   const extractLinksFromPage = async (pageUrl: string): Promise<{ links: ExtractedLink[]; nextPages: string[] }> => {
     const { data: proxyData } = await supabase.functions.invoke("proxy-page", {
       body: { url: pageUrl, useFirecrawl, mode: "browse" },
     });
-
     if (!proxyData?.html) return { links: [], nextPages: [] };
 
     const parser = new DOMParser();
@@ -256,84 +294,62 @@ export default function VisualScraperPage() {
     const baseUrl = new URL(pageUrl);
     const links: ExtractedLink[] = [];
     const seen = new Set<string>();
-    let hasProductLinks = false;
+    let hasContentLinks = false;
 
     anchors.forEach(a => {
       try {
         const href = a.getAttribute("href") || "";
         if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
-
-        const resolvedUrl = new URL(href, pageUrl).href;
-        const fullUrl = canonicalizeUrl(resolvedUrl);
+        const fullUrl = canonicalizeUrl(new URL(href, pageUrl).href);
         if (seen.has(fullUrl) || fullUrl === canonicalizeUrl(pageUrl)) return;
         seen.add(fullUrl);
-
         if (new URL(fullUrl).hostname !== baseUrl.hostname) return;
 
         const linkType = classifyLink(a, fullUrl);
         if (linkType === 'navigation') return;
-
-        const isContentLink = linkType === 'product' || linkType === 'category';
-        if (isContentLink) hasProductLinks = true;
+        if (linkType === 'product' || linkType === 'category') hasContentLinks = true;
 
         const cleanText = (a.textContent || a.getAttribute("aria-label") || a.getAttribute("title") || "")
-          .trim()
-          .replace(/\s+/g, ' ')
-          .substring(0, 120);
+          .trim().replace(/\s+/g, ' ').substring(0, 120);
 
         const inferredType: LinkType = linkType === 'product'
           ? 'produto'
-          : GROUP_URL_HINT.test(fullUrl.toLowerCase())
-            ? 'grupo'
-            : 'categoria';
+          : GROUP_URL_HINT.test(fullUrl.toLowerCase()) ? 'grupo' : 'categoria';
 
-        links.push({
-          url: fullUrl,
-          text: cleanText,
-          selected: isContentLink,
-          linkType: inferredType,
-        });
+        links.push({ url: fullUrl, text: cleanText, selected: linkType !== 'other', linkType: inferredType });
       } catch { /* ignore */ }
     });
 
-    // If we found product/category links, hide generic "outro" links to avoid footer noise
-    const cleanedLinks = hasProductLinks
-      ? links.filter(link => link.linkType !== 'outro')
-      : links;
+    const cleanedLinks = hasContentLinks ? links.filter(l => l.linkType !== 'outro') : links;
 
-    // Detect pagination links (next page, page 2, 3, etc.)
+    // Detect pagination
     const paginationSelectors = [
-      'a.next', 'a.next-page', '.pagination a', 'nav.pagination a',
-      'a[rel="next"]', '.woocommerce-pagination a', '.page-numbers a',
-      'a[aria-label*="next" i]', 'a[aria-label*="próx" i]', 'a[aria-label*="seguinte" i]',
+      'a.next', 'a.next-page', '.pagination a', 'nav.pagination a', 'a[rel="next"]',
+      '.woocommerce-pagination a', '.page-numbers a', 'a[aria-label*="next" i]',
+      'a[aria-label*="próx" i]', 'a[aria-label*="seguinte" i]',
       '.pager a', '.paging a', 'ul.pages a', '.paginator a',
       '.pagination-list a', '.nav-links a', '.page-link',
       'a[title*="next" i]', 'a[title*="Next" i]', 'a[title*="Last" i]',
     ];
-
     const nextPages: string[] = [];
     const seenPages = new Set<string>();
-    
     paginationSelectors.forEach(sel => {
       try {
         doc.querySelectorAll(sel).forEach(el => {
           const href = el.getAttribute("href");
           if (href) {
             try {
-              const fullUrl = new URL(href, baseUrl.origin).href;
-              if (!seenPages.has(fullUrl) && fullUrl !== pageUrl) {
-                seenPages.add(fullUrl);
-                nextPages.push(fullUrl);
-              }
+              const full = new URL(href, baseUrl.origin).href;
+              if (!seenPages.has(full) && full !== pageUrl) { seenPages.add(full); nextPages.push(full); }
             } catch { /* ignore */ }
           }
         });
       } catch { /* ignore */ }
     });
 
+    // Fallback pagination detection
     if (nextPages.length === 0) {
-      const allAnchors = doc.querySelectorAll("a[href]");
-      allAnchors.forEach(a => {
+      doc.querySelectorAll("a[href]").forEach(a => {
         const text = (a.textContent || "").trim().toLowerCase();
         const href = a.getAttribute("href");
         if (!href) return;
@@ -343,10 +359,9 @@ export default function VisualScraperPage() {
           || /[?&]p=\d/i.test(href);
         if (isPageLink) {
           try {
-            const fullUrl = new URL(href, baseUrl.origin).href;
-            if (!seenPages.has(fullUrl) && fullUrl !== pageUrl && new URL(fullUrl).hostname === baseUrl.hostname) {
-              seenPages.add(fullUrl);
-              nextPages.push(fullUrl);
+            const full = new URL(href, baseUrl.origin).href;
+            if (!seenPages.has(full) && full !== pageUrl && new URL(full).hostname === baseUrl.hostname) {
+              seenPages.add(full); nextPages.push(full);
             }
           } catch { /* ignore */ }
         }
@@ -356,629 +371,285 @@ export default function VisualScraperPage() {
     return { links: cleanedLinks, nextPages };
   };
 
-  // Initial link extraction
+  /* ── Step: Browse → Extract links → Categories ── */
   const handleExtractLinks = async () => {
     setLoading(true);
     try {
       const { links, nextPages } = await extractLinksFromPage(currentUrl);
-      const categoryCandidates = links.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
-      const productCandidates = links.filter(l => l.linkType === "produto");
-
-      setExtractedLinks(links);
-      setLinkLayers([{ label: currentUrl, links, sourceUrls: [currentUrl] }]);
-      setPaginationUrls(nextPages);
-      setCrawledPages([currentUrl]);
-      setStep("links");
-
-      if (categoryCandidates.length > 0) {
-        setCategoryAgentSelection(Object.fromEntries(categoryCandidates.map(link => [link.url, true])));
-        setShowCategoryAgentDialog(true);
-      }
-
-      toast.success(
-        `${links.length} links encontrados (${categoryCandidates.length} categorias/grupos · ${productCandidates.length} produtos).`
-      );
+      setCurrentLinks(links);
+      setLayers([{
+        label: pageTitle || currentUrl,
+        links,
+        sourceUrl: currentUrl,
+        hasPagination: nextPages.length > 0,
+        paginationUrls: nextPages,
+      }]);
+      setStep("categories");
+      const cats = links.filter(l => l.linkType === "categoria" || l.linkType === "grupo").length;
+      const prods = links.filter(l => l.linkType === "produto").length;
+      toast.success(`${links.length} links (${cats} categorias · ${prods} produtos)`);
     } catch (err: any) {
       toast.error("Erro ao extrair links", { description: err.message });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // (Drill logic moved to handleDrillCategories)
-
-  // Go back to previous layer
-  const handleLayerBack = () => {
-    if (linkLayers.length <= 1) {
-      setStep("browse");
-      return;
-    }
-    const prevLayers = [...linkLayers];
-    prevLayers.pop();
-    const previousLayer = prevLayers[prevLayers.length - 1];
-    setLinkLayers(prevLayers);
-    setExtractedLinks(previousLayer.links);
-    setPaginationUrls([]);
-  };
-
-  // Follow pagination to get more product links
-  const handleFollowPagination = async (pageUrl?: string) => {
-    setPaginationLoading(true);
+  /* ── Drill into selected categories ── */
+  const handleDrillInto = async (urls: string[]) => {
+    if (urls.length === 0) { toast.error("Selecione pelo menos uma categoria."); return; }
+    setLoading(true);
     try {
-      const targetUrl = pageUrl || paginationUrls[0];
-      if (!targetUrl) return;
-
-      const { links: newLinks, nextPages } = await extractLinksFromPage(targetUrl);
-
-      // Merge new links (dedup by URL)
-      const existingUrls = new Set(extractedLinks.map(l => l.url));
-      const uniqueNewLinks = newLinks.filter(l => !existingUrls.has(l.url));
-
-      setExtractedLinks(prev => [...prev, ...uniqueNewLinks]);
-      setCrawledPages(prev => [...prev, targetUrl]);
-
-      // Update pagination: remove crawled, add newly discovered
-      const crawled = new Set([...crawledPages, targetUrl]);
-      const allNextPages = [...paginationUrls, ...nextPages].filter(
-        u => !crawled.has(u) && !crawledPages.includes(u)
-      );
-      const uniqueNextPages = [...new Set(allNextPages)];
-      setPaginationUrls(uniqueNextPages);
-
-      toast.success(`+${uniqueNewLinks.length} novos links. ${uniqueNextPages.length} páginas restantes.`);
-    } catch (err: any) {
-      toast.error("Erro ao seguir paginação", { description: err.message });
-    } finally {
-      setPaginationLoading(false);
-    }
-  };
-
-  // Follow ALL pagination automatically
-  const handleFollowAllPagination = async () => {
-    setPaginationLoading(true);
-    try {
-      let remaining = [...paginationUrls];
-      let allCrawled = new Set(crawledPages);
-      let allLinks = [...extractedLinks];
-      const existingUrls = new Set(allLinks.map(l => l.url));
-      let totalNew = 0;
-
-      while (remaining.length > 0 && allCrawled.size < 50) { // Safety limit 50 pages
-        const targetUrl = remaining.shift()!;
-        if (allCrawled.has(targetUrl)) continue;
-
-        const { links: newLinks, nextPages } = await extractLinksFromPage(targetUrl);
-        allCrawled.add(targetUrl);
-
-        const uniqueNew = newLinks.filter(l => !existingUrls.has(l.url));
-        uniqueNew.forEach(l => existingUrls.add(l.url));
-        allLinks = [...allLinks, ...uniqueNew];
-        totalNew += uniqueNew.length;
-
-        // Add new pagination pages
-        nextPages.forEach(p => {
-          if (!allCrawled.has(p) && !remaining.includes(p)) {
-            remaining.push(p);
-          }
-        });
-      }
-
-      setExtractedLinks(allLinks);
-      setCrawledPages([...allCrawled]);
-      setPaginationUrls(remaining);
-
-      toast.success(`Paginação completa: +${totalNew} links de ${allCrawled.size} páginas.`);
-    } catch (err: any) {
-      toast.error("Erro na paginação automática", { description: err.message });
-    } finally {
-      setPaginationLoading(false);
-    }
-  };
-
-  // Import URLs from Excel/CSV file
-  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-      const lines = text.split(/[\r\n]+/).filter(Boolean);
-
-      // Try to detect if first line is a header
-      const firstLine = lines[0]?.toLowerCase() || "";
-      const hasHeader = firstLine.includes("url") || firstLine.includes("link") || firstLine.includes("sku");
-      const dataLines = hasHeader ? lines.slice(1) : lines;
-
-      const urls: string[] = [];
-      dataLines.forEach(line => {
-        // Split by common delimiters
-        const parts = line.split(/[,;\t]/);
-        parts.forEach(part => {
-          const trimmed = part.trim().replace(/^["']|["']$/g, "");
-          if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            urls.push(trimmed);
-          }
-        });
-      });
-
-      if (urls.length === 0) {
-        toast.error("Nenhum URL encontrado no ficheiro. Certifique-se que as URLs começam com http:// ou https://");
-        return;
-      }
-
-      const existingUrls = new Set(extractedLinks.map(l => l.url));
-      const newLinks: ExtractedLink[] = urls
-        .filter(u => !existingUrls.has(u))
-        .map(u => ({ url: u, text: "", selected: true, linkType: "produto" as LinkType }));
-
-      setExtractedLinks(prev => [...prev, ...newLinks]);
-      setStep("links");
-      toast.success(`${newLinks.length} URLs importadas do ficheiro.`);
-    } catch (err: any) {
-      toast.error("Erro ao ler ficheiro", { description: err.message });
-    }
-
-    // Reset file input
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  // Import URLs from textarea
-  const handleManualUrlImport = () => {
-    const urls = manualUrls
-      .split(/[\r\n,;]+/)
-      .map(u => u.trim())
-      .filter(u => u.startsWith("http://") || u.startsWith("https://"));
-
-    if (urls.length === 0) {
-      toast.error("Nenhum URL válido encontrado.");
-      return;
-    }
-
-    const existingUrls = new Set(extractedLinks.map(l => l.url));
-    const newLinks: ExtractedLink[] = urls
-      .filter(u => !existingUrls.has(u))
-      .map(u => ({ url: u, text: "", selected: true, linkType: "produto" as LinkType }));
-
-    setExtractedLinks(prev => [...prev, ...newLinks]);
-    setManualUrls("");
-    setStep("links");
-    toast.success(`${newLinks.length} URLs adicionadas.`);
-  };
-
-  // Enter selection mode on current page
-  const handleEnterSelectMode = () => {
-    const selected = productLinks.map(l => l.url);
-    if (selected.length > 0) {
-      setBatchUrls(selected);
-    }
-    loadPage(currentUrl, "select");
-    setStep("select-fields");
-  };
-
-  // Go to a product page from links list
-  const handleGoToProduct = (productUrl: string) => {
-    const selected = productLinks.map(l => l.url);
-    if (selected.length > 0) {
-      setBatchUrls(selected);
-    }
-    setUrl(productUrl);
-    loadPage(productUrl, "select");
-    setStep("select-fields");
-  };
-
-  const openCategoryAgentDialog = () => {
-    const categoryCandidates = extractedLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
-    if (categoryCandidates.length === 0) {
-      toast.error("Não existem categorias/grupos para explorar.");
-      return;
-    }
-
-    setCategoryAgentSelection(prev => {
-      const next = { ...prev };
-      categoryCandidates.forEach(link => {
-        if (!(link.url in next)) next[link.url] = true;
-      });
-      return next;
-    });
-
-    setShowCategoryAgentDialog(true);
-  };
-
-  const setAllCategoryAgentSelection = (selected: boolean) => {
-    const categoryCandidates = extractedLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
-    setCategoryAgentSelection(Object.fromEntries(categoryCandidates.map(link => [link.url, selected])));
-  };
-
-  const handleRunCategoryAgentFlow = async (autoRunProducts: boolean) => {
-    const selectedUrls = Object.entries(categoryAgentSelection)
-      .filter(([, selected]) => selected)
-      .map(([url]) => url);
-
-    if (selectedUrls.length === 0) {
-      toast.error("Selecione pelo menos uma categoria/grupo.");
-      return;
-    }
-
-    setShowCategoryAgentDialog(false);
-    await handleDrillCategories(selectedUrls, { autoRunProducts });
-  };
-
-  // Drill into selected links of type "categoria" or "grupo" to find products
-  const handleDrillCategories = async (
-    overrideUrls?: string[],
-    options?: { autoRunProducts?: boolean },
-  ) => {
-    const selectedUrls = overrideUrls || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).map(l => l.url);
-    if (selectedUrls.length === 0) {
-      toast.error("Selecione URLs de categoria ou grupo para explorar.");
-      return;
-    }
-
-    setDrillLoading(true);
-    try {
-      setLinkLayers(prev => [...prev, {
-        label: `Camada ${prev.length + 1} (${selectedUrls.length} páginas)`,
-        links: extractedLinks,
-        sourceUrls: selectedUrls,
-      }]);
-
-      const allNewLinks: ExtractedLink[] = [];
+      const allLinks: ExtractedLink[] = [];
       const allNextPages: string[] = [];
-      const discoveredProductUrls: string[] = [];
-      const seenUrls = new Set<string>();
+      const seen = new Set<string>();
 
-      for (let i = 0; i < selectedUrls.length; i += 5) {
-        const batch = selectedUrls.slice(i, i + 5);
-        const results = await Promise.allSettled(
-          batch.map(u => extractLinksFromPage(u))
-        );
-
+      for (let i = 0; i < urls.length; i += 5) {
+        const batch = urls.slice(i, i + 5);
+        const results = await Promise.allSettled(batch.map(u => extractLinksFromPage(u)));
         results.forEach(r => {
           if (r.status === "fulfilled") {
             r.value.links.forEach(link => {
-              if (!seenUrls.has(link.url)) {
-                seenUrls.add(link.url);
-                allNewLinks.push(link);
-                if (link.linkType === "produto") {
-                  discoveredProductUrls.push(link.url);
-                }
-              }
+              if (!seen.has(link.url)) { seen.add(link.url); allLinks.push(link); }
             });
-            r.value.nextPages.forEach(p => {
-              if (!seenUrls.has(p)) allNextPages.push(p);
-            });
+            r.value.nextPages.forEach(p => { if (!seen.has(p)) { seen.add(p); allNextPages.push(p); } });
           }
         });
-
-        if (selectedUrls.length > 5) {
-          toast.info(`Progresso: ${Math.min(i + 5, selectedUrls.length)}/${selectedUrls.length} páginas exploradas...`);
-        }
+        if (urls.length > 5) toast.info(`Progresso: ${Math.min(i + 5, urls.length)}/${urls.length}`);
       }
 
-      const uniqueNextPages = [...new Set(allNextPages)];
-      const uniqueProductUrls = [...new Set(discoveredProductUrls)];
+      const newLayer: SiteLayer = {
+        label: `Nível ${layers.length + 1} (${urls.length} páginas)`,
+        links: allLinks,
+        sourceUrl: urls[0],
+        hasPagination: allNextPages.length > 0,
+        paginationUrls: allNextPages,
+      };
 
-      setExtractedLinks(allNewLinks);
-      setPaginationUrls(uniqueNextPages);
-      setCrawledPages(prev => [...prev, ...selectedUrls]);
-      toast.success(`${allNewLinks.length} links encontrados de ${selectedUrls.length} páginas.`);
-
-      if (options?.autoRunProducts) {
-        if (uniqueProductUrls.length === 0) {
-          toast.error("O agente não encontrou páginas de produto nas categorias selecionadas.");
-          return;
-        }
-
-        setBatchUrls(uniqueProductUrls);
-
-        if (fields.length === 0) {
-          toast.info("Produtos encontrados. Defina os campos no Passo 3 e depois execute a extração.");
-          return;
-        }
-
-        await runBatchExtraction(uniqueProductUrls);
-      }
+      setLayers(prev => [...prev, newLayer]);
+      setCurrentLinks(allLinks);
+      toast.success(`${allLinks.length} links de ${urls.length} páginas`);
     } catch (err: any) {
-      toast.error("Erro ao explorar links", { description: err.message });
-    } finally {
-      setDrillLoading(false);
-    }
+      toast.error("Erro ao explorar", { description: err.message });
+    } finally { setLoading(false); }
   };
 
-  // ── Smart URL Pattern Detection ──
+  /* ── Follow pagination ── */
+  const handleFollowPagination = async () => {
+    const currentLayer = layers[layers.length - 1];
+    if (!currentLayer || currentLayer.paginationUrls.length === 0) return;
+    setLoading(true);
+    try {
+      let remaining = [...currentLayer.paginationUrls];
+      const crawled = new Set<string>();
+      const existingUrls = new Set(currentLinks.map(l => l.url));
+      let newLinks: ExtractedLink[] = [];
+      let totalNew = 0;
 
-  const detectUrlPatterns = () => {
-    // Group URLs by path structure (replace numeric/uuid segments with placeholders)
-    const patternMap = new Map<string, { urls: string[]; sample: string }>();
+      while (remaining.length > 0 && crawled.size < 30) {
+        const targetUrl = remaining.shift()!;
+        if (crawled.has(targetUrl)) continue;
+        crawled.add(targetUrl);
 
-    extractedLinks.forEach(link => {
-      try {
-        const u = new URL(link.url);
-        // Replace numeric IDs, UUIDs, slugs-with-numbers with {id}
-        const segments = u.pathname.split("/").map(seg => {
-          if (/^\d+$/.test(seg)) return "{id}";
-          if (/^[0-9a-f]{8}-/.test(seg)) return "{uuid}";
-          return seg;
-        });
-        const pattern = u.hostname + segments.join("/");
-        if (!patternMap.has(pattern)) {
-          patternMap.set(pattern, { urls: [], sample: link.url });
-        }
-        patternMap.get(pattern)!.urls.push(link.url);
-      } catch { /* ignore */ }
-    });
+        const { links, nextPages } = await extractLinksFromPage(targetUrl);
+        const unique = links.filter(l => !existingUrls.has(l.url));
+        unique.forEach(l => existingUrls.add(l.url));
+        newLinks = [...newLinks, ...unique];
+        totalNew += unique.length;
 
-    const patterns = Array.from(patternMap.entries())
-      .map(([pattern, { urls, sample }]) => ({
-        pattern,
-        count: urls.length,
-        sample,
-        selected: false,
-      }))
-      .sort((a, b) => b.count - a.count);
+        nextPages.forEach(p => { if (!crawled.has(p) && !remaining.includes(p)) remaining.push(p); });
+      }
 
-    setUrlPatterns(patterns);
-    setShowPatternDialog(true);
+      setCurrentLinks(prev => [...prev, ...newLinks]);
+      setLayers(prev => {
+        const updated = [...prev];
+        const last = { ...updated[updated.length - 1] };
+        last.links = [...last.links, ...newLinks];
+        last.paginationUrls = remaining;
+        last.hasPagination = remaining.length > 0;
+        updated[updated.length - 1] = last;
+        return updated;
+      });
+
+      toast.success(`+${totalNew} links de ${crawled.size} páginas de paginação`);
+    } catch (err: any) {
+      toast.error("Erro na paginação", { description: err.message });
+    } finally { setLoading(false); }
   };
 
-  const applyPatternSelection = () => {
-    const selectedPatterns = new Set(urlPatterns.filter(p => p.selected).map(p => p.pattern));
-    if (selectedPatterns.size === 0) {
-      toast.error("Selecione pelo menos um padrão.");
+  /* ── Collect products → Products step ── */
+  const handleCollectProducts = () => {
+    const prods = currentLinks.filter(l => l.linkType === "produto" && l.selected).map(l => l.url);
+    if (prods.length === 0) { toast.error("Nenhum produto selecionado."); return; }
+    setProductUrls(prods);
+    setStep("products");
+    toast.success(`${prods.length} URLs de produto recolhidas`);
+  };
+
+  /* ── Auto-collect: drill all categories recursively then collect products ── */
+  const handleAutoCollect = async () => {
+    const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected).map(l => l.url);
+    if (catUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
+      toast.error("Nenhuma categoria ou produto encontrado.");
       return;
     }
 
-    setExtractedLinks(prev => prev.map(link => {
-      try {
-        const u = new URL(link.url);
-        const segments = u.pathname.split("/").map(seg => {
-          if (/^\d+$/.test(seg)) return "{id}";
-          if (/^[0-9a-f]{8}-/.test(seg)) return "{uuid}";
-          return seg;
-        });
-        const pattern = u.hostname + segments.join("/");
-        return { ...link, selected: selectedPatterns.has(pattern) };
-      } catch {
-        return link;
-      }
-    }));
-
-    setShowPatternDialog(false);
-    toast.success(`URLs filtradas por ${selectedPatterns.size} padrão(ões).`);
-  };
-
-  // ── Auto-Detect Product Fields ──
-  const handleAutoDetectFields = async () => {
-    if (!htmlContent) return;
     setLoading(true);
+    setCollectProgress({ current: 0, total: catUrls.length || 1 });
 
     try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, "text/html");
+      let allProductUrls: string[] = [];
+      const seen = new Set<string>();
 
-      const commonSelectors: { name: string; selectors: string[]; type: SelectedField["type"]; isVariation?: boolean }[] = [
-        // Title - WooCommerce + Drupal + generic
-        { name: "Título", selectors: [
-          "h1.product_title", "h1.product-title", "h1[itemprop='name']", ".product-name h1",
-          "h1.ProductTop-title", ".ProductTop-title", // Drupal commerce (Dynamic Mixers etc.)
-          ".product_title", "h1.entry-title", "h1",
-        ], type: "text" },
-        // Product Name / Model
-        { name: "Modelo", selectors: [
-          ".ProductTop-name", ".product-model", ".product-subtitle",
-        ], type: "text" },
-        // Range / Line
-        { name: "Gama", selectors: [
-          ".ProductTop-gamme", ".product-range", ".product-line",
-        ], type: "text" },
-        // Reference / SKU
-        { name: "Referência", selectors: [
-          ".ProductMain-features-ref", // Drupal (e.g., "Ref. TB120.2")
-          ".sku", "[itemprop='sku']", ".product_meta .sku", ".product-sku",
-          ".product-reference", ".ref-number",
-        ], type: "text" },
-        // Price
-        { name: "Preço", selectors: [".price ins .amount", ".price .amount", "[itemprop='price']", ".product-price", ".current-price", ".woocommerce-Price-amount", ".price"], type: "text" },
-        { name: "Preço Original", selectors: [".price del .amount", ".was-price", ".old-price", ".regular-price"], type: "text" },
-        // Description
-        { name: "Descrição", selectors: [
-          ".ProductMain-desc-content", ".ProductMain-desc", // Drupal
-          ".woocommerce-product-details__short-description", "#tab-description",
-          "[itemprop='description']", ".product-description", ".product-short-description",
-        ], type: "html" },
-        // Main Image
-        { name: "Imagem Principal", selectors: [
-          ".ProductMain-images-slider-item img", ".ProductMain-images img", // Drupal
-          ".woocommerce-product-gallery__image img", ".product-image img",
-          "[itemprop='image']", ".wp-post-image", ".product-main-image img", ".main-image img",
-        ], type: "image" },
-        // Gallery
-        { name: "Galeria Imagens", selectors: [
-          ".ProductMain-images-slider-item:not(:first-child) img", // Drupal
-          ".woocommerce-product-gallery__image:not(:first-child) img",
-          ".product-thumbnails img", ".gallery-item img", ".product-gallery img",
-        ], type: "image", isVariation: true },
-        // Features / Specs
-        { name: "Características", selectors: [
-          ".Features-list", ".ProductMain-features-list table", // Drupal specs table
-          ".product-specs", ".specifications", ".tech-specs", "[itemprop='additionalProperty']",
-        ], type: "html" },
-        // Key benefits
-        { name: "Benefícios", selectors: [
-          ".ProductMain-quantity-list", ".product-benefits", ".key-features",
-        ], type: "html" },
-        // Capacity / Volume
-        { name: "Capacidade", selectors: [
-          ".ProductMain-quantity-title", ".product-capacity",
-        ], type: "text" },
-        // Category
-        { name: "Categoria", selectors: [".posted_in a", "[itemprop='category']", ".product-category a", ".breadcrumb a:last-child", ".product_meta .posted_in a"], type: "text" },
-        // Brand
-        { name: "Marca", selectors: ["[itemprop='brand']", ".product-brand", ".brand a", ".product_meta .brand"], type: "text" },
-        { name: "Peso", selectors: [".product_weight", "[itemprop='weight']", ".weight-value"], type: "text" },
-        { name: "Dimensões", selectors: [".product_dimensions", ".dimensions-value"], type: "text" },
-        { name: "Stock", selectors: [".stock", ".availability", "[itemprop='availability']", ".in-stock", ".product-stock"], type: "text" },
-        { name: "Variações", selectors: ["select[name^='attribute'] option:not([value=''])", ".variations select option:not([value=''])", ".swatch-anchor", ".product-variation-option"], type: "text", isVariation: true },
-        { name: "EAN/GTIN", selectors: ["[itemprop='gtin13']", "[itemprop='gtin']", ".ean-value", ".barcode"], type: "text" },
-        // Documents / Downloads
-        { name: "Documentos", selectors: [
-          ".btn-download a", ".ProductDetails a[href$='.pdf']", "a[href$='.pdf']",
-        ], type: "link", isVariation: true },
-      ];
+      // Add already-visible products
+      currentLinks.filter(l => l.linkType === "produto").forEach(l => {
+        if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
+      });
 
-      const detected: SelectedField[] = [];
+      // Drill each category with pagination
+      for (let i = 0; i < catUrls.length; i++) {
+        setCollectProgress({ current: i + 1, total: catUrls.length });
+        try {
+          let pageUrl: string | null = catUrls[i];
+          const crawledPages = new Set<string>();
 
-      for (const spec of commonSelectors) {
-        for (const sel of spec.selectors) {
-          try {
-            const el = doc.querySelector(sel);
-            if (el) {
-              let preview = "";
-              if (spec.type === "image") {
-                preview = el.getAttribute("src") || el.querySelector("img")?.getAttribute("src") || "";
-              } else if (spec.type === "html") {
-                preview = (el.textContent || "").trim().substring(0, 200);
-              } else {
-                preview = (el.textContent || "").trim().substring(0, 200);
-              }
-
-              if (preview && preview.length > 1) {
-                detected.push({
-                  id: crypto.randomUUID(),
-                  name: spec.name,
-                  selector: sel,
-                  type: spec.type,
-                  preview,
-                  isVariation: spec.isVariation || false,
-                });
-                break; // use first match for this field
-              }
-            }
-          } catch { /* invalid selector */ }
-        }
+          while (pageUrl && crawledPages.size < 20) {
+            crawledPages.add(pageUrl);
+            const { links, nextPages } = await extractLinksFromPage(pageUrl);
+            links.filter(l => l.linkType === "produto").forEach(l => {
+              if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
+            });
+            const nextPage = nextPages.find(p => !crawledPages.has(p));
+            pageUrl = nextPage || null;
+          }
+        } catch { /* skip failed category */ }
       }
 
-      if (detected.length > 0) {
-        setFields(prev => {
-          const existingNames = new Set(prev.map(f => f.name));
-          const newFields = detected.filter(d => !existingNames.has(d.name));
-          return [...prev, ...newFields];
-        });
-        toast.success(`${detected.length} campos detetados automaticamente!`);
-      } else {
-        toast.info("Não foi possível detetar campos automaticamente. Selecione-os manualmente clicando nos elementos.");
-      }
+      setProductUrls(allProductUrls);
+      setCollectProgress(null);
+      setStep("products");
+      toast.success(`${allProductUrls.length} URLs de produto recolhidas de ${catUrls.length} categorias`);
     } catch (err: any) {
-      toast.error("Erro na auto-deteção", { description: err.message });
+      toast.error("Erro na recolha automática", { description: err.message });
     } finally {
       setLoading(false);
+      setCollectProgress(null);
     }
   };
 
-  const handleRemoveField = (id: string) => {
-    setFields(prev => prev.filter(f => f.id !== id));
+  /* ── Category agent dialog ── */
+  const openCategoryAgentDialog = () => {
+    const cats = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+    if (cats.length === 0) { toast.error("Não existem categorias/grupos para explorar."); return; }
+    setCategoryAgentSelection(prev => {
+      const next = { ...prev };
+      cats.forEach(link => { if (!(link.url in next)) next[link.url] = true; });
+      return next;
+    });
+    setShowCategoryAgentDialog(true);
   };
 
-  const handleUpdateFieldName = (id: string, name: string) => {
-    setFields(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+  const handleRunCategoryAgentFlow = async () => {
+    const selectedUrls = Object.entries(categoryAgentSelection).filter(([, s]) => s).map(([url]) => url);
+    if (selectedUrls.length === 0) { toast.error("Selecione pelo menos uma categoria."); return; }
+    setShowCategoryAgentDialog(false);
+    await handleDrillInto(selectedUrls);
   };
 
-  const handleUpdateFieldType = (id: string, type: SelectedField["type"]) => {
-    setFields(prev => prev.map(f => f.id === id ? { ...f, type } : f));
+  /* ── Open a product page for field selection ── */
+  const handleOpenProductForFields = (productUrl?: string) => {
+    const target = productUrl || productUrls[0];
+    if (!target) return;
+    loadPage(target, "select");
+    setStep("fields");
   };
 
-  const handleUpdateFieldSelector = (id: string, selector: string) => {
-    setFields(prev => prev.map(f => f.id === id ? { ...f, selector } : f));
-  };
+  /* ── Auto-detect fields ── */
+  const handleAutoDetectFields = () => {
+    if (!htmlContent) return;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, "text/html");
+    const detected: SelectedField[] = [];
 
-  const handleAddManualField = () => {
-    const newField: SelectedField = {
-      id: crypto.randomUUID(),
-      name: `Campo ${fields.length + 1}`,
-      selector: "",
-      type: "text",
-      preview: "",
-      isVariation: false,
-    };
-    setFields(prev => [...prev, newField]);
-  };
-
-  const handleToggleVariation = (id: string) => {
-    setFields(prev => prev.map(f => f.id === id ? { ...f, isVariation: !f.isVariation } : f));
-  };
-
-  const handleGoToBatch = () => {
-    if (fields.length === 0) {
-      toast.error("Selecione pelo menos um campo.");
-      return;
+    for (const spec of FIELD_DETECTION_RULES) {
+      for (const sel of spec.selectors) {
+        try {
+          const el = doc.querySelector(sel);
+          if (el) {
+            let preview = "";
+            if (spec.type === "image") preview = el.getAttribute("src") || el.querySelector("img")?.getAttribute("src") || "";
+            else preview = (el.textContent || "").trim().substring(0, 200);
+            if (preview && preview.length > 1) {
+              detected.push({ id: crypto.randomUUID(), name: spec.name, selector: sel, type: spec.type, preview, isVariation: spec.isVariation || false });
+              break;
+            }
+          }
+        } catch { /* invalid selector */ }
+      }
     }
-    // Always use product-type links for batch
-    const prodUrls = productLinks.map(l => l.url);
-    if (prodUrls.length > 0) {
-      setBatchUrls(prodUrls);
+
+    if (detected.length > 0) {
+      setFields(prev => {
+        const existing = new Set(prev.map(f => f.name));
+        return [...prev, ...detected.filter(d => !existing.has(d.name))];
+      });
+      toast.success(`${detected.length} campos detetados automaticamente!`);
+    } else {
+      toast.info("Não foi possível detetar campos. Selecione-os manualmente clicando nos elementos.");
     }
-    setStep("batch");
   };
 
-  const runBatchExtraction = async (overrideUrls?: string[]) => {
-    const productUrls = overrideUrls && overrideUrls.length > 0
-      ? overrideUrls
-      : batchUrls.length > 0
-        ? batchUrls
-        : productLinks.map(l => l.url);
-    let urls = productUrls.length > 0 ? productUrls : [currentUrl];
+  /* ── Field management ── */
+  const handleRemoveField = (id: string) => setFields(prev => prev.filter(f => f.id !== id));
+  const handleUpdateFieldName = (id: string, name: string) => setFields(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+  const handleUpdateFieldType = (id: string, type: SelectedField["type"]) => setFields(prev => prev.map(f => f.id === id ? { ...f, type } : f));
+  const handleUpdateFieldSelector = (id: string, selector: string) => setFields(prev => prev.map(f => f.id === id ? { ...f, selector } : f));
+  const handleToggleVariation = (id: string) => setFields(prev => prev.map(f => f.id === id ? { ...f, isVariation: !f.isVariation } : f));
 
+  /* ── Run batch extraction ── */
+  const handleRunExtraction = async () => {
+    if (fields.length === 0) { toast.error("Defina pelo menos um campo."); return; }
+    const urls = productUrls.length > 0 ? productUrls : [currentUrl];
     setBatchLoading(true);
+    setStep("extract");
+
     try {
-      // Split into chunks of 20 to avoid timeouts
       const allResults: ExtractedRow[] = [];
       const allErrors: any[] = [];
-      let firecrawlTotal = 0;
 
       for (let i = 0; i < urls.length; i += 5) {
         const chunk = urls.slice(i, i + 5);
+        setCollectProgress({ current: i + chunk.length, total: urls.length });
+
         const { data, error } = await supabase.functions.invoke("scrape-with-selectors", {
           body: {
             urls: chunk,
-            fields: fields.map(f => ({
-              name: f.name,
-              selector: f.selector,
-              type: f.type,
-              isVariation: f.isVariation,
-            })),
+            fields: fields.map(f => ({ name: f.name, selector: f.selector, type: f.type, isVariation: f.isVariation })),
             workspaceId: activeWorkspace?.id,
             useFirecrawl,
           },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
-
         allResults.push(...(data.results || []));
         allErrors.push(...(data.errors || []));
-        firecrawlTotal += data.firecrawlCreditsUsed || 0;
 
-        // Progress toast
-        if (urls.length > 5) {
-          toast.info(`Progresso: ${Math.min(i + 5, urls.length)}/${urls.length} páginas...`);
-        }
+        if (urls.length > 5) toast.info(`Progresso: ${Math.min(i + 5, urls.length)}/${urls.length} páginas...`);
       }
 
       setResults(allResults);
       setErrors(allErrors);
+      setCollectProgress(null);
       setStep("results");
-      const costMsg = firecrawlTotal > 0
-        ? `(${firecrawlTotal} créditos Firecrawl)`
-        : "(gratuito)";
+      const costMsg = useFirecrawl ? "(modo premium)" : "(gratuito)";
       toast.success(`${allResults.length} produtos extraídos ${costMsg}`);
     } catch (err: any) {
       toast.error("Erro na extração", { description: err.message });
     } finally {
       setBatchLoading(false);
+      setCollectProgress(null);
     }
-  }; 
+  };
 
-  const handleRunBatch = () => runBatchExtraction();
-
+  /* ── Export Excel ── */
   const handleExportExcel = () => {
     if (results.length === 0) return;
     import("xlsx").then(XLSX => {
@@ -989,16 +660,10 @@ export default function VisualScraperPage() {
     });
   };
 
+  /* ── Send to ingestion ── */
   const handleSendToProducts = async () => {
     if (!activeWorkspace?.id || results.length === 0) return;
-
-    // Check at least title is mapped
-    const hasTitle = Object.values(scraperMapping).some(v => v === "title");
-    if (!hasTitle) {
-      toast.error("Mapeie pelo menos o campo Título antes de enviar.");
-      return;
-    }
-
+    if (!Object.values(scraperMapping).includes("title")) { toast.error("Mapeie pelo menos o Título."); return; }
     setBatchLoading(true);
     try {
       const { data: job, error: jobError } = await supabase
@@ -1013,24 +678,12 @@ export default function VisualScraperPage() {
         } as any)
         .select("id")
         .single();
-
       if (jobError) throw jobError;
 
-      // Build mapped_data using the mapping
       const items = results.map((row, idx) => {
         const mapped: Record<string, string> = {};
-        Object.entries(scraperMapping).forEach(([scraperField, productField]) => {
-          if (productField && productField !== "__ignore__" && row[scraperField]) {
-            mapped[productField] = row[scraperField];
-          }
-        });
-        return {
-          job_id: job.id,
-          item_index: idx,
-          source_data: row,
-          mapped_data: mapped,
-          status: "pending" as any,
-        };
+        Object.entries(scraperMapping).forEach(([k, v]) => { if (v && v !== "__ignore__" && row[k]) mapped[v] = row[k]; });
+        return { job_id: job.id, item_index: idx, source_data: row, mapped_data: mapped, status: "pending" as any };
       });
 
       for (let i = 0; i < items.length; i += 50) {
@@ -1041,59 +694,104 @@ export default function VisualScraperPage() {
       setShowSendDialog(false);
     } catch (err: any) {
       toast.error("Erro ao criar job", { description: err.message });
-    } finally {
-      setBatchLoading(false);
+    } finally { setBatchLoading(false); }
+  };
+
+  /* ── URL import ── */
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const urls = text.split(/[\r\n,;]+/).map(u => u.trim().replace(/^["']|["']$/g, ""))
+        .filter(u => u.startsWith("http://") || u.startsWith("https://"));
+      if (urls.length === 0) { toast.error("Nenhum URL encontrado."); return; }
+      setProductUrls(urls);
+      setStep("products");
+      toast.success(`${urls.length} URLs importadas`);
+    } catch (err: any) {
+      toast.error("Erro ao ler ficheiro", { description: err.message });
     }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const toggleAllLinks = (selected: boolean) => {
-    setExtractedLinks(prev => prev.map(l => ({ ...l, selected })));
+  const handleManualUrlImport = () => {
+    const urls = manualUrls.split(/[\r\n,;]+/).map(u => u.trim())
+      .filter(u => u.startsWith("http://") || u.startsWith("https://"));
+    if (urls.length === 0) { toast.error("Nenhum URL válido encontrado."); return; }
+    const existing = new Set(productUrls);
+    const newUrls = urls.filter(u => !existing.has(u));
+    setProductUrls(prev => [...prev, ...newUrls]);
+    setManualUrls("");
+    setStep("products");
+    toast.success(`${newUrls.length} URLs adicionadas.`);
   };
 
-  const toggleLink = (url: string) => {
-    setExtractedLinks(prev => prev.map(l => l.url === url ? { ...l, selected: !l.selected } : l));
+  /* ── Pattern detection ── */
+  const detectUrlPatterns = () => {
+    const patternMap = new Map<string, { urls: string[]; sample: string }>();
+    currentLinks.forEach(link => {
+      try {
+        const u = new URL(link.url);
+        const segments = u.pathname.split("/").map(seg => {
+          if (/^\d+$/.test(seg)) return "{id}";
+          if (/^[0-9a-f]{8}-/.test(seg)) return "{uuid}";
+          return seg;
+        });
+        const pattern = u.hostname + segments.join("/");
+        if (!patternMap.has(pattern)) patternMap.set(pattern, { urls: [], sample: link.url });
+        patternMap.get(pattern)!.urls.push(link.url);
+      } catch { /* ignore */ }
+    });
+
+    setUrlPatterns(
+      Array.from(patternMap.entries())
+        .map(([pattern, { urls, sample }]) => ({ pattern, count: urls.length, sample, selected: false }))
+        .sort((a, b) => b.count - a.count)
+    );
+    setShowPatternDialog(true);
   };
 
-  const changeLinkType = (url: string, linkType: LinkType) => {
-    setExtractedLinks(prev => prev.map(l => l.url === url ? { ...l, linkType } : l));
+  const applyPatternSelection = () => {
+    const selectedPatterns = new Set(urlPatterns.filter(p => p.selected).map(p => p.pattern));
+    if (selectedPatterns.size === 0) { toast.error("Selecione pelo menos um padrão."); return; }
+    setCurrentLinks(prev => prev.map(link => {
+      try {
+        const u = new URL(link.url);
+        const segments = u.pathname.split("/").map(seg => {
+          if (/^\d+$/.test(seg)) return "{id}";
+          if (/^[0-9a-f]{8}-/.test(seg)) return "{uuid}";
+          return seg;
+        });
+        const pattern = u.hostname + segments.join("/");
+        return { ...link, selected: selectedPatterns.has(pattern) };
+      } catch { return link; }
+    }));
+    setShowPatternDialog(false);
+    toast.success(`URLs filtradas por ${selectedPatterns.size} padrão(ões).`);
   };
 
-  const setAllSelectedType = (linkType: LinkType) => {
-    setExtractedLinks(prev => prev.map(l => l.selected ? { ...l, linkType } : l));
-  };
+  /* ── Helpers ── */
+  const toggleLink = (url: string) => setCurrentLinks(prev => prev.map(l => l.url === url ? { ...l, selected: !l.selected } : l));
+  const changeLinkType = (url: string, type: LinkType) => setCurrentLinks(prev => prev.map(l => l.url === url ? { ...l, linkType: type } : l));
+  const removeProductUrl = (url: string) => setProductUrls(prev => prev.filter(u => u !== url));
 
-  const removeLink = (url: string) => {
-    setExtractedLinks(prev => prev.filter(l => l.url !== url));
-  };
-
-  const filteredLinks = extractedLinks.filter(l =>
-    !linkFilter || l.url.toLowerCase().includes(linkFilter.toLowerCase()) ||
-    l.text.toLowerCase().includes(linkFilter.toLowerCase())
-  );
-
-  const selectedLinksCount = extractedLinks.filter(l => l.selected).length;
-  const productLinks = extractedLinks.filter(l => l.linkType === 'produto');
-  const categoryLinks = extractedLinks.filter(l => l.linkType === 'categoria');
-  const groupLinks = extractedLinks.filter(l => l.linkType === 'grupo');
-  const categoryAgentCandidates = extractedLinks.filter(l => l.linkType === 'categoria' || l.linkType === 'grupo');
+  const categoryLinks = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+  const productLinksInView = currentLinks.filter(l => l.linkType === "produto");
+  const selectedCats = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected);
+  const filteredLinks = currentLinks.filter(l => !linkFilter || l.url.toLowerCase().includes(linkFilter.toLowerCase()) || l.text.toLowerCase().includes(linkFilter.toLowerCase()));
+  const currentLayer = layers[layers.length - 1];
+  const categoryAgentCandidates = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
   const selectedCategoryAgentCount = Object.values(categoryAgentSelection).filter(Boolean).length;
 
   const typeIcons: Record<string, React.ReactNode> = {
-    text: <Type className="w-3 h-3" />,
-    image: <ImageIcon className="w-3 h-3" />,
-    link: <Link2 className="w-3 h-3" />,
-    html: <FileText className="w-3 h-3" />,
+    text: <Type className="w-3 h-3" />, image: <ImageIcon className="w-3 h-3" />,
+    link: <Link2 className="w-3 h-3" />, html: <FileText className="w-3 h-3" />,
   };
 
-  const stepLabels: Record<Step, string> = {
-    url: "URL",
-    browse: "Navegar",
-    links: "Links",
-    "select-fields": "Selecionar",
-    batch: "Extrair",
-    results: "Resultados",
-  };
-
+  /* ════════════════════════════════════════════════
+     RENDER
+     ════════════════════════════════════════════════ */
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col gap-0">
       {/* Top toolbar */}
@@ -1103,14 +801,13 @@ export default function VisualScraperPage() {
 
         {/* Step indicators */}
         <div className="flex gap-1 ml-3">
-          {(Object.keys(stepLabels) as Step[]).filter(s => s !== "url" || step === "url").map((s) => (
-            <Badge key={s} variant={step === s ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
-              {stepLabels[s]}
+          {STEP_CONFIG.map(s => (
+            <Badge key={s.key} variant={step === s.key ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
+              {s.label}
             </Badge>
           ))}
         </div>
 
-        {/* Cost indicator */}
         <div className="ml-auto flex items-center gap-2">
           {useFirecrawl ? (
             <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px]">
@@ -1125,7 +822,7 @@ export default function VisualScraperPage() {
         </div>
       </div>
 
-      {/* Step: URL Entry */}
+      {/* ═══ STEP: URL Entry ═══ */}
       {step === "url" && (
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-2xl w-full">
@@ -1138,7 +835,7 @@ export default function VisualScraperPage() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Insira o URL da página de categorias/listagem de produtos. Poderá navegar, extrair links de produtos (com paginação) e depois definir os campos a extrair.
+                  Insira o URL da homepage ou página de categorias. Vai poder navegar, identificar as camadas de categorias, recolher URLs de produtos e depois definir os campos a extrair.
                 </p>
                 <div className="flex gap-2">
                   <Input
@@ -1158,50 +855,46 @@ export default function VisualScraperPage() {
               <div className="border-t pt-4">
                 <p className="text-sm font-medium mb-3 flex items-center gap-2">
                   <FileSpreadsheet className="w-4 h-4" />
-                  Ou importe uma lista de URLs
+                  Ou importe URLs de produtos diretamente
                 </p>
                 <div className="space-y-3">
                   <div className="flex gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".csv,.xlsx,.xls,.txt"
-                      onChange={handleFileImport}
-                      className="hidden"
-                    />
+                    <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.txt" onChange={handleFileImport} className="hidden" />
                     <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
                       <Upload className="w-4 h-4 mr-1" /> Importar CSV/Excel
                     </Button>
-                    <span className="text-xs text-muted-foreground self-center">
-                      Ficheiro com uma coluna de URLs (CSV, TXT)
-                    </span>
+                    <span className="text-xs text-muted-foreground self-center">Ficheiro com URLs (CSV, TXT)</span>
                   </div>
                   <div className="space-y-2">
                     <Textarea
-                      placeholder={"Cole aqui os URLs dos produtos (um por linha):\nhttps://loja.com/produto-1\nhttps://loja.com/produto-2\nhttps://loja.com/produto-3"}
+                      placeholder={"Cole aqui URLs de produtos (um por linha):\nhttps://loja.com/produto-1\nhttps://loja.com/produto-2"}
                       value={manualUrls}
                       onChange={e => setManualUrls(e.target.value)}
                       rows={4}
                       className="font-mono text-xs"
                     />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleManualUrlImport}
-                      disabled={!manualUrls.trim()}
-                    >
+                    <Button variant="secondary" size="sm" onClick={handleManualUrlImport} disabled={!manualUrls.trim()}>
                       <Plus className="w-3 h-3 mr-1" /> Adicionar URLs
                     </Button>
                   </div>
                 </div>
+              </div>
+
+              <div className="border rounded-lg p-3 bg-muted/30 space-y-2 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground text-sm">Fluxo por camadas:</p>
+                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">1</Badge> Navegar o site e extrair links</div>
+                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">2</Badge> Classificar links como categorias (níveis) ou produtos</div>
+                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">3</Badge> Entrar nas categorias → marcar paginação → recolher produtos</div>
+                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">4</Badge> Abrir um produto → selecionar/mapear campos visualmente</div>
+                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">5</Badge> Executar extração em lote</div>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Step: Browse (full-page iframe with address bar) */}
-      {(step === "browse" || step === "select-fields") && (
+      {/* ═══ STEP: Browse / Fields (iframe) ═══ */}
+      {(step === "browse" || step === "fields") && (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Browser chrome */}
           <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 flex-shrink-0">
@@ -1216,9 +909,7 @@ export default function VisualScraperPage() {
               <span className="truncate">{currentUrl}</span>
             </div>
             <a href={currentUrl} target="_blank" rel="noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7"><ExternalLink className="w-3.5 h-3.5" /></Button>
             </a>
 
             {/* Action buttons */}
@@ -1228,28 +919,33 @@ export default function VisualScraperPage() {
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleExtractLinks} disabled={loading}>
                     <List className="w-3.5 h-3.5 mr-1" /> Extrair Links
                   </Button>
-                  <Button size="sm" className="h-7 text-xs" onClick={handleEnterSelectMode} disabled={loading}>
+                  <Button size="sm" className="h-7 text-xs" onClick={() => { loadPage(currentUrl, "select"); setStep("fields"); }} disabled={loading}>
                     <Crosshair className="w-3.5 h-3.5 mr-1" /> Selecionar Campos
                   </Button>
                 </>
               )}
-              {step === "select-fields" && (
+              {step === "fields" && (
                 <>
                   <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-300">
                     <Crosshair className="w-3 h-3 mr-1" /> Modo Seleção
                   </Badge>
                   <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={handleAutoDetectFields} disabled={loading}>
-                    <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-detetar Campos
+                    <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-detetar
                   </Button>
+                  {productUrls.length > 0 && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setStep("products")}>
+                      <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Voltar aos Produtos
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { loadPage(currentUrl, "browse"); setStep("browse"); }}>
-                    <Navigation className="w-3.5 h-3.5 mr-1" /> Voltar a Navegar
+                    <Navigation className="w-3.5 h-3.5 mr-1" /> Navegar
                   </Button>
                 </>
               )}
             </div>
           </div>
 
-          {/* Main content area */}
+          {/* Main content */}
           <div className="flex-1 flex min-h-0">
             {/* Iframe */}
             <div className="flex-1 relative">
@@ -1260,7 +956,7 @@ export default function VisualScraperPage() {
                 sandbox="allow-scripts allow-same-origin"
                 title="Preview da página"
               />
-              {step === "select-fields" && (
+              {step === "fields" && (
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-emerald-600 text-white px-4 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-2 pointer-events-none">
                   <MousePointerClick className="w-3.5 h-3.5" />
                   Clique nos elementos que deseja extrair
@@ -1268,19 +964,17 @@ export default function VisualScraperPage() {
               )}
             </div>
 
-            {/* Fields panel (only in select-fields step) */}
-            {step === "select-fields" && (
+            {/* Fields panel (only in fields step) */}
+            {step === "fields" && (
               <div className="w-80 border-l flex flex-col bg-background flex-shrink-0">
                 <div className="p-3 border-b flex items-center justify-between">
                   <span className="text-sm font-semibold">Campos ({fields.length})</span>
-                  <div className="flex gap-1">
-                    {extractedLinks.filter(l => l.selected).length > 0 && (
-                      <Badge variant="outline" className="text-[10px]">{extractedLinks.filter(l => l.selected).length} URLs</Badge>
-                    )}
-                    <Button size="sm" className="h-7 text-xs" onClick={handleGoToBatch} disabled={fields.length === 0}>
-                      Avançar <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
-                  </div>
+                  <Button size="sm" className="h-7 text-xs" onClick={() => {
+                    if (fields.length === 0) { toast.error("Selecione pelo menos um campo."); return; }
+                    if (productUrls.length > 0) { setStep("products"); } else { handleRunExtraction(); }
+                  }}>
+                    {productUrls.length > 0 ? "Voltar" : "Extrair"} <ArrowRight className="w-3 h-3 ml-1" />
+                  </Button>
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="p-2 space-y-2">
@@ -1289,18 +983,12 @@ export default function VisualScraperPage() {
                         Clique nos elementos da página para os adicionar como campos de extração.
                       </p>
                     )}
-                    {fields.map(field => (
-                      <div key={field.id} className="border rounded-lg p-2 space-y-1">
+                    {fields.map(f => (
+                      <div key={f.id} className="border rounded-lg p-2 space-y-1">
                         <div className="flex items-center gap-1">
-                          <Input
-                            value={field.name}
-                            onChange={e => handleUpdateFieldName(field.id, e.target.value)}
-                            className="h-6 text-xs font-medium"
-                          />
-                          <Select value={field.type} onValueChange={v => handleUpdateFieldType(field.id, v as any)}>
-                            <SelectTrigger className="h-6 w-16 text-[10px]">
-                              <SelectValue />
-                            </SelectTrigger>
+                          <Input value={f.name} onChange={e => handleUpdateFieldName(f.id, e.target.value)} className="h-6 text-xs font-medium" />
+                          <Select value={f.type} onValueChange={v => handleUpdateFieldType(f.id, v as any)}>
+                            <SelectTrigger className="h-6 w-16 text-[10px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="text">Texto</SelectItem>
                               <SelectItem value="image">Img</SelectItem>
@@ -1308,35 +996,33 @@ export default function VisualScraperPage() {
                               <SelectItem value="html">HTML</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveField(field.id)}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveField(f.id)}>
                             <X className="w-3 h-3" />
                           </Button>
                         </div>
                         <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-                          {typeIcons[field.type]} {field.preview || "(vazio)"}
+                          {typeIcons[f.type]} {f.preview || "(vazio)"}
                         </p>
                         <div className="flex items-center justify-between">
-                          <p className="text-[9px] font-mono text-muted-foreground/40 truncate flex-1">{field.selector}</p>
+                          <Input value={f.selector} onChange={e => handleUpdateFieldSelector(f.id, e.target.value)} className="h-5 text-[9px] font-mono text-muted-foreground/60 flex-1 mr-1" placeholder="Seletor CSS" />
                           <label className="flex items-center gap-1 cursor-pointer">
-                            <Checkbox
-                              checked={field.isVariation}
-                              onCheckedChange={() => handleToggleVariation(field.id)}
-                              className="h-3 w-3"
-                            />
-                            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
-                              <Layers className="w-2.5 h-2.5" /> Variação
-                            </span>
+                            <Checkbox checked={f.isVariation} onCheckedChange={() => handleToggleVariation(f.id)} className="h-3 w-3" />
+                            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Layers className="w-2.5 h-2.5" /> Var</span>
                           </label>
                         </div>
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
+                <div className="p-2 border-t">
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setFields(prev => [...prev, { id: crypto.randomUUID(), name: `Campo ${prev.length + 1}`, selector: "", type: "text", preview: "", isVariation: false }])}>
+                    <Plus className="w-3 h-3 mr-1" /> Adicionar Campo Manual
+                  </Button>
+                </div>
                 {fields.some(f => f.isVariation) && (
                   <div className="p-2 border-t bg-amber-50 dark:bg-amber-950/20">
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                      <Layers className="w-3 h-3" />
-                      Campos marcados como "Variação" serão extraídos como lista de opções (ex: cores, tamanhos).
+                      <Layers className="w-3 h-3" /> Campos "Variação" extraem múltiplos valores (separados por "|")
                     </p>
                   </div>
                 )}
@@ -1346,262 +1032,125 @@ export default function VisualScraperPage() {
         </div>
       )}
 
-      {/* Step: Links extraction */}
-      {step === "links" && (
+      {/* ═══ STEP: Categories (layered) ═══ */}
+      {step === "categories" && (
         <div className="flex-1 flex flex-col min-h-0 p-4 gap-3">
           {/* Header */}
-          <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleLayerBack}>
-              <ArrowLeft className="w-3 h-3 mr-1" /> {linkLayers.length > 1 ? "Camada Anterior" : "Voltar"}
+          <div className="flex items-center gap-3 flex-wrap flex-shrink-0">
+            <Button variant="outline" size="sm" onClick={() => {
+              if (layers.length > 1) {
+                const prev = layers.slice(0, -1);
+                setLayers(prev);
+                setCurrentLinks(prev[prev.length - 1].links);
+              } else { setStep("browse"); }
+            }}>
+              <ArrowLeft className="w-3 h-3 mr-1" /> {layers.length > 1 ? "Nível Anterior" : "Voltar"}
             </Button>
-            <h2 className="font-semibold">Gestão de URLs</h2>
-            <Badge>{extractedLinks.length} total</Badge>
-            <Badge variant="outline" className="text-[10px]">
-              {categoryLinks.length} categorias · {groupLinks.length} grupos · {productLinks.length} produtos
-            </Badge>
-            <Badge variant="outline" className="text-[10px]">{crawledPages.length} pág. percorridas</Badge>
+            <h2 className="font-semibold text-sm">Estrutura do Site</h2>
+            <Badge>{currentLinks.length} links</Badge>
+            <Badge variant="outline" className="text-[10px]">{categoryLinks.length} categorias · {productLinksInView.length} produtos</Badge>
           </div>
 
           {/* Layer breadcrumbs */}
-          {linkLayers.length > 1 && (
+          {layers.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap text-xs text-muted-foreground border rounded-lg p-2 bg-muted/20 flex-shrink-0">
               <Layers className="w-3.5 h-3.5 mr-1" />
-              {linkLayers.map((layer, idx) => (
+              {layers.map((layer, idx) => (
                 <span key={idx} className="flex items-center gap-1">
                   {idx > 0 && <ChevronRight className="w-3 h-3" />}
                   <button
-                    className={`hover:underline ${idx === linkLayers.length - 1 ? "font-semibold text-foreground" : ""}`}
+                    className={`hover:underline ${idx === layers.length - 1 ? "font-semibold text-foreground" : ""}`}
                     onClick={() => {
-                      if (idx < linkLayers.length - 1) {
-                        const sliced = linkLayers.slice(0, idx + 1);
-                        setLinkLayers(sliced);
-                        setExtractedLinks(sliced[sliced.length - 1].links);
-                        setPaginationUrls([]);
+                      if (idx < layers.length - 1) {
+                        const sliced = layers.slice(0, idx + 1);
+                        setLayers(sliced);
+                        setCurrentLinks(sliced[sliced.length - 1].links);
                       }
                     }}
                   >
-                    {layer.label.length > 40 ? layer.label.substring(0, 40) + "…" : layer.label}
+                    {layer.label.length > 50 ? layer.label.substring(0, 50) + "…" : layer.label}
                   </button>
                 </span>
               ))}
             </div>
           )}
 
-          {/* ─── Section A: Classificar & Recolher URLs ─── */}
+          {/* Actions panel */}
           <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-[10px]">Passo 1</Badge>
-              <span className="text-sm font-medium">Classificar URLs e recolher mais</span>
+              <span className="text-sm font-medium">Ações</span>
               <div className="ml-auto flex gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={() => setAllSelectedType('categoria')}>
+                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "categoria" } : l))}>
                   Seleção → Categoria
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setAllSelectedType('grupo')}>
+                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "grupo" } : l))}>
                   Seleção → Grupo
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setAllSelectedType('produto')}>
+                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "produto" } : l))}>
                   Seleção → Produto
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Selecione URLs na tabela e classifique-os. Depois explore categorias/grupos para encontrar mais URLs.
-            </p>
-            {/* Pagination */}
-            {paginationUrls.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap pt-1 border-t">
-                <span className="text-xs text-muted-foreground">{paginationUrls.length} página(s) de paginação</span>
-                <Button size="sm" variant="outline" onClick={() => handleFollowPagination()} disabled={paginationLoading}>
-                  {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
-                  Próxima
-                </Button>
-                <Button size="sm" onClick={handleFollowAllPagination} disabled={paginationLoading}>
-                  {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
-                  Todas ({paginationUrls.length})
-                </Button>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Input
-                placeholder="Adicionar URL de paginação manualmente (ex: ?page=2)..."
-                className="text-xs"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const val = (e.target as HTMLInputElement).value.trim();
-                    if (val) {
-                      try {
-                        const fullUrl = val.startsWith('http') ? val : new URL(val, currentUrl).href;
-                        if (!paginationUrls.includes(fullUrl)) {
-                          setPaginationUrls(prev => [...prev, fullUrl]);
-                          (e.target as HTMLInputElement).value = '';
-                          toast.success('URL de paginação adicionada.');
-                        }
-                      } catch { toast.error('URL inválida'); }
-                    }
-                  }
-                }}
-              />
-            </div>
-          </div>
 
-          {/* ─── Section B: Explorar Categorias/Grupos ─── */}
-          {(categoryLinks.length > 0 || groupLinks.length > 0) && (
-            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0 flex-wrap">
-              <Badge variant="outline" className="text-[10px]">Passo 2</Badge>
-              <span className="text-sm font-medium">Explorar categorias/grupos para encontrar produtos</span>
-              <div className="ml-auto flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={openCategoryAgentDialog}
-                  disabled={drillLoading || (categoryLinks.length + groupLinks.length) === 0}
-                >
-                  <Wand2 className="w-3 h-3 mr-1" /> Agente (Lista)
+            <div className="flex items-center gap-2 flex-wrap pt-2 border-t">
+              {/* Drill selected categories */}
+              {selectedCats.length > 0 && (
+                <Button size="sm" onClick={() => handleDrillInto(selectedCats.map(l => l.url))} disabled={loading}>
+                  {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
+                  Entrar em {selectedCats.length} categorias (próximo nível)
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const allCatUrls = extractedLinks
-                      .filter(l => l.linkType === 'categoria' || l.linkType === 'grupo')
-                      .map(l => l.url);
-                    handleDrillCategories(allCatUrls);
-                  }}
-                  disabled={drillLoading || (categoryLinks.length + groupLinks.length) === 0}
-                >
-                  {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
-                  Explorar Todas ({categoryLinks.length + groupLinks.length})
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDrillCategories()}
-                  disabled={drillLoading || extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).length === 0}
-                >
-                  {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
-                  Explorar Selecionados ({extractedLinks.filter(l => l.selected && (l.linkType === 'categoria' || l.linkType === 'grupo')).length})
-                </Button>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* ─── Section C: Definir campos (só produtos) ─── */}
-          {productLinks.length > 0 && (
-            <div className={`flex flex-col gap-2 p-3 border-2 rounded-lg flex-shrink-0 ${fields.length > 0 ? 'border-primary/30 bg-primary/5' : 'border-dashed border-muted-foreground/30 bg-muted/20'}`}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline" className="text-[10px]">Passo 3</Badge>
-                <span className="text-sm font-medium">Definir campos a extrair ({fields.length} campos)</span>
-                <div className="ml-auto flex gap-2">
-                  <Button size="sm" variant="outline" onClick={handleAddManualField}>
-                    <Plus className="w-3 h-3 mr-1" /> Adicionar Campo
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => {
-                    const firstProduct = productLinks[0];
-                    if (firstProduct) handleGoToProduct(firstProduct.url);
-                  }}>
-                    <Crosshair className="w-3 h-3 mr-1" /> Selecionar na Página
-                  </Button>
-                </div>
-              </div>
+              {/* Agent dialog */}
+              {categoryLinks.length > 0 && (
+                <Button size="sm" variant="secondary" onClick={openCategoryAgentDialog} disabled={loading}>
+                  <Wand2 className="w-3 h-3 mr-1" /> Agente de Categorias
+                </Button>
+              )}
 
-              {fields.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">
-                  Adicione campos manualmente ou abra um produto para selecionar visualmente.
-                </p>
-              ) : (
-                <div className="space-y-1.5">
-                  {fields.map(f => (
-                    <div key={f.id} className="grid grid-cols-[1fr,200px,70px,auto,auto,auto] gap-1.5 items-center">
-                      <Input
-                        value={f.name}
-                        onChange={e => handleUpdateFieldName(f.id, e.target.value)}
-                        className="h-7 text-xs"
-                        placeholder="Nome do campo"
-                      />
-                      <Input
-                        value={f.selector}
-                        onChange={e => handleUpdateFieldSelector(f.id, e.target.value)}
-                        className="h-7 text-[10px] font-mono"
-                        placeholder="Seletor CSS (ex: .product-title)"
-                      />
-                      <Select value={f.type} onValueChange={v => handleUpdateFieldType(f.id, v as any)}>
-                        <SelectTrigger className="h-7 text-[10px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Texto</SelectItem>
-                          <SelectItem value="image">Img</SelectItem>
-                          <SelectItem value="link">Link</SelectItem>
-                          <SelectItem value="html">HTML</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <label className="flex items-center gap-1 cursor-pointer px-1" title="Extrair múltiplos valores (variações)">
-                        <Checkbox
-                          checked={f.isVariation}
-                          onCheckedChange={() => handleToggleVariation(f.id)}
-                          className="h-3.5 w-3.5"
-                        />
-                        <Layers className={`w-3.5 h-3.5 ${f.isVariation ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
-                      </label>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveField(f.id)}>
-                        <Trash2 className="w-3 h-3 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                  {fields.some(f => f.isVariation) && (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-1">
-                      <Layers className="w-3 h-3" /> Campos com variação ativa extraem múltiplos valores separados por "|"
-                    </p>
-                  )}
-                </div>
+              {/* Pagination */}
+              {currentLayer?.hasPagination && (
+                <Button size="sm" variant="outline" onClick={handleFollowPagination} disabled={loading}>
+                  {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
+                  ✓ Paginação ({currentLayer.paginationUrls.length} pág.)
+                </Button>
+              )}
+
+              {/* Auto-collect */}
+              <Button size="sm" variant="secondary" onClick={handleAutoCollect} disabled={loading}>
+                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
+                Auto-recolher produtos
+              </Button>
+
+              {/* Manual collect */}
+              {productLinksInView.length > 0 && (
+                <Button size="sm" onClick={handleCollectProducts}>
+                  <Target className="w-3 h-3 mr-1" /> Recolher {productLinksInView.filter(l => l.selected).length} produtos →
+                </Button>
               )}
             </div>
-          )}
 
-          {/* ─── Section D: Extrair Tudo ─── */}
-          {productLinks.length > 0 && fields.length > 0 && (
-            <div className="flex items-center gap-3 p-3 border-2 border-primary rounded-lg bg-primary/5 flex-shrink-0">
-              <Badge variant="outline" className="text-[10px]">Passo 4</Badge>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Tudo pronto!</p>
-                <p className="text-xs text-muted-foreground">
-                  {productLinks.length} produtos × {fields.length} campos
-                </p>
+            {collectProgress && (
+              <div className="pt-2">
+                <Progress value={(collectProgress.current / collectProgress.total) * 100} className="h-2" />
+                <p className="text-[10px] text-muted-foreground mt-1">{collectProgress.current}/{collectProgress.total} categorias processadas</p>
               </div>
-              <Button onClick={handleGoToBatch}>
-                <Play className="w-4 h-4 mr-1" /> Extrair Todos ({productLinks.length} páginas)
-              </Button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Filter & tools */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Input
-              placeholder="Filtrar links por URL ou texto..."
-              value={linkFilter}
-              onChange={e => setLinkFilter(e.target.value)}
-              className="max-w-md"
-            />
+            <Input placeholder="Filtrar links..." value={linkFilter} onChange={e => setLinkFilter(e.target.value)} className="max-w-md" />
             <div className="ml-auto flex gap-2">
               <Button variant="secondary" size="sm" onClick={detectUrlPatterns}>
-                <Wand2 className="w-3 h-3 mr-1" /> Detetar Padrões
+                <Wand2 className="w-3 h-3 mr-1" /> Padrões
               </Button>
-              <Button variant="outline" size="sm" onClick={() => toggleAllLinks(true)}>Selecionar Todos</Button>
-              <Button variant="outline" size="sm" onClick={() => toggleAllLinks(false)}>Limpar</Button>
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-3 h-3 mr-1" /> Importar URLs
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls,.txt"
-                onChange={handleFileImport}
-                className="hidden"
-              />
+              <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => ({ ...l, selected: true })))}>Selecionar Todos</Button>
+              <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => ({ ...l, selected: false })))}>Limpar</Button>
             </div>
           </div>
 
-          {/* URL Table with Type column */}
+          {/* Links table */}
           <ScrollArea className="flex-1 border rounded-lg">
             <Table>
               <TableHeader>
@@ -1611,27 +1160,23 @@ export default function VisualScraperPage() {
                       checked={filteredLinks.length > 0 && filteredLinks.every(l => l.selected)}
                       onCheckedChange={(c) => {
                         const urls = new Set(filteredLinks.map(l => l.url));
-                        setExtractedLinks(prev => prev.map(l => urls.has(l.url) ? { ...l, selected: !!c } : l));
+                        setCurrentLinks(prev => prev.map(l => urls.has(l.url) ? { ...l, selected: !!c } : l));
                       }}
                     />
                   </TableHead>
                   <TableHead className="text-xs w-28">Tipo</TableHead>
                   <TableHead className="text-xs">URL</TableHead>
                   <TableHead className="text-xs">Texto</TableHead>
-                  <TableHead className="w-20"></TableHead>
+                  <TableHead className="w-16"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLinks.map(link => (
                   <TableRow key={link.url} className={link.selected ? "bg-primary/5" : ""}>
+                    <TableCell><Checkbox checked={link.selected} onCheckedChange={() => toggleLink(link.url)} /></TableCell>
                     <TableCell>
-                      <Checkbox checked={link.selected} onCheckedChange={() => toggleLink(link.url)} />
-                    </TableCell>
-                    <TableCell>
-                      <Select value={link.linkType} onValueChange={(v) => changeLinkType(link.url, v as LinkType)}>
-                        <SelectTrigger className="h-6 text-[10px] w-24">
-                          <SelectValue />
-                        </SelectTrigger>
+                      <Select value={link.linkType} onValueChange={v => changeLinkType(link.url, v as LinkType)}>
+                        <SelectTrigger className="h-6 text-[10px] w-24"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="categoria">Categoria</SelectItem>
                           <SelectItem value="grupo">Grupo</SelectItem>
@@ -1640,18 +1185,107 @@ export default function VisualScraperPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="text-xs font-mono truncate max-w-md" title={link.url}>
-                      {link.url}
-                    </TableCell>
+                    <TableCell className="text-xs font-mono truncate max-w-md" title={link.url}>{link.url}</TableCell>
                     <TableCell className="text-xs truncate max-w-48">{link.text || "—"}</TableCell>
                     <TableCell>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentLinks(prev => prev.filter(l => l.url !== link.url))}>
+                        <Trash2 className="w-3 h-3 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* ═══ STEP: Products collected ═══ */}
+      {step === "products" && (
+        <div className="flex-1 flex flex-col min-h-0 p-4 gap-3">
+          <div className="flex items-center gap-3 flex-wrap flex-shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setStep("categories")}>
+              <ArrowLeft className="w-3 h-3 mr-1" /> Voltar às Categorias
+            </Button>
+            <h2 className="font-semibold text-sm">URLs de Produto Recolhidas</h2>
+            <Badge>{productUrls.length} produtos</Badge>
+            <div className="ml-auto flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => handleOpenProductForFields()}>
+                <Crosshair className="w-3 h-3 mr-1" /> Selecionar Campos num Produto
+              </Button>
+              {fields.length > 0 && (
+                <Button size="sm" variant="default" onClick={handleRunExtraction}>
+                  <Play className="w-3 h-3 mr-1" /> Extrair Todos ({productUrls.length} × {fields.length} campos)
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {fields.length > 0 && (
+            <div className="p-3 border-2 border-primary/30 rounded-lg bg-primary/5 flex-shrink-0">
+              <p className="text-sm font-medium mb-2">Campos definidos ({fields.length}):</p>
+              <div className="flex flex-wrap gap-1">
+                {fields.map(f => (
+                  <Badge key={f.id} variant="secondary" className="text-xs">
+                    {typeIcons[f.type]} {f.name}
+                    {f.isVariation && <Layers className="w-2.5 h-2.5 ml-1 text-amber-500" />}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {fields.length === 0 && (
+            <div className="p-3 border-2 border-dashed border-muted-foreground/30 rounded-lg bg-muted/20 flex-shrink-0">
+              <p className="text-sm text-muted-foreground">
+                <AlertTriangle className="w-4 h-4 inline mr-1 text-amber-500" />
+                Ainda não definiu campos. Abra um produto para selecionar visualmente os campos a extrair.
+              </p>
+            </div>
+          )}
+
+          {/* Add more URLs */}
+          <div className="flex gap-2 flex-shrink-0">
+            <Input
+              placeholder="Adicionar URL de produto..."
+              className="text-xs font-mono max-w-lg"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const val = (e.target as HTMLInputElement).value.trim();
+                  if (val.startsWith("http") && !productUrls.includes(val)) {
+                    setProductUrls(prev => [...prev, val]);
+                    (e.target as HTMLInputElement).value = "";
+                    toast.success("URL adicionada");
+                  }
+                }
+              }}
+            />
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-3 h-3 mr-1" /> Importar
+            </Button>
+            <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.txt" onChange={handleFileImport} className="hidden" />
+          </div>
+
+          <ScrollArea className="flex-1 border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">#</TableHead>
+                  <TableHead className="text-xs">URL do Produto</TableHead>
+                  <TableHead className="w-20"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productUrls.map((pUrl, idx) => (
+                  <TableRow key={pUrl}>
+                    <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                    <TableCell className="text-xs font-mono truncate max-w-lg" title={pUrl}>{pUrl}</TableCell>
+                    <TableCell>
                       <div className="flex gap-1">
-                        {link.linkType === 'produto' && (
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoToProduct(link.url)} title="Abrir e selecionar campos">
-                            <Crosshair className="w-3 h-3" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeLink(link.url)} title="Remover">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleOpenProductForFields(pUrl)} title="Selecionar campos">
+                          <Crosshair className="w-3 h-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeProductUrl(pUrl)}>
                           <Trash2 className="w-3 h-3 text-destructive" />
                         </Button>
                       </div>
@@ -1664,70 +1298,30 @@ export default function VisualScraperPage() {
         </div>
       )}
 
-      {/* Step: Batch confirmation */}
-      {step === "batch" && (
+      {/* ═══ STEP: Extracting ═══ */}
+      {step === "extract" && batchLoading && (
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="max-w-xl w-full">
-            <CardHeader>
-              <CardTitle className="text-base">Confirmar Extração</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Campos a extrair:
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {fields.map(f => (
-                    <Badge key={f.id} variant="secondary" className="text-xs">
-                      {typeIcons[f.type]} {f.name}
-                      {f.isVariation && <Layers className="w-2.5 h-2.5 ml-1 text-amber-500" />}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">
-                  {batchUrls.length > 0
-                    ? `${batchUrls.length} páginas de produto selecionadas`
-                    : `1 página (${currentUrl})`}
-                </p>
-                {useFirecrawl && (
-                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
-                    <Zap className="w-3 h-3 mr-1" /> Modo Premium — irá gastar créditos
-                  </Badge>
-                )}
-              </div>
-
-              {fields.some(f => f.isVariation) && (
-                <div className="p-3 border rounded-lg bg-amber-50 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-400">
-                  <p className="flex items-center gap-1 font-medium"><Layers className="w-3 h-3" /> Variações detetadas</p>
-                  <p className="mt-1">Os campos de variação serão extraídos como lista. Cada combinação gerará uma linha separada nos resultados.</p>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep((batchUrls.length > 0 || selectedLinksCount > 0) ? "links" : "select-fields")}>
-                  ← Voltar
-                </Button>
-                <Button onClick={handleRunBatch} disabled={batchLoading}>
-                  {batchLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Play className="w-4 h-4 mr-1" />}
-                  Extrair Dados
-                </Button>
-              </div>
-            </CardContent>
+          <Card className="max-w-md w-full text-center p-8 space-y-4">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+            <p className="font-semibold">A extrair dados...</p>
+            {collectProgress && (
+              <>
+                <Progress value={(collectProgress.current / collectProgress.total) * 100} className="h-2" />
+                <p className="text-sm text-muted-foreground">{collectProgress.current}/{collectProgress.total} páginas</p>
+              </>
+            )}
           </Card>
         </div>
       )}
 
-      {/* Step: Results */}
+      {/* ═══ STEP: Results ═══ */}
       {step === "results" && (
         <div className="flex-1 flex flex-col min-h-0 gap-3 p-4">
           <div className="flex items-center gap-2 flex-shrink-0">
             <Badge>{results.length} produtos extraídos</Badge>
             {errors.length > 0 && <Badge variant="destructive">{errors.length} erros</Badge>}
             <div className="ml-auto flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setStep("batch")}>← Voltar</Button>
+              <Button variant="outline" size="sm" onClick={() => setStep("products")}>← Voltar</Button>
               <Button variant="outline" size="sm" onClick={handleExportExcel}>
                 <Download className="w-3 h-3 mr-1" /> Excel
               </Button>
@@ -1754,12 +1348,8 @@ export default function VisualScraperPage() {
                     {Object.values(row).map((val, ci) => (
                       <TableCell key={ci} className="text-xs max-w-48 truncate" title={val}>
                         {val?.startsWith("http") ? (
-                          <a href={val} target="_blank" rel="noreferrer" className="text-primary underline">
-                            {val.substring(0, 40)}...
-                          </a>
-                        ) : (
-                          val?.substring(0, 100) || "—"
-                        )}
+                          <a href={val} target="_blank" rel="noreferrer" className="text-primary underline">{val.substring(0, 40)}...</a>
+                        ) : (val?.substring(0, 100) || "—")}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -1768,6 +1358,7 @@ export default function VisualScraperPage() {
             </Table>
           </ScrollArea>
 
+          {/* Send to ingestion dialog */}
           <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
@@ -1791,25 +1382,16 @@ export default function VisualScraperPage() {
                         value={scraperMapping[scraperKey] || "__ignore__"}
                         onValueChange={(v) => setScraperMapping(prev => {
                           const next = { ...prev };
-                          if (v === "__ignore__") {
-                            delete next[scraperKey];
-                          } else {
-                            next[scraperKey] = v;
-                          }
+                          if (v === "__ignore__") delete next[scraperKey];
+                          else next[scraperKey] = v;
                           return next;
                         })}
                       >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Ignorar" />
-                        </SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Ignorar" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__ignore__">
-                            <span className="text-muted-foreground">— Ignorar —</span>
-                          </SelectItem>
+                          <SelectItem value="__ignore__"><span className="text-muted-foreground">— Ignorar —</span></SelectItem>
                           {DEFAULT_PRODUCT_FIELDS.map(pf => (
-                            <SelectItem key={pf.key} value={pf.key}>
-                              {pf.label}{pf.required ? " *" : ""}
-                            </SelectItem>
+                            <SelectItem key={pf.key} value={pf.key}>{pf.label}{pf.required ? " *" : ""}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1818,7 +1400,6 @@ export default function VisualScraperPage() {
                 })}
               </div>
 
-              {/* Preview of mapped data */}
               {Object.keys(scraperMapping).length > 0 && results.length > 0 && (
                 <div className="mt-3 space-y-1.5">
                   <p className="text-xs font-medium text-muted-foreground">Pré-visualização (1º produto)</p>
@@ -1838,10 +1419,7 @@ export default function VisualScraperPage() {
 
               <DialogFooter className="mt-4">
                 <Button variant="outline" onClick={() => setShowSendDialog(false)}>Cancelar</Button>
-                <Button
-                  onClick={handleSendToProducts}
-                  disabled={batchLoading || !Object.values(scraperMapping).includes("title")}
-                >
+                <Button onClick={handleSendToProducts} disabled={batchLoading || !Object.values(scraperMapping).includes("title")}>
                   {batchLoading && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
                   Criar Job de Ingestão ({results.length} itens)
                 </Button>
@@ -1860,24 +1438,16 @@ export default function VisualScraperPage() {
               Agente de Categorias
             </DialogTitle>
             <DialogDescription>
-              Escolha as categorias/grupos para o agente explorar automaticamente, gerar a lista de produtos e preparar a execução.
+              Escolha as categorias/grupos para explorar automaticamente.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[10px]">
-              {categoryAgentCandidates.length} categorias/grupos
-            </Badge>
-            <Badge variant="outline" className="text-[10px]">
-              {selectedCategoryAgentCount} selecionados
-            </Badge>
+            <Badge variant="outline" className="text-[10px]">{categoryAgentCandidates.length} categorias/grupos</Badge>
+            <Badge variant="outline" className="text-[10px]">{selectedCategoryAgentCount} selecionados</Badge>
             <div className="ml-auto flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setAllCategoryAgentSelection(true)}>
-                Selecionar tudo
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setAllCategoryAgentSelection(false)}>
-                Limpar
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCategoryAgentSelection(Object.fromEntries(categoryAgentCandidates.map(l => [l.url, true])))}>Selecionar tudo</Button>
+              <Button variant="outline" size="sm" onClick={() => setCategoryAgentSelection(Object.fromEntries(categoryAgentCandidates.map(l => [l.url, false])))}>Limpar</Button>
             </div>
           </div>
 
@@ -1885,10 +1455,7 @@ export default function VisualScraperPage() {
             <div className="p-2 space-y-1.5">
               {categoryAgentCandidates.map(link => (
                 <label key={link.url} className="flex items-start gap-2 border rounded-md p-2 cursor-pointer hover:bg-muted/40">
-                  <Checkbox
-                    checked={!!categoryAgentSelection[link.url]}
-                    onCheckedChange={(checked) => setCategoryAgentSelection(prev => ({ ...prev, [link.url]: !!checked }))}
-                  />
+                  <Checkbox checked={!!categoryAgentSelection[link.url]} onCheckedChange={(c) => setCategoryAgentSelection(prev => ({ ...prev, [link.url]: !!c }))} />
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="text-xs truncate">{link.text || "Sem texto"}</p>
                     <p className="text-[10px] text-muted-foreground font-mono truncate" title={link.url}>{link.url}</p>
@@ -1896,38 +1463,16 @@ export default function VisualScraperPage() {
                   <Badge variant="secondary" className="text-[10px]">{link.linkType}</Badge>
                 </label>
               ))}
-              {categoryAgentCandidates.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-6">Nenhuma categoria/grupo disponível nesta camada.</p>
-              )}
             </div>
           </ScrollArea>
 
-          <DialogFooter className="flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setShowCategoryAgentDialog(false)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleRunCategoryAgentFlow(false)}
-              disabled={selectedCategoryAgentCount === 0 || drillLoading}
-            >
-              {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
-              Explorar e listar produtos
-            </Button>
-            <Button
-              onClick={() => handleRunCategoryAgentFlow(true)}
-              disabled={selectedCategoryAgentCount === 0 || drillLoading || fields.length === 0}
-            >
-              {drillLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
-              Explorar + correr produtos
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCategoryAgentDialog(false)}>Cancelar</Button>
+            <Button onClick={handleRunCategoryAgentFlow} disabled={selectedCategoryAgentCount === 0 || loading}>
+              {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Layers className="w-3 h-3 mr-1" />}
+              Explorar {selectedCategoryAgentCount} categorias
             </Button>
           </DialogFooter>
-
-          {fields.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              Defina os campos no Passo 3 para ativar a execução automática dos produtos.
-            </p>
-          )}
         </DialogContent>
       </Dialog>
 
@@ -1940,7 +1485,7 @@ export default function VisualScraperPage() {
               Padrões de URL Detetados
             </DialogTitle>
             <DialogDescription>
-              O sistema agrupou os links por padrão de URL. Selecione os padrões que correspondem a <strong>páginas de produto</strong> para filtrar automaticamente.
+              Selecione os padrões que correspondem a <strong>páginas de produto</strong> para filtrar automaticamente.
             </DialogDescription>
           </DialogHeader>
 
@@ -1956,14 +1501,9 @@ export default function VisualScraperPage() {
                   <code className="text-xs font-mono flex-1 truncate">{p.pattern}</code>
                   <Badge variant="secondary" className="text-[10px]">{p.count} URLs</Badge>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1 ml-6 truncate">
-                  Exemplo: {p.sample}
-                </p>
+                <p className="text-[10px] text-muted-foreground mt-1 ml-6 truncate">Exemplo: {p.sample}</p>
               </div>
             ))}
-            {urlPatterns.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">Nenhum padrão encontrado.</p>
-            )}
           </div>
 
           <DialogFooter>
