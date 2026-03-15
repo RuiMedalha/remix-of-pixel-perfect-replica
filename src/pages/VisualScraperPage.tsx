@@ -147,7 +147,7 @@ export default function VisualScraperPage() {
         body: {
           urls,
           fields: fields.map(f => ({ name: f.name, selector: f.selector, type: f.type })),
-          workspaceId: currentWorkspace?.id,
+          workspaceId: activeWorkspace?.id,
         },
       });
       if (error) throw error;
