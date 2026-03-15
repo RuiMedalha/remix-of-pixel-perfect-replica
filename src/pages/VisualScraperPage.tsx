@@ -695,8 +695,8 @@ export default function VisualScraperPage() {
       const allErrors: any[] = [];
       let firecrawlTotal = 0;
 
-      for (let i = 0; i < urls.length; i += 20) {
-        const chunk = urls.slice(i, i + 20);
+      for (let i = 0; i < urls.length; i += 5) {
+        const chunk = urls.slice(i, i + 5);
         const { data, error } = await supabase.functions.invoke("scrape-with-selectors", {
           body: {
             urls: chunk,
@@ -718,8 +718,8 @@ export default function VisualScraperPage() {
         firecrawlTotal += data.firecrawlCreditsUsed || 0;
 
         // Progress toast
-        if (urls.length > 20) {
-          toast.info(`Progresso: ${Math.min(i + 20, urls.length)}/${urls.length} páginas...`);
+        if (urls.length > 5) {
+          toast.info(`Progresso: ${Math.min(i + 5, urls.length)}/${urls.length} páginas...`);
         }
       }
 
