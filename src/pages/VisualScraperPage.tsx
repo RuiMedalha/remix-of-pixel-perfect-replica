@@ -260,24 +260,38 @@ export default function VisualScraperPage() {
 
     anchors.forEach(a => {
       try {
-        let href = a.getAttribute("href") || "";
-        if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
-        const fullUrl = new URL(href, baseUrl.origin).href;
-        if (seen.has(fullUrl) || fullUrl === pageUrl) return;
+        const href = a.getAttribute("href") || "";
+        if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+
+        const resolvedUrl = new URL(href, pageUrl).href;
+        const fullUrl = canonicalizeUrl(resolvedUrl);
+        if (seen.has(fullUrl) || fullUrl === canonicalizeUrl(pageUrl)) return;
         seen.add(fullUrl);
+
         if (new URL(fullUrl).hostname !== baseUrl.hostname) return;
 
-        const linkType = classifyLink(a, doc);
-        if (linkType === 'navigation') return; // Skip nav/footer/header links entirely
+        const linkType = classifyLink(a, fullUrl);
+        if (linkType === 'navigation') return;
 
         const isContentLink = linkType === 'product' || linkType === 'category';
         if (isContentLink) hasProductLinks = true;
 
+        const cleanText = (a.textContent || a.getAttribute("aria-label") || a.getAttribute("title") || "")
+          .trim()
+          .replace(/\s+/g, ' ')
+          .substring(0, 120);
+
+        const inferredType: LinkType = linkType === 'product'
+          ? 'produto'
+          : GROUP_URL_HINT.test(fullUrl.toLowerCase())
+            ? 'grupo'
+            : 'categoria';
+
         links.push({
           url: fullUrl,
-          text: (a.textContent || "").trim().replace(/\s+/g, ' ').substring(0, 120),
+          text: cleanText,
           selected: isContentLink,
-          linkType: linkType === 'product' ? 'produto' : linkType === 'category' ? 'categoria' : 'outro',
+          linkType: inferredType,
         });
       } catch { /* ignore */ }
     });
