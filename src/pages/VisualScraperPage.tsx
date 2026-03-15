@@ -55,6 +55,10 @@ export default function VisualScraperPage() {
   // Send to products dialog
   const [showSendDialog, setShowSendDialog] = useState(false);
 
+  // Cost control
+  const [useFirecrawl, setUseFirecrawl] = useState(false);
+  const [fetchMethod, setFetchMethod] = useState<string>("native");
+
   // Listen for messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
