@@ -1595,12 +1595,26 @@ export default function VisualScraperPage() {
 
           {fields.length > 0 && (
             <div className="p-3 border-2 border-primary/30 rounded-lg bg-primary/5 flex-shrink-0">
-              <p className="text-sm font-medium mb-2">Campos definidos ({fields.length}):</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Campos definidos ({fields.length}):</p>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={() => setFields([])}>
+                  <Trash2 className="w-3 h-3 mr-1" /> Limpar todos
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-1">
                 {fields.map(f => (
-                  <Badge key={f.id} variant="secondary" className="text-xs">
+                  <Badge key={f.id} variant="secondary" className="text-xs gap-1 pr-1 group">
                     {typeIcons[f.type]} {f.name}
-                    {f.isVariation && <Layers className="w-2.5 h-2.5 ml-1 text-amber-500" />}
+                    {f.isVariation && <Layers className="w-2.5 h-2.5 text-amber-500" />}
+                    {(f as any).confidence != null && (
+                      <span className="text-[9px] text-muted-foreground ml-0.5">{Math.round((f as any).confidence * 100)}%</span>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setFields(prev => prev.filter(ff => ff.id !== f.id)); }}
+                      className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5 opacity-60 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-2.5 h-2.5 text-destructive" />
+                    </button>
                   </Badge>
                 ))}
               </div>
