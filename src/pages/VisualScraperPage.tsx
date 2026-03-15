@@ -103,6 +103,10 @@ export default function VisualScraperPage() {
   const [urlPatterns, setUrlPatterns] = useState<{ pattern: string; count: number; sample: string; selected: boolean }[]>([]);
   const [showPatternDialog, setShowPatternDialog] = useState(false);
 
+  // Agent-assisted category flow
+  const [showCategoryAgentDialog, setShowCategoryAgentDialog] = useState(false);
+  const [categoryAgentSelection, setCategoryAgentSelection] = useState<Record<string, boolean>>({});
+
   // Listen for messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
