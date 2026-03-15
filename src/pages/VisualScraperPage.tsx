@@ -31,6 +31,8 @@ import { Checkbox } from "@/components/ui/checkbox";
    Types
    ──────────────────────────────────────────────── */
 
+type FieldPurpose = "field" | "category_url" | "product_url";
+
 interface SelectedField {
   id: string;
   name: string;
@@ -38,6 +40,7 @@ interface SelectedField {
   type: "text" | "image" | "link" | "html";
   preview: string;
   isVariation?: boolean;
+  purpose: FieldPurpose;
 }
 
 interface ExtractedRow {
