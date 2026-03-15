@@ -1516,6 +1516,16 @@ export default function VisualScraperPage() {
             <h2 className="font-semibold text-sm">Estrutura do Site</h2>
             <Badge>{currentLinks.length} links</Badge>
             <Badge variant="outline" className="text-[10px]">{categoryLinks.length} categorias · {productLinksInView.length} produtos</Badge>
+            {productUrls.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                <Target className="w-3 h-3 mr-1" /> {productUrls.length} produtos acumulados
+              </Badge>
+            )}
+            {(productUrls.length > 0 || productLinksInView.filter(l => l.selected).length > 0) && (
+              <Button size="sm" className="ml-auto h-7 text-xs" onClick={handleCollectProducts}>
+                <ArrowRight className="w-3 h-3 mr-1" /> Avançar para Produtos ({productUrls.length + currentLinks.filter(l => l.linkType === "produto" && l.selected && !productUrls.includes(l.url)).length})
+              </Button>
+            )}
           </div>
 
           {/* Layer breadcrumbs */}
