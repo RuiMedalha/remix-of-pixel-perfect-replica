@@ -1262,6 +1262,38 @@ export default function WebsiteExtractionAgentPage() {
                 <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">4</Badge> Abrir um produto → selecionar/mapear campos visualmente</div>
                 <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">5</Badge> Executar extração em lote</div>
               </div>
+
+              {/* Agent Log */}
+              {agentLog.length > 0 && (
+                <div className="border rounded-lg bg-muted/30 max-h-48 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-1.5 border-b">
+                    <p className="text-xs font-medium flex items-center gap-1.5">
+                      <Brain className="w-3.5 h-3.5 text-primary" /> Smart Agent Log
+                      {smartAgentRunning && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+                    </p>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setAgentLog([])}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-36 px-3 py-1">
+                    <div className="space-y-0.5 font-mono text-[10px] text-muted-foreground">
+                      {agentLog.map((log, i) => (
+                        <p key={i}>{log}</p>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+
+              {collectProgress && smartAgentRunning && (
+                <div>
+                  <Progress value={(collectProgress.current / collectProgress.total) * 100} className="h-2" />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {collectProgress.label || `${collectProgress.current}/${collectProgress.total}`}
+                    {collectProgress.pages ? ` · ${collectProgress.pages} páginas` : ""}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
