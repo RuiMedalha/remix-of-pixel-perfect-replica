@@ -629,20 +629,73 @@ export default function VisualScraperPage() {
       const doc = parser.parseFromString(htmlContent, "text/html");
 
       const commonSelectors: { name: string; selectors: string[]; type: SelectedField["type"]; isVariation?: boolean }[] = [
-        { name: "Título", selectors: ["h1.product_title", "h1.product-title", "h1[itemprop='name']", ".product-name h1", ".product_title", "h1.entry-title", "h1"], type: "text" },
+        // Title - WooCommerce + Drupal + generic
+        { name: "Título", selectors: [
+          "h1.product_title", "h1.product-title", "h1[itemprop='name']", ".product-name h1",
+          "h1.ProductTop-title", ".ProductTop-title", // Drupal commerce (Dynamic Mixers etc.)
+          ".product_title", "h1.entry-title", "h1",
+        ], type: "text" },
+        // Product Name / Model
+        { name: "Modelo", selectors: [
+          ".ProductTop-name", ".product-model", ".product-subtitle",
+        ], type: "text" },
+        // Range / Line
+        { name: "Gama", selectors: [
+          ".ProductTop-gamme", ".product-range", ".product-line",
+        ], type: "text" },
+        // Reference / SKU
+        { name: "Referência", selectors: [
+          ".ProductMain-features-ref", // Drupal (e.g., "Ref. TB120.2")
+          ".sku", "[itemprop='sku']", ".product_meta .sku", ".product-sku",
+          ".product-reference", ".ref-number",
+        ], type: "text" },
+        // Price
         { name: "Preço", selectors: [".price ins .amount", ".price .amount", "[itemprop='price']", ".product-price", ".current-price", ".woocommerce-Price-amount", ".price"], type: "text" },
         { name: "Preço Original", selectors: [".price del .amount", ".was-price", ".old-price", ".regular-price"], type: "text" },
-        { name: "SKU", selectors: [".sku", "[itemprop='sku']", ".product_meta .sku", ".product-sku"], type: "text" },
-        { name: "Descrição", selectors: [".woocommerce-product-details__short-description", "#tab-description", "[itemprop='description']", ".product-description", ".product-short-description"], type: "html" },
-        { name: "Imagem Principal", selectors: [".woocommerce-product-gallery__image img", ".product-image img", "[itemprop='image']", ".wp-post-image", ".product-main-image img", ".main-image img"], type: "image" },
-        { name: "Galeria Imagens", selectors: [".woocommerce-product-gallery__image:not(:first-child) img", ".product-thumbnails img", ".gallery-item img", ".product-gallery img"], type: "image", isVariation: true },
+        // Description
+        { name: "Descrição", selectors: [
+          ".ProductMain-desc-content", ".ProductMain-desc", // Drupal
+          ".woocommerce-product-details__short-description", "#tab-description",
+          "[itemprop='description']", ".product-description", ".product-short-description",
+        ], type: "html" },
+        // Main Image
+        { name: "Imagem Principal", selectors: [
+          ".ProductMain-images-slider-item img", ".ProductMain-images img", // Drupal
+          ".woocommerce-product-gallery__image img", ".product-image img",
+          "[itemprop='image']", ".wp-post-image", ".product-main-image img", ".main-image img",
+        ], type: "image" },
+        // Gallery
+        { name: "Galeria Imagens", selectors: [
+          ".ProductMain-images-slider-item:not(:first-child) img", // Drupal
+          ".woocommerce-product-gallery__image:not(:first-child) img",
+          ".product-thumbnails img", ".gallery-item img", ".product-gallery img",
+        ], type: "image", isVariation: true },
+        // Features / Specs
+        { name: "Características", selectors: [
+          ".Features-list", ".ProductMain-features-list table", // Drupal specs table
+          ".product-specs", ".specifications", ".tech-specs", "[itemprop='additionalProperty']",
+        ], type: "html" },
+        // Key benefits
+        { name: "Benefícios", selectors: [
+          ".ProductMain-quantity-list", ".product-benefits", ".key-features",
+        ], type: "html" },
+        // Capacity / Volume
+        { name: "Capacidade", selectors: [
+          ".ProductMain-quantity-title", ".product-capacity",
+        ], type: "text" },
+        // Category
         { name: "Categoria", selectors: [".posted_in a", "[itemprop='category']", ".product-category a", ".breadcrumb a:last-child", ".product_meta .posted_in a"], type: "text" },
+        // Brand
         { name: "Marca", selectors: ["[itemprop='brand']", ".product-brand", ".brand a", ".product_meta .brand"], type: "text" },
         { name: "Peso", selectors: [".product_weight", "[itemprop='weight']", ".weight-value"], type: "text" },
         { name: "Dimensões", selectors: [".product_dimensions", ".dimensions-value"], type: "text" },
         { name: "Stock", selectors: [".stock", ".availability", "[itemprop='availability']", ".in-stock", ".product-stock"], type: "text" },
         { name: "Variações", selectors: ["select[name^='attribute'] option:not([value=''])", ".variations select option:not([value=''])", ".swatch-anchor", ".product-variation-option"], type: "text", isVariation: true },
         { name: "EAN/GTIN", selectors: ["[itemprop='gtin13']", "[itemprop='gtin']", ".ean-value", ".barcode"], type: "text" },
+        // Documents / Downloads
+        { name: "Documentos", selectors: [
+          ".btn-download a", ".ProductDetails a[href$='.pdf']", "a[href$='.pdf']",
+        ], type: "link", isVariation: true },
       ];
 
       const detected: SelectedField[] = [];
