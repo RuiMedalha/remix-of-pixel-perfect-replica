@@ -171,10 +171,17 @@ export default function WebsiteExtractionAgentPage() {
   const [layers, setLayers] = useState<SiteLayer[]>([]);
   const [currentLinks, setCurrentLinks] = useState<ExtractedLink[]>([]);
   const [linkFilter, setLinkFilter] = useState("");
+  const [includeAllLinks, setIncludeAllLinks] = useState(true); // Show ALL links by default
 
   // Collected product URLs
   const [productUrls, setProductUrls] = useState<string[]>([]);
-  const [collectProgress, setCollectProgress] = useState<{ current: number; total: number } | null>(null);
+  const [collectProgress, setCollectProgress] = useState<{ current: number; total: number; label?: string; pages?: number } | null>(null);
+
+  // Pagination config
+  const [paginationMode, setPaginationMode] = useState<"auto" | "pattern">("auto");
+  const [paginationPattern, setPaginationPattern] = useState("");
+  const [maxPagesPerCategory, setMaxPagesPerCategory] = useState(50);
+  const [showPaginationConfig, setShowPaginationConfig] = useState(false);
 
   // Fields
   const [fields, setFields] = useState<SelectedField[]>([]);
