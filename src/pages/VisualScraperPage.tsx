@@ -197,7 +197,13 @@ export default function VisualScraperPage() {
 
   // Collected product URLs
   const [productUrls, setProductUrls] = useState<string[]>([]);
-  const [collectProgress, setCollectProgress] = useState<{ current: number; total: number } | null>(null);
+  const [collectProgress, setCollectProgress] = useState<{ current: number; total: number; label?: string; pages?: number } | null>(null);
+
+  // Pagination config
+  const [paginationMode, setPaginationMode] = useState<"auto" | "pattern">("auto");
+  const [paginationPattern, setPaginationPattern] = useState(""); // e.g. "?page={n}" or "/page/{n}/"
+  const [maxPagesPerCategory, setMaxPagesPerCategory] = useState(50);
+  const [showPaginationConfig, setShowPaginationConfig] = useState(false);
 
   // Fields
   const [fields, setFields] = useState<SelectedField[]>([]);
