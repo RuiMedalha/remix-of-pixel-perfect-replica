@@ -17,7 +17,7 @@ import {
   Eye, Link2, Image as ImageIcon, Type, FileText, ArrowRight, ArrowLeft, X,
   Zap, Coins, List, Navigation, Crosshair, ExternalLink, RefreshCw, Wand2,
   Upload, ChevronRight, Layers, FileSpreadsheet, Plus, Target, AlertTriangle,
-  CheckCircle2,
+  CheckCircle2, Brain,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -803,6 +803,113 @@ export default function VisualScraperPage() {
     }
   };
 
+  /* ── AI Hybrid: Use AI to analyze fields then extract with free fetch ── */
+  const handleAiAnalyzeFields = async () => {
+    if (!htmlContent && productUrls.length === 0) { toast.error("Carregue uma página primeiro."); return; }
+    setLoading(true);
+    try {
+      const samplePages: { url: string; html: string; isProduct?: boolean }[] = [];
+      if (htmlContent) samplePages.push({ url: currentUrl, html: htmlContent, isProduct: true });
+
+      const extraUrls = productUrls.filter(u => u !== currentUrl).slice(0, 2);
+      for (const extraUrl of extraUrls) {
+        try {
+          const { data } = await supabase.functions.invoke("proxy-page", { body: { url: extraUrl, useFirecrawl: false, mode: "browse" } });
+          if (data?.html) samplePages.push({ url: extraUrl, html: data.html, isProduct: true });
+        } catch { /* skip */ }
+      }
+
+      const { data: aiResult, error: aiError } = await supabase.functions.invoke("analyze-product-page", {
+        body: { sampleHtmlPages: samplePages, mode: "fields" },
+      });
+      if (aiError) throw aiError;
+      if (aiResult?.error) throw new Error(aiResult.error);
+
+      const analysis = aiResult.analysis;
+      if (analysis?.fields?.length > 0) {
+        const aiFields: SelectedField[] = analysis.fields.map((f: any) => ({
+          id: crypto.randomUUID(), name: f.name || "Campo", selector: f.selector,
+          type: f.type || "text", preview: f.sample_value || "", isVariation: false,
+          purpose: "field" as FieldPurpose, confidence: f.confidence || 0.5,
+        }));
+        setFields(prev => {
+          const existing = new Set(prev.map(ff => ff.name));
+          return [...prev, ...aiFields.filter(d => !existing.has(d.name))];
+        });
+        toast.success(`IA: ${aiFields.length} campos detetados com confiança`);
+      }
+    } catch (err: any) {
+      toast.error("Erro na análise IA", { description: err.message });
+    } finally { setLoading(false); }
+  };
+
+  /* ── AI Hybrid: Filter non-product URLs ── */
+  const handleAiFilterProducts = async () => {
+    if (productUrls.length === 0) { toast.error("Nenhum URL para filtrar."); return; }
+    setLoading(true);
+    try {
+      const samplesToTest = productUrls.slice(0, 10);
+      const samplePages: { url: string; html: string }[] = [];
+      for (const testUrl of samplesToTest) {
+        try {
+          const { data } = await supabase.functions.invoke("proxy-page", { body: { url: testUrl, useFirecrawl: false, mode: "browse" } });
+          if (data?.html) samplePages.push({ url: testUrl, html: data.html });
+        } catch { /* skip */ }
+      }
+
+      const { data: aiResult, error: aiError } = await supabase.functions.invoke("analyze-product-page", {
+        body: { sampleHtmlPages: samplePages, mode: "fingerprint" },
+      });
+      if (aiError) throw aiError;
+
+      const fingerprint = aiResult?.analysis?.fingerprint;
+      if (!fingerprint?.product_indicators?.length) {
+        toast.info("Não foi possível criar fingerprint automático.");
+        setLoading(false); return;
+      }
+
+      const validProductUrls: string[] = [];
+      const removedUrls: string[] = [];
+
+      for (let i = 0; i < productUrls.length; i += 5) {
+        const batch = productUrls.slice(i, i + 5);
+        setCollectProgress({ current: i + batch.length, total: productUrls.length, label: "A filtrar não-produtos..." });
+
+        const results = await Promise.allSettled(batch.map(async (testUrl) => {
+          try {
+            const { data } = await supabase.functions.invoke("proxy-page", { body: { url: testUrl, useFirecrawl: false, mode: "browse" } });
+            if (!data?.html) return { url: testUrl, isProduct: false };
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.html, "text/html");
+            let productScore = 0, totalWeight = 0;
+            for (const ind of fingerprint.product_indicators) {
+              const weight = ind.confidence || 0.5;
+              totalWeight += weight;
+              try {
+                if (ind.type === "selector" && doc.querySelector(ind.pattern)) productScore += weight;
+                else if (ind.type === "text" && data.html.toLowerCase().includes(ind.pattern.toLowerCase())) productScore += weight;
+              } catch { /* skip */ }
+            }
+            return { url: testUrl, isProduct: totalWeight > 0 ? productScore / totalWeight >= 0.4 : true };
+          } catch { return { url: testUrl, isProduct: true }; }
+        }));
+
+        results.forEach(r => {
+          if (r.status === "fulfilled") {
+            if (r.value.isProduct) validProductUrls.push(r.value.url);
+            else removedUrls.push(r.value.url);
+          }
+        });
+      }
+
+      setProductUrls(validProductUrls);
+      setCollectProgress(null);
+      toast.success(`Filtro IA: ${removedUrls.length} não-produtos removidos, ${validProductUrls.length} mantidos`);
+    } catch (err: any) {
+      toast.error("Erro no filtro IA", { description: err.message });
+    } finally { setLoading(false); setCollectProgress(null); }
+  };
+
   /* ── Field management ── */
   const handleRemoveField = (id: string) => setFields(prev => prev.filter(f => f.id !== id));
   const handleUpdateFieldName = (id: string, name: string) => setFields(prev => prev.map(f => f.id === id ? { ...f, name } : f));
@@ -1582,8 +1689,16 @@ export default function VisualScraperPage() {
             <h2 className="font-semibold text-sm">URLs de Produto Recolhidas</h2>
             <Badge>{productUrls.length} produtos</Badge>
             <div className="ml-auto flex gap-2">
+              <Button size="sm" variant="outline" onClick={handleAiFilterProducts} disabled={loading} title="IA filtra não-produtos">
+                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Brain className="w-3 h-3 mr-1" />}
+                Filtrar (IA)
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleAiAnalyzeFields} disabled={loading} title="IA deteta campos automaticamente">
+                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
+                Campos (IA)
+              </Button>
               <Button size="sm" variant="outline" onClick={() => handleOpenProductForFields()}>
-                <Crosshair className="w-3 h-3 mr-1" /> Selecionar Campos num Produto
+                <Crosshair className="w-3 h-3 mr-1" /> Selecionar Campos
               </Button>
               {fields.length > 0 && (
                 <Button size="sm" variant="default" onClick={handleRunExtraction}>
@@ -1595,12 +1710,26 @@ export default function VisualScraperPage() {
 
           {fields.length > 0 && (
             <div className="p-3 border-2 border-primary/30 rounded-lg bg-primary/5 flex-shrink-0">
-              <p className="text-sm font-medium mb-2">Campos definidos ({fields.length}):</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Campos definidos ({fields.length}):</p>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={() => setFields([])}>
+                  <Trash2 className="w-3 h-3 mr-1" /> Limpar todos
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-1">
                 {fields.map(f => (
-                  <Badge key={f.id} variant="secondary" className="text-xs">
+                  <Badge key={f.id} variant="secondary" className="text-xs gap-1 pr-1 group">
                     {typeIcons[f.type]} {f.name}
-                    {f.isVariation && <Layers className="w-2.5 h-2.5 ml-1 text-amber-500" />}
+                    {f.isVariation && <Layers className="w-2.5 h-2.5 text-amber-500" />}
+                    {(f as any).confidence != null && (
+                      <span className="text-[9px] text-muted-foreground ml-0.5">{Math.round((f as any).confidence * 100)}%</span>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setFields(prev => prev.filter(ff => ff.id !== f.id)); }}
+                      className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5 opacity-60 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-2.5 h-2.5 text-destructive" />
+                    </button>
                   </Badge>
                 ))}
               </div>
