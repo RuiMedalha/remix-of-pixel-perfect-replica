@@ -204,10 +204,14 @@ export default function VisualScraperPage() {
       'a[rel="next"]', '.woocommerce-pagination a', '.page-numbers a',
       'a[aria-label*="next" i]', 'a[aria-label*="próx" i]', 'a[aria-label*="seguinte" i]',
       '.pager a', '.paging a', 'ul.pages a', '.paginator a',
+      '.pagination-list a', '.nav-links a', '.page-link',
+      'a[title*="next" i]', 'a[title*="Next" i]', 'a[title*="Last" i]',
     ];
 
     const nextPages: string[] = [];
     const seenPages = new Set<string>();
+    
+    // Method 1: CSS selectors
     paginationSelectors.forEach(sel => {
       try {
         doc.querySelectorAll(sel).forEach(el => {
@@ -224,6 +228,29 @@ export default function VisualScraperPage() {
         });
       } catch { /* ignore */ }
     });
+
+    // Method 2: Text-based detection for "Next", "NEXT", "›", "»", numbered pages
+    if (nextPages.length === 0) {
+      const allAnchors = doc.querySelectorAll("a[href]");
+      allAnchors.forEach(a => {
+        const text = (a.textContent || "").trim().toLowerCase();
+        const href = a.getAttribute("href");
+        if (!href) return;
+        const isPageLink = /^(next|suivant|próxima?|seguinte|last|›|»|\d+)$/i.test(text)
+          || /[?&]page=\d/i.test(href)
+          || /\/page\/\d/i.test(href)
+          || /[?&]p=\d/i.test(href);
+        if (isPageLink) {
+          try {
+            const fullUrl = new URL(href, baseUrl.origin).href;
+            if (!seenPages.has(fullUrl) && fullUrl !== pageUrl && new URL(fullUrl).hostname === baseUrl.hostname) {
+              seenPages.add(fullUrl);
+              nextPages.push(fullUrl);
+            }
+          } catch { /* ignore */ }
+        }
+      });
+    }
 
     return { links, nextPages };
   };
@@ -1138,33 +1165,70 @@ export default function VisualScraperPage() {
             </div>
           )}
 
-          {/* Pagination controls */}
-          {paginationUrls.length > 0 && (
-            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
+          {/* Pagination controls - always visible */}
+          <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <ChevronRight className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium">
-                {paginationUrls.length} página(s) de paginação detetadas
+                Paginação {paginationUrls.length > 0 ? `(${paginationUrls.length} página(s) detetadas)` : '(nenhuma detetada)'}
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleFollowPagination()}
-                disabled={paginationLoading}
-                className="ml-auto"
-              >
-                {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
-                Próxima Página
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleFollowAllPagination}
-                disabled={paginationLoading}
-              >
-                {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
-                Percorrer Todas ({paginationUrls.length})
-              </Button>
+              {paginationUrls.length > 0 && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleFollowPagination()}
+                    disabled={paginationLoading}
+                    className="ml-auto"
+                  >
+                    {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
+                    Próxima Página
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleFollowAllPagination}
+                    disabled={paginationLoading}
+                  >
+                    {paginationLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+                    Percorrer Todas ({paginationUrls.length})
+                  </Button>
+                </>
+              )}
             </div>
-          )}
+            {/* Manual pagination URL input */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Adicionar URL de paginação manualmente (ex: ?page=2)..."
+                className="text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value.trim();
+                    if (val) {
+                      try {
+                        const fullUrl = val.startsWith('http') ? val : new URL(val, currentUrl).href;
+                        if (!paginationUrls.includes(fullUrl)) {
+                          setPaginationUrls(prev => [...prev, fullUrl]);
+                          (e.target as HTMLInputElement).value = '';
+                          toast.success('URL de paginação adicionada.');
+                        }
+                      } catch { toast.error('URL inválida'); }
+                    }
+                  }
+                }}
+              />
+            </div>
+            {paginationUrls.length > 0 && (
+              <div className="flex flex-wrap gap-1 max-h-20 overflow-auto">
+                {paginationUrls.map((pu, i) => (
+                  <Badge key={i} variant="outline" className="text-[10px] cursor-pointer" onClick={() => {
+                    setPaginationUrls(prev => prev.filter((_, idx) => idx !== i));
+                  }}>
+                    {new URL(pu).pathname.slice(-40)} ✕
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
 
           <Input
             placeholder="Filtrar links por URL ou texto..."
