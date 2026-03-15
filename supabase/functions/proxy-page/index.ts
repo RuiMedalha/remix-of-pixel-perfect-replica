@@ -56,7 +56,6 @@ Deno.serve(async (req) => {
     }
 
     if (useFirecrawl) {
-      // Explicit Firecrawl mode
       try {
         const result = await fetchViaFirecrawl();
         html = result.html;
@@ -69,20 +68,34 @@ Deno.serve(async (req) => {
         );
       }
     } else {
-      // Try native fetch first, auto-fallback to Firecrawl on 403/401/503
+      // Native fetch with manual redirect following (handles 30+ redirects)
       try {
-        const response = await fetch(formattedUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-          },
-          redirect: 'follow',
-        });
+        let currentUrl = formattedUrl;
+        let response: Response | null = null;
+        const maxRedirects = 30;
 
-        if (!response.ok) {
-          // Auto-fallback to Firecrawl for blocked/forbidden responses
-          console.log(`Native fetch returned ${response.status}, attempting Firecrawl fallback...`);
+        for (let i = 0; i < maxRedirects; i++) {
+          response = await fetch(currentUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8,es;q=0.7',
+            },
+            redirect: 'manual',
+          });
+
+          if (response.status >= 300 && response.status < 400) {
+            const location = response.headers.get('location');
+            if (!location) break;
+            currentUrl = new URL(location, currentUrl).href;
+            continue;
+          }
+          break;
+        }
+
+        if (!response || !response.ok) {
+          const status = response?.status || 0;
+          console.log(`Native fetch returned ${status}, attempting Firecrawl fallback...`);
           try {
             const result = await fetchViaFirecrawl();
             html = result.html;
@@ -90,13 +103,13 @@ Deno.serve(async (req) => {
             fetchMethod = 'firecrawl-fallback';
           } catch (fcErr) {
             return new Response(
-              JSON.stringify({ error: `Site bloqueou acesso direto (HTTP ${response.status}) e Firecrawl falhou: ${fcErr instanceof Error ? fcErr.message : 'erro desconhecido'}` }),
-              { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              JSON.stringify({ error: `Site bloqueou acesso direto (HTTP ${status}) e Firecrawl falhou: ${fcErr instanceof Error ? fcErr.message : 'erro desconhecido'}` }),
+              { status: status || 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
         } else {
+          formattedUrl = currentUrl;
           html = await response.text();
-          // Check if we got a meaningful page (not a captcha/block page)
           if (html.length < 500 && (html.toLowerCase().includes('captcha') || html.toLowerCase().includes('blocked') || html.toLowerCase().includes('access denied'))) {
             console.log('Native fetch returned blocked/captcha page, attempting Firecrawl fallback...');
             try {
@@ -115,7 +128,6 @@ Deno.serve(async (req) => {
           }
         }
       } catch (nativeErr) {
-        // Network error on native fetch, try Firecrawl
         console.log('Native fetch failed, attempting Firecrawl fallback...', nativeErr);
         try {
           const result = await fetchViaFirecrawl();
@@ -179,7 +191,6 @@ function buildBrowseScript(): string {
   return `
 <script>
 (function() {
-  // Intercept all link clicks and form submissions to go through proxy
   document.addEventListener('click', function(e) {
     const link = e.target.closest('a[href]');
     if (link) {
@@ -196,7 +207,6 @@ function buildBrowseScript(): string {
     }
   }, true);
 
-  // Disable form submissions
   document.addEventListener('submit', function(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -329,20 +339,17 @@ function buildCookieRemovalScript(): string {
         document.querySelectorAll(sel).forEach(function(el) { el.remove(); });
       } catch(e) {}
     });
-    // Remove overlay backdrops
     document.querySelectorAll('[class*="overlay"]').forEach(function(el) {
       var s = getComputedStyle(el);
       if (s.position === 'fixed' && s.zIndex > 999 && el.children.length <= 2) {
         el.remove();
       }
     });
-    // Restore scrolling
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
     document.body.classList.remove('no-scroll', 'modal-open', 'cookie-open');
   }
 
-  // Run immediately, after DOM ready, and observe for late-loaded banners
   removeBanners();
   document.addEventListener('DOMContentLoaded', removeBanners);
   setTimeout(removeBanners, 500);
