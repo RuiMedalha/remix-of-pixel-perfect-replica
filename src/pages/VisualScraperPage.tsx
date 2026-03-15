@@ -31,6 +31,8 @@ import { Checkbox } from "@/components/ui/checkbox";
    Types
    ──────────────────────────────────────────────── */
 
+type FieldPurpose = "field" | "category_url" | "product_url";
+
 interface SelectedField {
   id: string;
   name: string;
@@ -38,6 +40,7 @@ interface SelectedField {
   type: "text" | "image" | "link" | "html";
   preview: string;
   isVariation?: boolean;
+  purpose: FieldPurpose;
 }
 
 interface ExtractedRow {
@@ -230,13 +233,19 @@ export default function VisualScraperPage() {
         if (tagName === "img" || src) { type = "image"; preview = src || ""; }
         else if (tagName === "a" || href) { type = "link"; preview = href || text || ""; }
 
-        setFields(prev => [...prev, {
-          id: crypto.randomUUID(),
-          name: `Campo ${prev.length + 1}`,
-          selector, type,
-          preview: preview.substring(0, 200),
-          isVariation: false,
-        }]);
+        const inferPurpose: FieldPurpose = (type === "link" || tagName === "a" || href) ? "category_url" : "field";
+
+        setFields(prev => {
+          const autoName = inferPurpose === "category_url" ? `URL Cat ${prev.length + 1}` : `Campo ${prev.length + 1}`;
+          return [...prev, {
+            id: crypto.randomUUID(),
+            name: autoName,
+            selector, type,
+            preview: preview.substring(0, 200),
+            isVariation: false,
+            purpose: inferPurpose,
+          }];
+        });
         toast.success("Elemento selecionado!", { description: preview.substring(0, 80) });
       } else if (e.data?.type === "element-deselected") {
         setFields(prev => prev.filter(f => f.selector !== e.data.selector));
@@ -578,7 +587,7 @@ export default function VisualScraperPage() {
             if (spec.type === "image") preview = el.getAttribute("src") || el.querySelector("img")?.getAttribute("src") || "";
             else preview = (el.textContent || "").trim().substring(0, 200);
             if (preview && preview.length > 1) {
-              detected.push({ id: crypto.randomUUID(), name: spec.name, selector: sel, type: spec.type, preview, isVariation: spec.isVariation || false });
+              detected.push({ id: crypto.randomUUID(), name: spec.name, selector: sel, type: spec.type, preview, isVariation: spec.isVariation || false, purpose: "field" });
               break;
             }
           }
@@ -603,6 +612,35 @@ export default function VisualScraperPage() {
   const handleUpdateFieldType = (id: string, type: SelectedField["type"]) => setFields(prev => prev.map(f => f.id === id ? { ...f, type } : f));
   const handleUpdateFieldSelector = (id: string, selector: string) => setFields(prev => prev.map(f => f.id === id ? { ...f, selector } : f));
   const handleToggleVariation = (id: string) => setFields(prev => prev.map(f => f.id === id ? { ...f, isVariation: !f.isVariation } : f));
+  const handleUpdateFieldPurpose = (id: string, purpose: FieldPurpose) => setFields(prev => prev.map(f => f.id === id ? { ...f, purpose } : f));
+
+  /* ── Push selected URL fields into categories/products workflow ── */
+  const handleUseCategoryUrls = () => {
+    const catFields = fields.filter(f => f.purpose === "category_url" && f.preview);
+    if (catFields.length === 0) { toast.error("Nenhum URL de categoria selecionado."); return; }
+    const links: ExtractedLink[] = catFields.map(f => ({
+      url: f.preview.startsWith("http") ? f.preview : `${new URL(currentUrl).origin}${f.preview}`,
+      text: f.name,
+      selected: true,
+      linkType: "categoria" as LinkType,
+    }));
+    setCurrentLinks(links);
+    setLayers([{ label: pageTitle || currentUrl, links, sourceUrl: currentUrl, hasPagination: false, paginationUrls: [] }]);
+    // Keep only extraction fields
+    setFields(prev => prev.filter(f => f.purpose === "field"));
+    setStep("categories");
+    toast.success(`${links.length} URLs de categoria adicionadas`);
+  };
+
+  const handleUseProductUrls = () => {
+    const prodFields = fields.filter(f => f.purpose === "product_url" && f.preview);
+    if (prodFields.length === 0) { toast.error("Nenhum URL de produto selecionado."); return; }
+    const urls = prodFields.map(f => f.preview.startsWith("http") ? f.preview : `${new URL(currentUrl).origin}${f.preview}`);
+    setProductUrls(urls);
+    setFields(prev => prev.filter(f => f.purpose === "field"));
+    setStep("products");
+    toast.success(`${urls.length} URLs de produto adicionadas`);
+  };
 
   /* ── Run batch extraction ── */
   const handleRunExtraction = async () => {
@@ -920,7 +958,7 @@ export default function VisualScraperPage() {
                     <List className="w-3.5 h-3.5 mr-1" /> Extrair Links
                   </Button>
                   <Button size="sm" className="h-7 text-xs" onClick={() => { loadPage(currentUrl, "select"); setStep("fields"); }} disabled={loading}>
-                    <Crosshair className="w-3.5 h-3.5 mr-1" /> Selecionar Campos
+                    <MousePointerClick className="w-3.5 h-3.5 mr-1" /> Modo Seleção
                   </Button>
                 </>
               )}
@@ -965,69 +1003,124 @@ export default function VisualScraperPage() {
             </div>
 
             {/* Fields panel (only in fields step) */}
-            {step === "fields" && (
+            {step === "fields" && (() => {
+              const catCount = fields.filter(f => f.purpose === "category_url").length;
+              const prodCount = fields.filter(f => f.purpose === "product_url").length;
+              const fieldCount = fields.filter(f => f.purpose === "field").length;
+              return (
               <div className="w-80 border-l flex flex-col bg-background flex-shrink-0">
-                <div className="p-3 border-b flex items-center justify-between">
-                  <span className="text-sm font-semibold">Campos ({fields.length})</span>
-                  <Button size="sm" className="h-7 text-xs" onClick={() => {
-                    if (fields.length === 0) { toast.error("Selecione pelo menos um campo."); return; }
-                    if (productUrls.length > 0) { setStep("products"); } else { handleRunExtraction(); }
-                  }}>
-                    {productUrls.length > 0 ? "Voltar" : "Extrair"} <ArrowRight className="w-3 h-3 ml-1" />
-                  </Button>
+                <div className="p-3 border-b space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Campos ({fields.length})</span>
+                    <Button size="sm" className="h-7 text-xs" onClick={() => {
+                      if (fields.length === 0) { toast.error("Selecione pelo menos um campo."); return; }
+                      if (productUrls.length > 0) { setStep("products"); } else { handleRunExtraction(); }
+                    }}>
+                      Extrair <ArrowRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
+
+                  {/* Action buttons for URLs */}
+                  {(catCount > 0 || prodCount > 0) && (
+                    <div className="flex flex-col gap-1.5">
+                      {catCount > 0 && (
+                        <Button size="sm" variant="secondary" className="h-7 text-xs w-full justify-start" onClick={handleUseCategoryUrls}>
+                          <Layers className="w-3 h-3 mr-1" /> Usar {catCount} como Categorias →
+                        </Button>
+                      )}
+                      {prodCount > 0 && (
+                        <Button size="sm" variant="secondary" className="h-7 text-xs w-full justify-start" onClick={handleUseProductUrls}>
+                          <Target className="w-3 h-3 mr-1" /> Usar {prodCount} como Produtos →
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {catCount === 0 && prodCount === 0 && fieldCount === 0 && fields.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Clique nos links/elementos. Use o dropdown para classificar como URL de Categoria, Produto ou Campo.
+                    </p>
+                  )}
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="p-2 space-y-2">
                     {fields.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-8 px-2">
-                        Clique nos elementos da página para os adicionar como campos de extração.
+                        Clique nos elementos da página para os adicionar. Classifique cada um como URL de Categoria, URL de Produto ou Campo de extração.
                       </p>
                     )}
                     {fields.map(f => (
-                      <div key={f.id} className="border rounded-lg p-2 space-y-1">
+                      <div key={f.id} className={`border rounded-lg p-2 space-y-1 ${f.purpose === "category_url" ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : f.purpose === "product_url" ? "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20" : ""}`}>
                         <div className="flex items-center gap-1">
-                          <Input value={f.name} onChange={e => handleUpdateFieldName(f.id, e.target.value)} className="h-6 text-xs font-medium" />
-                          <Select value={f.type} onValueChange={v => handleUpdateFieldType(f.id, v as any)}>
-                            <SelectTrigger className="h-6 w-16 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="text">Texto</SelectItem>
-                              <SelectItem value="image">Img</SelectItem>
-                              <SelectItem value="link">Link</SelectItem>
-                              <SelectItem value="html">HTML</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveField(f.id)}>
+                          <Input value={f.name} onChange={e => handleUpdateFieldName(f.id, e.target.value)} className="h-6 text-xs font-medium flex-1" />
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => handleRemoveField(f.id)}>
                             <X className="w-3 h-3" />
                           </Button>
                         </div>
+
+                        {/* Purpose selector - key feature */}
+                        <Select value={f.purpose} onValueChange={v => handleUpdateFieldPurpose(f.id, v as FieldPurpose)}>
+                          <SelectTrigger className="h-6 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="category_url">
+                              <span className="flex items-center gap-1"><Layers className="w-3 h-3 text-blue-500" /> URL de Categoria</span>
+                            </SelectItem>
+                            <SelectItem value="product_url">
+                              <span className="flex items-center gap-1"><Target className="w-3 h-3 text-amber-500" /> URL de Produto</span>
+                            </SelectItem>
+                            <SelectItem value="field">
+                              <span className="flex items-center gap-1"><Crosshair className="w-3 h-3 text-emerald-500" /> Campo de Extração</span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+
                         <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
                           {typeIcons[f.type]} {f.preview || "(vazio)"}
                         </p>
-                        <div className="flex items-center justify-between">
-                          <Input value={f.selector} onChange={e => handleUpdateFieldSelector(f.id, e.target.value)} className="h-5 text-[9px] font-mono text-muted-foreground/60 flex-1 mr-1" placeholder="Seletor CSS" />
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <Checkbox checked={f.isVariation} onCheckedChange={() => handleToggleVariation(f.id)} className="h-3 w-3" />
-                            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Layers className="w-2.5 h-2.5" /> Var</span>
-                          </label>
-                        </div>
+
+                        {f.purpose === "field" && (
+                          <>
+                            <div className="flex items-center gap-1">
+                              <Select value={f.type} onValueChange={v => handleUpdateFieldType(f.id, v as any)}>
+                                <SelectTrigger className="h-5 w-16 text-[10px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="text">Texto</SelectItem>
+                                  <SelectItem value="image">Img</SelectItem>
+                                  <SelectItem value="link">Link</SelectItem>
+                                  <SelectItem value="html">HTML</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Input value={f.selector} onChange={e => handleUpdateFieldSelector(f.id, e.target.value)} className="h-5 text-[9px] font-mono text-muted-foreground/60 flex-1" placeholder="Seletor CSS" />
+                              <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                                <Checkbox checked={f.isVariation} onCheckedChange={() => handleToggleVariation(f.id)} className="h-3 w-3" />
+                                <span className="text-[9px] text-muted-foreground">Var</span>
+                              </label>
+                            </div>
+                          </>
+                        )}
+
+                        {(f.purpose === "category_url" || f.purpose === "product_url") && (
+                          <p className="text-[9px] font-mono text-muted-foreground/60 truncate" title={f.selector}>{f.selector}</p>
+                        )}
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
                 <div className="p-2 border-t">
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setFields(prev => [...prev, { id: crypto.randomUUID(), name: `Campo ${prev.length + 1}`, selector: "", type: "text", preview: "", isVariation: false }])}>
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setFields(prev => [...prev, { id: crypto.randomUUID(), name: `Campo ${prev.length + 1}`, selector: "", type: "text", preview: "", isVariation: false, purpose: "field" }])}>
                     <Plus className="w-3 h-3 mr-1" /> Adicionar Campo Manual
                   </Button>
                 </div>
-                {fields.some(f => f.isVariation) && (
-                  <div className="p-2 border-t bg-amber-50 dark:bg-amber-950/20">
-                    <p className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                {fields.some(f => f.isVariation && f.purpose === "field") && (
+                  <div className="p-2 border-t bg-muted/30">
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                       <Layers className="w-3 h-3" /> Campos "Variação" extraem múltiplos valores (separados por "|")
                     </p>
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
