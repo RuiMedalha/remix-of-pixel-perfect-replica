@@ -15,8 +15,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -29,14 +28,11 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { urls, fields, workspaceId, templateName } = await req.json();
-    // fields: Array<{ name: string, selector: string, type: 'text' | 'image' | 'link' | 'html' }>
-    // urls: string[]
+    const { urls, fields, workspaceId, templateName, useFirecrawl = false } = await req.json();
 
     if (!urls?.length || !fields?.length) {
       return new Response(
@@ -46,39 +42,51 @@ Deno.serve(async (req) => {
     }
 
     const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Firecrawl não está configurado.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const results: any[] = [];
     const errors: any[] = [];
+    let firecrawlCreditsUsed = 0;
 
-    // Process URLs sequentially to avoid rate limits
-    for (const url of urls.slice(0, 50)) {
+    for (const url of urls.slice(0, 100)) {
       try {
-        const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url,
-            formats: ['html'],
-            onlyMainContent: false,
-          }),
-        });
+        let html = '';
 
-        if (!response.ok) {
-          errors.push({ url, error: `HTTP ${response.status}` });
-          continue;
+        if (useFirecrawl && apiKey) {
+          // Paid: Firecrawl for JS-heavy sites
+          const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url, formats: ['html'], onlyMainContent: false }),
+          });
+
+          if (!response.ok) {
+            errors.push({ url, error: `Firecrawl HTTP ${response.status}` });
+            continue;
+          }
+
+          const data = await response.json();
+          html = data.data?.html || data.html || '';
+          firecrawlCreditsUsed++;
+        } else {
+          // FREE: Native fetch
+          const response = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+            },
+            redirect: 'follow',
+          });
+
+          if (!response.ok) {
+            errors.push({ url, error: `HTTP ${response.status}` });
+            continue;
+          }
+
+          html = await response.text();
         }
-
-        const data = await response.json();
-        const html = data.data?.html || data.html || '';
 
         // Parse HTML and extract data using selectors
         const doc = new DenoDOM().parseFromString(html, 'text/html');
@@ -114,10 +122,27 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Make relative URLs absolute
+        const baseUrl = new URL(url);
+        for (const field of fields) {
+          if ((field.type === 'image' || field.type === 'link') && extracted[field.name]) {
+            try {
+              extracted[field.name] = new URL(extracted[field.name], baseUrl.origin).href;
+            } catch { /* keep as-is */ }
+          }
+        }
+
         results.push(extracted);
       } catch (err) {
         errors.push({ url, error: err instanceof Error ? err.message : 'Unknown error' });
       }
+    }
+
+    // Track scraping credits if Firecrawl was used
+    if (firecrawlCreditsUsed > 0 && workspaceId) {
+      try {
+        await supabase.rpc('increment_scraping_credits', { _workspace_id: workspaceId });
+      } catch { /* non-critical */ }
     }
 
     // Save template if requested
@@ -126,10 +151,10 @@ Deno.serve(async (req) => {
         workspace_id: workspaceId,
         user_id: user.id,
         template_name: templateName,
-        fields: fields,
+        fields,
         sample_url: urls[0],
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'workspace_id,template_name' });
+      } as any, { onConflict: 'workspace_id,template_name' });
     }
 
     return new Response(
@@ -140,6 +165,8 @@ Deno.serve(async (req) => {
         total: urls.length,
         extracted: results.length,
         failed: errors.length,
+        firecrawlCreditsUsed,
+        method: useFirecrawl ? 'firecrawl' : 'native',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

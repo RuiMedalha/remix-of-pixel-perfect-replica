@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import {
   Globe, Loader2, MousePointerClick, Trash2, Play, Download, Plus,
-  Eye, Tag, Link2, Image as ImageIcon, Type, FileText, ArrowRight, X
+  Eye, Tag, Link2, Image as ImageIcon, Type, FileText, ArrowRight, X, Zap, Coins
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -55,6 +55,10 @@ export default function VisualScraperPage() {
   // Send to products dialog
   const [showSendDialog, setShowSendDialog] = useState(false);
 
+  // Cost control
+  const [useFirecrawl, setUseFirecrawl] = useState(false);
+  const [fetchMethod, setFetchMethod] = useState<string>("native");
+
   // Listen for messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -93,16 +97,18 @@ export default function VisualScraperPage() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("proxy-page", {
-        body: { url: url.trim() },
+        body: { url: url.trim(), useFirecrawl },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       setHtmlContent(data.html);
       setSourceUrl(data.sourceUrl);
+      setFetchMethod(data.fetchMethod || "native");
       setFields([]);
       setStep("select");
-      toast.success("Página carregada!", { description: data.metadata?.title || url });
+      const methodLabel = data.fetchMethod === "firecrawl" ? "via Firecrawl" : "gratuito";
+      toast.success(`Página carregada (${methodLabel})!`, { description: data.metadata?.title || url });
     } catch (err: any) {
       toast.error("Erro ao carregar página", { description: err.message });
     } finally {
@@ -148,6 +154,7 @@ export default function VisualScraperPage() {
           urls,
           fields: fields.map(f => ({ name: f.name, selector: f.selector, type: f.type })),
           workspaceId: activeWorkspace?.id,
+          useFirecrawl,
         },
       });
       if (error) throw error;
@@ -156,7 +163,10 @@ export default function VisualScraperPage() {
       setResults(data.results || []);
       setErrors(data.errors || []);
       setStep("results");
-      toast.success(`${data.extracted} URLs extraídas com sucesso!`);
+      const costMsg = data.firecrawlCreditsUsed > 0 
+        ? `(${data.firecrawlCreditsUsed} créditos Firecrawl)` 
+        : "(gratuito)";
+      toast.success(`${data.extracted} URLs extraídas ${costMsg}`);
     } catch (err: any) {
       toast.error("Erro na extração em lote", { description: err.message });
     } finally {
@@ -280,6 +290,27 @@ export default function VisualScraperPage() {
                 <span className="ml-1">Carregar</span>
               </Button>
             </div>
+            {/* Cost control */}
+            <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/30">
+              <div className="flex items-center gap-2">
+                {useFirecrawl ? (
+                  <Zap className="w-4 h-4 text-amber-500" />
+                ) : (
+                  <Coins className="w-4 h-4 text-emerald-500" />
+                )}
+                <div>
+                  <p className="text-sm font-medium">
+                    {useFirecrawl ? "Firecrawl (premium)" : "Fetch Nativo (gratuito)"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {useFirecrawl
+                      ? "Renderiza JavaScript. Ideal para SPAs e sites dinâmicos. Gasta créditos."
+                      : "Rápido e sem custos. Funciona na maioria dos sites estáticos e SSR."}
+                  </p>
+                </div>
+              </div>
+              <Switch checked={useFirecrawl} onCheckedChange={setUseFirecrawl} />
+            </div>
           </CardContent>
         </Card>
       )}
@@ -390,10 +421,21 @@ export default function VisualScraperPage() {
               rows={8}
               className="font-mono text-xs"
             />
-            <p className="text-xs text-muted-foreground">
-              {batchUrls.split("\n").filter(u => u.trim()).length || 0} URLs
-              {!batchUrls.trim() && ` • Deixe vazio para extrair apenas da página original`}
-            </p>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>{batchUrls.split("\n").filter(u => u.trim()).length || 0} URLs</span>
+              {!batchUrls.trim() && <span>• Deixe vazio para extrair apenas da página original</span>}
+              <span className="ml-auto">
+                {useFirecrawl ? (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300">
+                    <Zap className="w-3 h-3 mr-1" /> Firecrawl (premium)
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-emerald-600 border-emerald-300">
+                    <Coins className="w-3 h-3 mr-1" /> Gratuito
+                  </Badge>
+                )}
+              </span>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("select")}>
                 ← Voltar

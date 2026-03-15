@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { url } = await req.json();
+    const { url, useFirecrawl = false } = await req.json();
     if (!url) {
       return new Response(JSON.stringify({ error: 'URL is required' }), {
         status: 400,
@@ -22,44 +22,110 @@ Deno.serve(async (req) => {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    // Use Firecrawl to get HTML content
-    const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Firecrawl não está configurado.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let html = '';
+    let metadata: Record<string, string> = {};
+    let fetchMethod = 'native';
+
+    if (useFirecrawl) {
+      // Use Firecrawl for JS-heavy sites
+      const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ error: 'Firecrawl não está configurado.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: formattedUrl,
+          formats: ['html'],
+          onlyMainContent: false,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return new Response(
+          JSON.stringify({ error: data.error || `Erro ${response.status}` }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      html = data.data?.html || data.html || '';
+      metadata = data.data?.metadata || data.metadata || {};
+      fetchMethod = 'firecrawl';
+    } else {
+      // FREE: Native fetch — works for most static/SSR sites
+      const response = await fetch(formattedUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+        },
+        redirect: 'follow',
+      });
+
+      if (!response.ok) {
+        return new Response(
+          JSON.stringify({ error: `Erro HTTP ${response.status}. Tente ativar o modo Firecrawl para páginas com JavaScript.` }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      html = await response.text();
+
+      // Extract basic metadata
+      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+      metadata = { title: titleMatch?.[1]?.trim() || formattedUrl };
+      fetchMethod = 'native';
     }
-
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: formattedUrl,
-        formats: ['html', 'markdown', 'links'],
-        onlyMainContent: false,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return new Response(
-        JSON.stringify({ error: data.error || `Erro ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const html = data.data?.html || data.html || '';
-    const markdown = data.data?.markdown || data.markdown || '';
-    const links = data.data?.links || data.links || [];
-    const metadata = data.data?.metadata || data.metadata || {};
 
     // Inject selection script into HTML
-    const selectionScript = `
+    const selectionScript = buildSelectionScript();
+
+    // Inject before </body>
+    let modifiedHtml = html;
+    if (modifiedHtml.includes('</body>')) {
+      modifiedHtml = modifiedHtml.replace('</body>', selectionScript + '</body>');
+    } else {
+      modifiedHtml += selectionScript;
+    }
+
+    // Make all relative URLs absolute
+    const baseUrl = new URL(formattedUrl);
+    const baseHref = `<base href="${baseUrl.origin}/" target="_blank">`;
+    if (modifiedHtml.includes('<head>')) {
+      modifiedHtml = modifiedHtml.replace('<head>', '<head>' + baseHref);
+    } else if (modifiedHtml.includes('<html')) {
+      modifiedHtml = modifiedHtml.replace(/<html[^>]*>/, (match) => match + '<head>' + baseHref + '</head>');
+    }
+
+    return new Response(
+      JSON.stringify({
+        html: modifiedHtml,
+        metadata,
+        sourceUrl: formattedUrl,
+        fetchMethod,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Proxy error:', error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
+
+function buildSelectionScript(): string {
+  return `
 <style>
   .lv-hover-highlight {
     outline: 2px solid #3b82f6 !important;
@@ -159,39 +225,4 @@ Deno.serve(async (req) => {
   });
 })();
 </script>`;
-
-    // Inject before </body>
-    let modifiedHtml = html;
-    if (modifiedHtml.includes('</body>')) {
-      modifiedHtml = modifiedHtml.replace('</body>', selectionScript + '</body>');
-    } else {
-      modifiedHtml += selectionScript;
-    }
-
-    // Make all relative URLs absolute
-    const baseUrl = new URL(formattedUrl);
-    const baseHref = `<base href="${baseUrl.origin}/" target="_blank">`;
-    if (modifiedHtml.includes('<head>')) {
-      modifiedHtml = modifiedHtml.replace('<head>', '<head>' + baseHref);
-    } else if (modifiedHtml.includes('<html>')) {
-      modifiedHtml = modifiedHtml.replace('<html>', '<html><head>' + baseHref + '</head>');
-    }
-
-    return new Response(
-      JSON.stringify({
-        html: modifiedHtml,
-        markdown: markdown.substring(0, 50000),
-        links,
-        metadata,
-        sourceUrl: formattedUrl,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Proxy error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
+}
