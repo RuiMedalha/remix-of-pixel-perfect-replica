@@ -612,6 +612,35 @@ export default function VisualScraperPage() {
   const handleUpdateFieldType = (id: string, type: SelectedField["type"]) => setFields(prev => prev.map(f => f.id === id ? { ...f, type } : f));
   const handleUpdateFieldSelector = (id: string, selector: string) => setFields(prev => prev.map(f => f.id === id ? { ...f, selector } : f));
   const handleToggleVariation = (id: string) => setFields(prev => prev.map(f => f.id === id ? { ...f, isVariation: !f.isVariation } : f));
+  const handleUpdateFieldPurpose = (id: string, purpose: FieldPurpose) => setFields(prev => prev.map(f => f.id === id ? { ...f, purpose } : f));
+
+  /* ── Push selected URL fields into categories/products workflow ── */
+  const handleUseCategoryUrls = () => {
+    const catFields = fields.filter(f => f.purpose === "category_url" && f.preview);
+    if (catFields.length === 0) { toast.error("Nenhum URL de categoria selecionado."); return; }
+    const links: ExtractedLink[] = catFields.map(f => ({
+      url: f.preview.startsWith("http") ? f.preview : `${new URL(currentUrl).origin}${f.preview}`,
+      text: f.name,
+      selected: true,
+      linkType: "categoria" as LinkType,
+    }));
+    setCurrentLinks(links);
+    setLayers([{ label: pageTitle || currentUrl, links, sourceUrl: currentUrl, hasPagination: false, paginationUrls: [] }]);
+    // Keep only extraction fields
+    setFields(prev => prev.filter(f => f.purpose === "field"));
+    setStep("categories");
+    toast.success(`${links.length} URLs de categoria adicionadas`);
+  };
+
+  const handleUseProductUrls = () => {
+    const prodFields = fields.filter(f => f.purpose === "product_url" && f.preview);
+    if (prodFields.length === 0) { toast.error("Nenhum URL de produto selecionado."); return; }
+    const urls = prodFields.map(f => f.preview.startsWith("http") ? f.preview : `${new URL(currentUrl).origin}${f.preview}`);
+    setProductUrls(urls);
+    setFields(prev => prev.filter(f => f.purpose === "field"));
+    setStep("products");
+    toast.success(`${urls.length} URLs de produto adicionadas`);
+  };
 
   /* ── Run batch extraction ── */
   const handleRunExtraction = async () => {
