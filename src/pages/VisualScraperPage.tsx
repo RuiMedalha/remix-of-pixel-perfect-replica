@@ -1522,23 +1522,41 @@ export default function VisualScraperPage() {
 
           {/* Actions panel */}
           <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30 flex-shrink-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium">Ações</span>
-              <div className="ml-auto flex gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "categoria" } : l))}>
-                  Seleção → Categoria
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "subcategoria" } : l))}>
-                  Seleção → Subcategoria
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "grupo" } : l))}>
-                  Seleção → Grupo
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "produto" } : l))}>
-                  Seleção → Produto
-                </Button>
-              </div>
-            </div>
+            {/* Bulk type change - prominent when items selected */}
+            {(() => {
+              const selectedCount = currentLinks.filter(l => l.selected).length;
+              return (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium">Ações</span>
+                  {selectedCount > 0 && (
+                    <Badge className="text-[10px]">{selectedCount} selecionados</Badge>
+                  )}
+                  <div className="ml-auto flex gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground self-center mr-1">Alterar {selectedCount > 0 ? selectedCount : "selecionados"} para:</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" disabled={selectedCount === 0}
+                      onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "categoria" } : l))}>
+                      Categoria
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" disabled={selectedCount === 0}
+                      onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "subcategoria" } : l))}>
+                      Subcategoria
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" disabled={selectedCount === 0}
+                      onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "grupo" } : l))}>
+                      Grupo
+                    </Button>
+                    <Button variant="default" size="sm" className="h-7 text-xs" disabled={selectedCount === 0}
+                      onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "produto" } : l))}>
+                      <Target className="w-3 h-3 mr-1" /> Produto
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" disabled={selectedCount === 0}
+                      onClick={() => setCurrentLinks(prev => prev.filter(l => !l.selected))}>
+                      <Trash2 className="w-3 h-3 mr-1" /> Remover
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="flex items-center gap-2 flex-wrap pt-2 border-t">
               {/* Drill selected categories */}
