@@ -45,6 +45,12 @@ interface ExtractedLink {
   selected: boolean;
 }
 
+interface LinkLayer {
+  label: string;
+  links: ExtractedLink[];
+  sourceUrls: string[];
+}
+
 type Mode = "browse" | "select";
 type Step = "url" | "browse" | "links" | "select-fields" | "batch" | "results";
 
