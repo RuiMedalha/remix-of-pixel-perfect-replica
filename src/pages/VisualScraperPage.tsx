@@ -66,12 +66,14 @@ export default function VisualScraperPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [navHistory, setNavHistory] = useState<string[]>([]);
 
-  // Links extraction
+  // Links extraction - multi-layer
   const [extractedLinks, setExtractedLinks] = useState<ExtractedLink[]>([]);
+  const [linkLayers, setLinkLayers] = useState<LinkLayer[]>([]);
   const [linkFilter, setLinkFilter] = useState("");
   const [paginationLoading, setPaginationLoading] = useState(false);
   const [paginationUrls, setPaginationUrls] = useState<string[]>([]);
   const [crawledPages, setCrawledPages] = useState<string[]>([]);
+  const [drillLoading, setDrillLoading] = useState(false);
 
   // Manual URL import
   const [manualUrls, setManualUrls] = useState("");
