@@ -882,22 +882,56 @@ function ItemDetailDialog({
     });
   };
 
+  const [applyScope, setApplyScope] = useState<"single" | "all">("single");
+
   const handleSave = async () => {
     if (Object.keys(pendingAdds).length === 0) return;
     setIsSaving(true);
     try {
       const { supabase } = await import("@/integrations/supabase/client");
-      const newMapped = { ...mapped, ...pendingAdds };
-      const { error } = await supabase
-        .from("ingestion_job_items")
-        .update({ mapped_data: newMapped })
-        .eq("id", item.id);
-      if (error) throw error;
-      // Update in-memory
-      item.mapped_data = newMapped;
+      
+      if (applyScope === "all") {
+        // Apply pendingAdds keys to ALL items in the job
+        const pendingKeys = Object.keys(pendingAdds);
+        let updatedCount = 0;
+        for (const jobItem of allItems) {
+          const itemSource = jobItem.source_data || {};
+          const itemMapped = jobItem.mapped_data || {};
+          const fieldsToAdd: Record<string, any> = {};
+          for (const key of pendingKeys) {
+            if (itemSource[key] !== undefined && itemSource[key] !== null && itemSource[key] !== "") {
+              fieldsToAdd[key] = itemSource[key];
+            }
+          }
+          if (Object.keys(fieldsToAdd).length > 0) {
+            const newMapped = { ...itemMapped, ...fieldsToAdd };
+            const { error } = await supabase
+              .from("ingestion_job_items")
+              .update({ mapped_data: newMapped })
+              .eq("id", jobItem.id);
+            if (!error) {
+              jobItem.mapped_data = newMapped;
+              updatedCount++;
+            }
+          }
+        }
+        // Also update current item with exact pending values
+        item.mapped_data = { ...mapped, ...pendingAdds };
+        toast.success(`Campos aplicados a ${updatedCount} produto(s) do lote`);
+      } else {
+        // Single item only
+        const newMapped = { ...mapped, ...pendingAdds };
+        const { error } = await supabase
+          .from("ingestion_job_items")
+          .update({ mapped_data: newMapped })
+          .eq("id", item.id);
+        if (error) throw error;
+        item.mapped_data = newMapped;
+        toast.success("Campos adicionados ao mapeamento com sucesso");
+      }
+      
       setPendingAdds({});
       setSaved(true);
-      toast.success("Campos adicionados ao mapeamento com sucesso");
     } catch (err: any) {
       toast.error(`Erro ao guardar: ${err?.message || "erro desconhecido"}`);
     } finally {
