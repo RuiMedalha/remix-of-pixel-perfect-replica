@@ -84,6 +84,7 @@ export default function VisualScraperPage() {
   const [batchLoading, setBatchLoading] = useState(false);
   const [results, setResults] = useState<ExtractedRow[]>([]);
   const [errors, setErrors] = useState<any[]>([]);
+  const [batchUrls, setBatchUrls] = useState<string[]>([]);
 
   // Dialogs
   const [showSendDialog, setShowSendDialog] = useState(false);
@@ -463,12 +464,25 @@ export default function VisualScraperPage() {
 
   // Enter selection mode on current page
   const handleEnterSelectMode = () => {
+    // Store selected links as batch URLs before entering field selection
+    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
+    if (selected.length > 0) {
+      setBatchUrls(selected);
+    }
     loadPage(currentUrl, "select");
     setStep("select-fields");
   };
 
   // Go to a product page from links list
   const handleGoToProduct = (productUrl: string) => {
+    // Store all selected links as batch URLs before navigating to one product
+    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
+    if (selected.length > 0) {
+      setBatchUrls(selected);
+    } else {
+      // If no selections, use all visible links
+      setBatchUrls(extractedLinks.map(l => l.url));
+    }
     setUrl(productUrl);
     loadPage(productUrl, "select");
     setStep("select-fields");
@@ -632,11 +646,19 @@ export default function VisualScraperPage() {
       toast.error("Selecione pelo menos um campo.");
       return;
     }
+    // Store selected links as batch URLs if not already stored
+    const selected = extractedLinks.filter(l => l.selected).map(l => l.url);
+    if (selected.length > 0 && batchUrls.length === 0) {
+      setBatchUrls(selected);
+    }
     setStep("batch");
   };
 
   const handleRunBatch = async () => {
-    const selectedLinkUrls = extractedLinks.filter(l => l.selected).map(l => l.url);
+    // Use stored batchUrls first, then fall back to selected links, then currentUrl
+    const selectedLinkUrls = batchUrls.length > 0
+      ? batchUrls
+      : extractedLinks.filter(l => l.selected).map(l => l.url);
     let urls = selectedLinkUrls.length > 0 ? selectedLinkUrls : [currentUrl];
 
     setBatchLoading(true);
@@ -1242,8 +1264,8 @@ export default function VisualScraperPage() {
 
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">
-                  {selectedLinksCount > 0
-                    ? `${selectedLinksCount} páginas selecionadas`
+                  {(batchUrls.length > 0 || selectedLinksCount > 0)
+                    ? `${batchUrls.length > 0 ? batchUrls.length : selectedLinksCount} páginas selecionadas`
                     : `1 página (${currentUrl})`}
                 </p>
                 {useFirecrawl && (
@@ -1261,7 +1283,7 @@ export default function VisualScraperPage() {
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(selectedLinksCount > 0 ? "links" : "select-fields")}>
+                <Button variant="outline" onClick={() => setStep((batchUrls.length > 0 || selectedLinksCount > 0) ? "links" : "select-fields")}>
                   ← Voltar
                 </Button>
                 <Button onClick={handleRunBatch} disabled={batchLoading}>
