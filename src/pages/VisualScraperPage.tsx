@@ -758,6 +758,22 @@ export default function VisualScraperPage() {
     setFields(prev => prev.map(f => f.id === id ? { ...f, type } : f));
   };
 
+  const handleUpdateFieldSelector = (id: string, selector: string) => {
+    setFields(prev => prev.map(f => f.id === id ? { ...f, selector } : f));
+  };
+
+  const handleAddManualField = () => {
+    const newField: SelectedField = {
+      id: crypto.randomUUID(),
+      name: `Campo ${fields.length + 1}`,
+      selector: "",
+      type: "text",
+      preview: "",
+      isVariation: false,
+    };
+    setFields(prev => [...prev, newField]);
+  };
+
   const handleToggleVariation = (id: string) => {
     setFields(prev => prev.map(f => f.id === id ? { ...f, isVariation: !f.isVariation } : f));
   };
