@@ -47,13 +47,15 @@ interface ExtractedRow {
   [key: string]: string;
 }
 
-type LinkType = "categoria" | "grupo" | "produto" | "outro";
+type LinkType = "categoria" | "grupo" | "subcategoria" | "produto" | "outro";
 
 interface ExtractedLink {
   url: string;
   text: string;
   selected: boolean;
   linkType: LinkType;
+  depth?: number;
+  parentCategory?: string;
 }
 
 interface SiteLayer {
@@ -62,6 +64,14 @@ interface SiteLayer {
   sourceUrl: string;
   hasPagination: boolean;
   paginationUrls: string[];
+}
+
+interface CrawlStats {
+  categoriesProcessed: number;
+  subcategoriesFound: number;
+  pagesProcessed: number;
+  productsFound: number;
+  maxDepthReached: number;
 }
 
 type Step =
@@ -198,11 +208,13 @@ export default function VisualScraperPage() {
   // Collected product URLs
   const [productUrls, setProductUrls] = useState<string[]>([]);
   const [collectProgress, setCollectProgress] = useState<{ current: number; total: number; label?: string; pages?: number } | null>(null);
+  const [crawlStats, setCrawlStats] = useState<CrawlStats | null>(null);
 
   // Pagination config
   const [paginationMode, setPaginationMode] = useState<"auto" | "pattern">("auto");
   const [paginationPattern, setPaginationPattern] = useState(""); // e.g. "?page={n}" or "/page/{n}/"
   const [maxPagesPerCategory, setMaxPagesPerCategory] = useState(50);
+  const [maxCrawlDepth, setMaxCrawlDepth] = useState(5);
   const [showPaginationConfig, setShowPaginationConfig] = useState(false);
 
   // Fields
@@ -571,94 +583,155 @@ export default function VisualScraperPage() {
     return null;
   };
 
-  /* ── Auto-collect: drill all categories with full pagination ── */
+  /* ── Recursive crawl: collects all product URLs from categories, subcategories, with pagination ── */
+  const crawlCategoryRecursive = async (
+    catUrl: string,
+    catLabel: string,
+    depth: number,
+    seen: Set<string>,
+    allProductUrls: string[],
+    stats: CrawlStats,
+  ): Promise<void> => {
+    if (depth > maxCrawlDepth) return;
+    stats.maxDepthReached = Math.max(stats.maxDepthReached, depth);
+
+    const crawledPages = new Set<string>();
+    let pageUrl: string | null = catUrl;
+    let detectedPattern: string | null = null;
+    let patternGenerated = false;
+
+    while (pageUrl && crawledPages.size < maxPagesPerCategory) {
+      crawledPages.add(pageUrl);
+      stats.pagesProcessed++;
+      setCollectProgress({
+        current: stats.categoriesProcessed,
+        total: stats.categoriesProcessed + 1,
+        label: `${catLabel} (pág ${crawledPages.size}, profundidade ${depth})`,
+        pages: stats.pagesProcessed,
+      });
+
+      try {
+        const { links, nextPages } = await extractLinksFromPage(pageUrl);
+
+        // Separate products and subcategories
+        const productLinks = links.filter(l => l.linkType === "produto");
+        const subCategoryLinks = links.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+
+        // Collect products from this page
+        const productsBefore = allProductUrls.length;
+        productLinks.forEach(l => {
+          if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
+        });
+        const newProds = allProductUrls.length - productsBefore;
+        stats.productsFound = allProductUrls.length;
+
+        // If this page has subcategories but NO products, it's a subcategory listing page — drill deeper
+        if (subCategoryLinks.length > 0 && productLinks.length === 0 && depth < maxCrawlDepth) {
+          stats.subcategoriesFound += subCategoryLinks.length;
+          for (const sub of subCategoryLinks) {
+            if (!seen.has(`__cat__${sub.url}`)) {
+              seen.add(`__cat__${sub.url}`);
+              stats.categoriesProcessed++;
+              const subLabel = sub.text || `Sub ${stats.categoriesProcessed}`;
+              setCollectProgress({
+                current: stats.categoriesProcessed,
+                total: stats.categoriesProcessed + subCategoryLinks.length,
+                label: `↳ ${subLabel} (profundidade ${depth + 1})`,
+                pages: stats.pagesProcessed,
+              });
+              await crawlCategoryRecursive(sub.url, subLabel, depth + 1, seen, allProductUrls, stats);
+            }
+          }
+          // After drilling subcategories, don't continue pagination on this level
+          break;
+        }
+
+        // If this page has BOTH products AND subcategories, collect products AND drill subcategories
+        if (subCategoryLinks.length > 0 && productLinks.length > 0 && depth < maxCrawlDepth) {
+          stats.subcategoriesFound += subCategoryLinks.length;
+          for (const sub of subCategoryLinks) {
+            if (!seen.has(`__cat__${sub.url}`)) {
+              seen.add(`__cat__${sub.url}`);
+              stats.categoriesProcessed++;
+              const subLabel = sub.text || `Sub ${stats.categoriesProcessed}`;
+              await crawlCategoryRecursive(sub.url, subLabel, depth + 1, seen, allProductUrls, stats);
+            }
+          }
+        }
+
+        // If no new products found on a pagination page, stop
+        if (crawledPages.size > 1 && newProds === 0) break;
+
+        // Determine next page (pagination)
+        let nextPage: string | null = null;
+        if (paginationMode === "pattern" && paginationPattern) {
+          if (!patternGenerated) {
+            const paginationUrls = generatePaginationUrls(catUrl, paginationPattern, maxPagesPerCategory);
+            paginationUrls.forEach(u => { if (!crawledPages.has(u)) nextPages.push(u); });
+            patternGenerated = true;
+          }
+          nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
+        } else {
+          if (!detectedPattern && nextPages.length > 0) {
+            detectedPattern = autoDetectPaginationPattern(nextPages, catUrl);
+          }
+          nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
+          if (!nextPage && detectedPattern && crawledPages.size < maxPagesPerCategory) {
+            const generatedUrls = generatePaginationUrls(catUrl, detectedPattern, maxPagesPerCategory);
+            nextPage = generatedUrls.find(u => !crawledPages.has(u)) || null;
+          }
+        }
+
+        pageUrl = nextPage;
+      } catch (err) {
+        console.warn(`Erro na página ${pageUrl}:`, err);
+        break;
+      }
+    }
+  };
+
+  /* ── Auto-collect: drill all categories recursively with full pagination ── */
   const handleAutoCollect = async () => {
-    const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected).map(l => l.url);
+    const catUrls = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria") && l.selected).map(l => l.url);
     if (catUrls.length === 0 && currentLinks.filter(l => l.linkType === "produto").length === 0) {
       toast.error("Nenhuma categoria ou produto encontrado.");
       return;
     }
 
     setLoading(true);
+    const stats: CrawlStats = { categoriesProcessed: 0, subcategoriesFound: 0, pagesProcessed: 0, productsFound: 0, maxDepthReached: 0 };
     setCollectProgress({ current: 0, total: catUrls.length || 1, label: "A iniciar...", pages: 0 });
+    setCrawlStats(null);
 
     try {
-      let allProductUrls: string[] = [];
+      const allProductUrls: string[] = [];
       const seen = new Set<string>();
-      let totalPagesProcessed = 0;
 
       // Add already-visible products
       currentLinks.filter(l => l.linkType === "produto").forEach(l => {
         if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
       });
+      stats.productsFound = allProductUrls.length;
 
-      // Drill each category with full pagination
+      // Recursively crawl each top-level category
       for (let i = 0; i < catUrls.length; i++) {
         const catUrl = catUrls[i];
         const catLabel = currentLinks.find(l => l.url === catUrl)?.text || `Cat ${i + 1}`;
-        setCollectProgress({ current: i + 1, total: catUrls.length, label: catLabel, pages: totalPagesProcessed });
+        stats.categoriesProcessed++;
+        seen.add(`__cat__${catUrl}`);
         
-        try {
-          const crawledPages = new Set<string>();
-          let pageUrl: string | null = catUrl;
-          let detectedPattern: string | null = null;
-          let patternGenerated = false;
-
-          while (pageUrl && crawledPages.size < maxPagesPerCategory) {
-            crawledPages.add(pageUrl);
-            totalPagesProcessed++;
-            setCollectProgress({ current: i + 1, total: catUrls.length, label: `${catLabel} (pág ${crawledPages.size})`, pages: totalPagesProcessed });
-
-            const { links, nextPages } = await extractLinksFromPage(pageUrl);
-            
-            // Collect products from this page
-            const productsBefore = allProductUrls.length;
-            links.filter(l => l.linkType === "produto").forEach(l => {
-              if (!seen.has(l.url)) { seen.add(l.url); allProductUrls.push(l.url); }
-            });
-            const newProds = allProductUrls.length - productsBefore;
-
-            // If no new products found, this page is likely empty - stop
-            if (crawledPages.size > 1 && newProds === 0) break;
-
-            // Determine next page
-            let nextPage: string | null = null;
-
-            if (paginationMode === "pattern" && paginationPattern) {
-              // Use manual pattern
-              if (!patternGenerated) {
-                const paginationUrls = generatePaginationUrls(catUrl, paginationPattern, maxPagesPerCategory);
-                paginationUrls.forEach(u => { if (!crawledPages.has(u)) nextPages.push(u); });
-                patternGenerated = true;
-              }
-              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
-            } else {
-              // Auto mode: try detected pagination first
-              if (!detectedPattern && nextPages.length > 0) {
-                detectedPattern = autoDetectPaginationPattern(nextPages, catUrl);
-              }
-
-              // Try auto-detected links
-              nextPage = nextPages.find(p => !crawledPages.has(p)) || null;
-
-              // If no next page found but we detected a pattern, generate more
-              if (!nextPage && detectedPattern && crawledPages.size < maxPagesPerCategory) {
-                const generatedUrls = generatePaginationUrls(catUrl, detectedPattern, maxPagesPerCategory);
-                nextPage = generatedUrls.find(u => !crawledPages.has(u)) || null;
-              }
-            }
-
-            pageUrl = nextPage;
-          }
-        } catch (err) {
-          console.warn(`Erro na categoria ${catUrl}:`, err);
-        }
+        await crawlCategoryRecursive(catUrl, catLabel, 1, seen, allProductUrls, stats);
       }
 
       setProductUrls(allProductUrls);
+      setCrawlStats(stats);
       setCollectProgress(null);
       setStep("products");
-      toast.success(`${allProductUrls.length} URLs de produto de ${catUrls.length} categorias (${totalPagesProcessed} páginas)`);
+      toast.success(
+        `${allProductUrls.length} produtos de ${stats.categoriesProcessed} categorias` +
+        (stats.subcategoriesFound > 0 ? ` (${stats.subcategoriesFound} subcategorias)` : '') +
+        ` · ${stats.pagesProcessed} páginas · profundidade máx ${stats.maxDepthReached}`
+      );
     } catch (err: any) {
       toast.error("Erro na recolha automática", { description: err.message });
     } finally {
@@ -937,12 +1010,12 @@ export default function VisualScraperPage() {
   const changeLinkType = (url: string, type: LinkType) => setCurrentLinks(prev => prev.map(l => l.url === url ? { ...l, linkType: type } : l));
   const removeProductUrl = (url: string) => setProductUrls(prev => prev.filter(u => u !== url));
 
-  const categoryLinks = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+  const categoryLinks = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria");
   const productLinksInView = currentLinks.filter(l => l.linkType === "produto");
-  const selectedCats = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo") && l.selected);
+  const selectedCats = currentLinks.filter(l => (l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria") && l.selected);
   const filteredLinks = currentLinks.filter(l => !linkFilter || l.url.toLowerCase().includes(linkFilter.toLowerCase()) || l.text.toLowerCase().includes(linkFilter.toLowerCase()));
   const currentLayer = layers[layers.length - 1];
-  const categoryAgentCandidates = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo");
+  const categoryAgentCandidates = currentLinks.filter(l => l.linkType === "categoria" || l.linkType === "grupo" || l.linkType === "subcategoria");
   const selectedCategoryAgentCount = Object.values(categoryAgentSelection).filter(Boolean).length;
 
   const typeIcons: Record<string, React.ReactNode> = {
@@ -1299,6 +1372,9 @@ export default function VisualScraperPage() {
                 <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "categoria" } : l))}>
                   Seleção → Categoria
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "subcategoria" } : l))}>
+                  Seleção → Subcategoria
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setCurrentLinks(prev => prev.map(l => l.selected ? { ...l, linkType: "grupo" } : l))}>
                   Seleção → Grupo
                 </Button>
@@ -1340,7 +1416,7 @@ export default function VisualScraperPage() {
               {/* Auto-collect */}
               <Button size="sm" variant="secondary" onClick={handleAutoCollect} disabled={loading}>
                 {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
-                Auto-recolher produtos (c/ paginação)
+                Auto-recolher produtos (recursivo c/ paginação)
               </Button>
 
               {/* Manual collect */}
@@ -1384,11 +1460,24 @@ export default function VisualScraperPage() {
                       className="h-7 w-16 text-xs"
                     />
                   </div>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">Profundidade máx:</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={maxCrawlDepth}
+                      onChange={e => setMaxCrawlDepth(Number(e.target.value) || 5)}
+                      className="h-7 w-16 text-xs"
+                    />
+                  </div>
                 </div>
 
                 <div className="text-[10px] text-muted-foreground space-y-0.5">
                   <p><strong>Auto-detetar:</strong> analisa os links de paginação da página e segue automaticamente.</p>
                   <p><strong>Padrão manual:</strong> use <code className="bg-muted px-1 rounded">{"{n}"}</code> para o número da página. Ex: <code className="bg-muted px-1 rounded">?page={"{n}"}</code>, <code className="bg-muted px-1 rounded">/page/{"{n}"}/</code>, <code className="bg-muted px-1 rounded">&amp;p={"{n}"}</code></p>
+                  <p><strong>Profundidade:</strong> número máximo de níveis de subcategorias a explorar recursivamente (ex: Categoria → Subcategoria → Produtos = profundidade 2).</p>
                 </div>
               </div>
             )}
@@ -1400,6 +1489,21 @@ export default function VisualScraperPage() {
                   {collectProgress.label || `${collectProgress.current}/${collectProgress.total}`}
                   {collectProgress.pages ? ` · ${collectProgress.pages} páginas processadas` : ""}
                 </p>
+              </div>
+            )}
+
+            {crawlStats && !collectProgress && (
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-3 flex-wrap text-[10px] text-muted-foreground">
+                  <span className="font-medium text-foreground text-xs">Último crawl:</span>
+                  <Badge variant="outline" className="text-[10px]">{crawlStats.productsFound} produtos</Badge>
+                  <Badge variant="outline" className="text-[10px]">{crawlStats.categoriesProcessed} categorias</Badge>
+                  {crawlStats.subcategoriesFound > 0 && (
+                    <Badge variant="outline" className="text-[10px]">{crawlStats.subcategoriesFound} subcategorias</Badge>
+                  )}
+                  <Badge variant="outline" className="text-[10px]">{crawlStats.pagesProcessed} páginas</Badge>
+                  <Badge variant="outline" className="text-[10px]">profundidade {crawlStats.maxDepthReached}</Badge>
+                </div>
               </div>
             )}
           </div>
@@ -1445,6 +1549,7 @@ export default function VisualScraperPage() {
                         <SelectTrigger className="h-6 text-[10px] w-24"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="categoria">Categoria</SelectItem>
+                          <SelectItem value="subcategoria">Subcategoria</SelectItem>
                           <SelectItem value="grupo">Grupo</SelectItem>
                           <SelectItem value="produto">Produto</SelectItem>
                           <SelectItem value="outro">Outro</SelectItem>
