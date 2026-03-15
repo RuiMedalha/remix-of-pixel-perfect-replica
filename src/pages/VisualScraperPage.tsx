@@ -650,7 +650,10 @@ export default function VisualScraperPage() {
   };
 
   const handleRunBatch = async () => {
-    const selectedLinkUrls = extractedLinks.filter(l => l.selected).map(l => l.url);
+    // Use stored batchUrls first, then fall back to selected links, then currentUrl
+    const selectedLinkUrls = batchUrls.length > 0
+      ? batchUrls
+      : extractedLinks.filter(l => l.selected).map(l => l.url);
     let urls = selectedLinkUrls.length > 0 ? selectedLinkUrls : [currentUrl];
 
     setBatchLoading(true);
