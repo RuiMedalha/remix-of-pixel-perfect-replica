@@ -1627,15 +1627,15 @@ export default function VisualScraperPage() {
                 <Layers className="w-3 h-3 mr-1" /> Config Paginação
               </Button>
 
-              {/* Auto-collect */}
-              <Button size="sm" variant="secondary" onClick={handleAutoCollect} disabled={loading}>
-                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
-                Auto-recolher produtos (recursivo c/ paginação)
+              {/* Auto-collect - works without manual selection */}
+              <Button size="sm" variant="default" onClick={handleAutoCollect} disabled={loading} className="font-medium">
+                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Zap className="w-3 h-3 mr-1" />}
+                🚀 Auto-recolher TUDO ({categoryLinks.length} categorias + paginação)
               </Button>
 
               {/* Manual collect */}
               {productLinksInView.length > 0 && (
-                <Button size="sm" onClick={handleCollectProducts}>
+                <Button size="sm" variant="outline" onClick={handleCollectProducts}>
                   <Target className="w-3 h-3 mr-1" /> Recolher {productLinksInView.filter(l => l.selected).length} produtos →
                 </Button>
               )}
