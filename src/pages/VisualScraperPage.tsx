@@ -36,7 +36,7 @@ interface ExtractedRow {
 type Step = "url" | "select" | "batch" | "results";
 
 export default function VisualScraperPage() {
-  const { currentWorkspace } = useWorkspaceContext();
+  const { activeWorkspace } = useWorkspaceContext();
   const [step, setStep] = useState<Step>("url");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
