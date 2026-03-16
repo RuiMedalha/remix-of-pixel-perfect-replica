@@ -89,6 +89,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (previousId && previousId !== id) {
       qc.invalidateQueries({
         predicate: (query) => query.queryKey.includes(previousId),
+        refetchType: "none",
       });
     }
   };
