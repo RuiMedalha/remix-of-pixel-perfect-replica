@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { toast } from "sonner";
 import type { PricingOptions, SkuPrefixOptions } from "@/components/WooPublishModal";
 
@@ -87,7 +88,7 @@ export function usePublishJob() {
 
         // Auto-trigger queued jobs that haven't started (e.g. from scheduled)
         if (job.status === "queued" && !job.started_at) {
-          supabase.functions.invoke("publish-woocommerce", {
+          invokeEdgeFunction("publish-woocommerce", {
             body: { jobId: job.id, startIndex: 0 },
           }).catch(console.error);
         }

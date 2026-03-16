@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 
@@ -52,13 +53,11 @@ export function useCatalogWorkflows() {
       .order("created_at");
 
   const inv = (fn: string, body: Record<string, unknown>) =>
-    supabase.functions.invoke(fn, { body: { workspace_id: wid, ...body } });
+    invokeEdgeFunction(fn, { body: { workspace_id: wid, ...body } });
 
   const startWorkflow = useMutation({
     mutationFn: async (p: { workflow_id: string; supplier_id?: string }) => {
-      const { data, error } = await inv("start-catalog-workflow", p);
-      if (error) throw error;
-      return data;
+      return await inv("start-catalog-workflow", p);
     },
     onSuccess: () => {
       toast.success("Workflow iniciado");
@@ -69,9 +68,7 @@ export function useCatalogWorkflows() {
 
   const executeStep = useMutation({
     mutationFn: async (p: { step_id: string; run_id: string }) => {
-      const { data, error } = await inv("execute-workflow-step", p);
-      if (error) throw error;
-      return data;
+      return await inv("execute-workflow-step", p);
     },
     onSuccess: () => {
       toast.success("Passo executado");
@@ -82,9 +79,7 @@ export function useCatalogWorkflows() {
 
   const pauseRun = useMutation({
     mutationFn: async (run_id: string) => {
-      const { data, error } = await inv("pause-workflow-run", { run_id });
-      if (error) throw error;
-      return data;
+      return await inv("pause-workflow-run", { run_id });
     },
     onSuccess: () => {
       toast.success("Workflow pausado");
@@ -95,9 +90,7 @@ export function useCatalogWorkflows() {
 
   const resumeRun = useMutation({
     mutationFn: async (run_id: string) => {
-      const { data, error } = await inv("resume-workflow-run", { run_id });
-      if (error) throw error;
-      return data;
+      return await inv("resume-workflow-run", { run_id });
     },
     onSuccess: () => {
       toast.success("Workflow retomado");
@@ -108,9 +101,7 @@ export function useCatalogWorkflows() {
 
   const retryStep = useMutation({
     mutationFn: async (p: { step_id: string; run_id: string }) => {
-      const { data, error } = await inv("retry-workflow-step", p);
-      if (error) throw error;
-      return data;
+      return await inv("retry-workflow-step", p);
     },
     onSuccess: () => {
       toast.success("Passo reexecutado");
@@ -121,9 +112,7 @@ export function useCatalogWorkflows() {
 
   const summarizeRun = useMutation({
     mutationFn: async (run_id: string) => {
-      const { data, error } = await inv("summarize-workflow-run", { run_id });
-      if (error) throw error;
-      return data;
+      return await inv("summarize-workflow-run", { run_id });
     },
     onError: (e: Error) => toast.error(e.message),
   });
