@@ -10,14 +10,15 @@ function emit(level: string, message: string, extra?: unknown): void {
     transport(level, message, extra);
     return;
   }
-  if (import.meta.env.DEV) {
-    const args = extra !== undefined ? [extra] : [];
-    switch (level) {
-      case "debug": console.log(PREFIX, message, ...args); break;
-      case "info":  console.info(PREFIX, message, ...args); break;
-      case "warn":  console.warn(PREFIX, message, ...args); break;
-      case "error": console.error(PREFIX, message, ...args); break;
-    }
+  const args = extra !== undefined ? [extra] : [];
+  if (level === "warn" || level === "error") {
+    // warn e error saem sempre — também em produção sem transport
+    const fn = level === "warn" ? console.warn : console.error;
+    fn(PREFIX, message, ...args);
+  } else if (import.meta.env.DEV) {
+    // debug e info apenas em desenvolvimento
+    if (level === "debug") console.log(PREFIX, message, ...args);
+    else console.info(PREFIX, message, ...args);
   }
 }
 
@@ -34,7 +35,7 @@ export const logger = {
   error(message: string, error?: unknown, context?: LogContext): void {
     const extra =
       error !== undefined && context !== undefined
-        ? { error, ...context }
+        ? { ...context, error }
         : error ?? context;
     emit("error", message, extra);
   },
