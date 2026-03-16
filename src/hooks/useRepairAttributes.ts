@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useQueryClient } from "@tanstack/react-query";
+import { logger } from "@/lib/logger";
 
 /**
  * Silently repairs variation children that have null/empty attributes
@@ -104,13 +105,13 @@ export function useRepairAttributes() {
         }
 
         if (repaired > 0) {
-          console.log(`[RepairAttributes] Repaired ${repaired} variations in workspace ${activeWorkspace.id}`);
+          logger.info(`[RepairAttributes] Repaired ${repaired} variations in workspace ${activeWorkspace.id}`);
           qc.invalidateQueries({ queryKey: ["products"] });
         }
 
         repairedRef.current.add(activeWorkspace.id);
       } catch (e) {
-        console.error("[RepairAttributes] Error:", e);
+        logger.error("[RepairAttributes] Error:", e);
         repairedRef.current.add(activeWorkspace.id);
       }
     };

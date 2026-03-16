@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 export type OptimizationField = 
   | "title" | "description" | "short_description"
@@ -88,7 +89,7 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2, baseDelayMs = 
       // Only retry on network/timeout/429 errors
       if (attempt < maxRetries && (msg.includes('429') || msg.includes('timeout') || msg.includes('FunctionsFetchError') || msg.includes('Failed to fetch'))) {
         const delay = baseDelayMs * Math.pow(2, attempt);
-        console.log(`Retry ${attempt + 1}/${maxRetries} after ${delay}ms for: ${msg}`);
+        logger.debug(`Retry ${attempt + 1}/${maxRetries} after ${delay}ms for: ${msg}`);
         await new Promise(r => setTimeout(r, delay));
         continue;
       }

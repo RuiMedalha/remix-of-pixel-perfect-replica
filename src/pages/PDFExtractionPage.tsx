@@ -22,6 +22,7 @@ import {
 } from "@/hooks/useDocumentIntelligence";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { PDFUploadDropzone } from "@/components/document-intelligence/PDFUploadDropzone";
 import { ExtractionPipelineViewer } from "@/components/document-intelligence/ExtractionPipelineViewer";
@@ -315,7 +316,7 @@ export default function PDFExtractionPage() {
     if (autoResumeAttempts >= MAX_AUTO_RESUMES) return;
     if (Date.now() - lastResumeTime < 90000) return;
 
-    console.log(`Auto-resuming extraction (attempt ${autoResumeAttempts + 1}/${MAX_AUTO_RESUMES})`);
+    logger.info(`Auto-resuming extraction (attempt ${autoResumeAttempts + 1}/${MAX_AUTO_RESUMES})`);
     toast.info(`A retomar extração automaticamente (tentativa ${autoResumeAttempts + 1})...`);
     setAutoResumeAttempts(prev => prev + 1);
     setLastResumeTime(Date.now());
@@ -325,7 +326,7 @@ export default function PDFExtractionPage() {
     }).then(() => {
       toast.success("Extração retomada com sucesso");
     }).catch((err) => {
-      console.error("Auto-resume error:", err);
+      logger.error("Auto-resume error:", err);
     });
   }, [isStalled, wizardExtractionId, autoResumeAttempts, lastResumeTime, extractionCompletedByProgress]);
 
@@ -335,7 +336,7 @@ export default function PDFExtractionPage() {
     const status = wizardExtraction?.status;
     if (!status || !["extracting", "processing"].includes(status)) return;
 
-    console.log("All pages extracted — auto-finalizing extraction");
+    logger.info("All pages extracted — auto-finalizing extraction");
     handleFinalizeExtraction();
   }, [extractionCompletedByProgress, wizardExtraction?.status, wizardExtractionId, isFinishing]);
 
@@ -352,7 +353,7 @@ export default function PDFExtractionPage() {
       });
       toast.success("Extração finalizada — produtos compilados");
     } catch (err) {
-      console.error("Finalize error:", err);
+      logger.error("Finalize error:", err);
       toast.error("Erro ao finalizar extração");
     } finally {
       setIsFinishing(false);
@@ -403,7 +404,7 @@ export default function PDFExtractionPage() {
     }).then(() => {
       toast.success("Extração retomada com sucesso");
     }).catch((err) => {
-      console.error("Resume error:", err);
+      logger.error("Resume error:", err);
       toast.error("Erro ao retomar extração");
     });
   };

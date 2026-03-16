@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { PDFDocument } from "pdf-lib";
+import { logger } from "@/lib/logger";
 
 export type ColumnMapping = Record<string, string>; // productField -> excelColumn
 
@@ -221,7 +222,7 @@ async function splitPdfFile(file: File): Promise<File[]> {
 
     return parts;
   } catch (e) {
-    console.warn("PDF split failed, uploading as single file:", e);
+    logger.warn("PDF split failed, uploading as single file:", { error: e });
     return [file];
   }
 }
@@ -281,7 +282,7 @@ async function sendParsedRowsInBatches(
         });
 
         if (error) {
-          console.warn(`Batch ${i / BATCH_SIZE + 1} attempt ${attempt} error:`, error.message);
+          logger.warn(`Batch ${i / BATCH_SIZE + 1} attempt ${attempt} error:`, { message: error.message });
           if (attempt < maxRetries) {
             await new Promise((r) => setTimeout(r, 2000 * attempt));
             continue;
@@ -297,7 +298,7 @@ async function sendParsedRowsInBatches(
         success = true;
         break;
       } catch (e: any) {
-        console.warn(`Batch ${i / BATCH_SIZE + 1} attempt ${attempt} failed:`, e?.message);
+        logger.warn(`Batch ${i / BATCH_SIZE + 1} attempt ${attempt} failed:`, { message: e?.message });
         if (attempt < maxRetries) {
           await new Promise((r) => setTimeout(r, 2000 * attempt));
         } else {
@@ -521,7 +522,7 @@ export function useUploadCatalog() {
             extractedText = parseData.extractedText;
           }
         } catch (e) {
-          console.warn("Knowledge parsing failed:", e);
+          logger.warn("Knowledge parsing failed:", { error: e });
         }
 
         if (insertedFile?.id) {
@@ -586,7 +587,7 @@ export function useUploadCatalog() {
           toast.success(`"${uploadedFile.name}" processado.`);
         }
         if (result.errors.length > 0) {
-          console.warn("Parse errors:", result.errors);
+          logger.warn("Parse errors:", { errors: result.errors });
           toast.warning(`${result.errors.length} erro(s) durante o processamento.`);
         }
 
