@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { toast } from "sonner";
 import type { PricingOptions, SkuPrefixOptions } from "@/components/WooPublishModal";
+import { logger } from "@/lib/logger";
 
 export interface PublishJob {
   id: string;
@@ -90,7 +91,7 @@ export function usePublishJob() {
         if (job.status === "queued" && !job.started_at) {
           invokeEdgeFunction("publish-woocommerce", {
             body: { jobId: job.id, startIndex: 0 },
-          }).catch(console.error);
+          }).catch((err) => logger.error("Auto-trigger publish falhou:", err));
         }
       }
     };
@@ -119,7 +120,7 @@ export function usePublishJob() {
         if (error) throw error;
         toast.info("Publicação retomada automaticamente.");
       } catch (err: any) {
-        console.warn("Wakeup publish falhou:", err?.message || err);
+        logger.warn("Wakeup publish falhou:", { message: err?.message || err });
       } finally {
         wakeupInFlightRef.current = false;
       }
@@ -188,7 +189,7 @@ export function usePublishJob() {
             lastError = err;
             if (attempt < MAX_RETRIES) {
               const delay = Math.min(1000 * 2 ** (attempt - 1), 4000);
-              console.warn(`createPublishJob attempt ${attempt} failed, retrying in ${delay}ms...`, err?.message);
+              logger.warn(`createPublishJob attempt ${attempt} failed, retrying in ${delay}ms...`, { message: err?.message });
               await new Promise((r) => setTimeout(r, delay));
             }
           }

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 export function usePdfExtractions() {
   const { activeWorkspace } = useWorkspaceContext();
@@ -90,7 +91,7 @@ export function useStartPdfExtraction() {
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
       }).catch((err) => {
-        console.error("Background extraction error:", err);
+        logger.error("Background extraction error:", err);
         // The extraction status will be set to "error" by the edge function itself
         queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
       });

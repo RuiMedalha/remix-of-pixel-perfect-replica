@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 export function useProductLocalizations(productId: string | null) {
   const { activeWorkspace } = useWorkspaceContext();
@@ -167,7 +168,7 @@ export function useCreateTranslationJob() {
             },
           });
         } catch (e) {
-          console.error("Translation item failed:", e);
+          logger.error("Translation item failed:", e);
         }
       }
 

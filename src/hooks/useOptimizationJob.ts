@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { OptimizationField } from "@/hooks/useOptimizeProducts";
+import { logger } from "@/lib/logger";
 
 export interface OptimizationJob {
   id: string;
@@ -105,7 +106,7 @@ export function useOptimizationJob() {
         if (error) throw error;
         toast.info("Job retomado automaticamente em background.");
       } catch (err: any) {
-        console.warn("Wakeup falhou (vai tentar novamente):", err?.message || err);
+        logger.warn("Wakeup falhou (vai tentar novamente):", { message: err?.message || err });
       } finally {
         wakeupInFlightRef.current = false;
       }

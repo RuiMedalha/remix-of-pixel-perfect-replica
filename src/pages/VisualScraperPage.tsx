@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import { logger } from "@/lib/logger";
 import { DEFAULT_PRODUCT_FIELDS } from "@/hooks/useUploadCatalog";
 import { ExcelPreviewTable } from "@/components/scraper/ExcelPreviewTable";
 import {
@@ -712,7 +713,7 @@ export default function VisualScraperPage() {
 
         pageUrl = nextPage;
       } catch (err) {
-        console.warn(`Erro na página ${pageUrl}:`, err);
+        logger.warn(`Erro na página ${pageUrl}:`, { error: err });
         break;
       }
     }
