@@ -1,6 +1,7 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 
 interface State {
   hasError: boolean;
@@ -18,7 +19,9 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[ErrorBoundary]", error.message, info.componentStack);
+    logger.error("[ErrorBoundary] Uncaught error", error, {
+      componentStack: info.componentStack ?? undefined,
+    });
   }
 
   render() {
