@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 
@@ -84,7 +85,7 @@ export function useStartPdfExtraction() {
 
       // Fire-and-forget: trigger extraction without awaiting completion
       // The edge function runs server-side and updates the DB as it progresses
-      supabase.functions.invoke("extract-pdf-pages", {
+      invokeEdgeFunction("extract-pdf-pages", {
         body: { extractionId: extraction.id },
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });

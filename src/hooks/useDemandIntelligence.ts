@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { toast } from "sonner";
 
 export function useDemandSignals(wId: string | undefined) {
@@ -16,7 +17,7 @@ export function useRunDemandPipeline() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ workspaceId }: { workspaceId: string }) => {
-      const invoke = async (fn: string) => { const { data, error } = await supabase.functions.invoke(fn, { body: { workspaceId } }); if (error) throw error; return data; };
+      const invoke = (fn: string) => invokeEdgeFunction(fn, { body: { workspaceId } });
       await invoke("collect-demand-data");
       const r2 = await invoke("generate-demand-signals");
       const r3 = await invoke("detect-keyword-opportunities");
