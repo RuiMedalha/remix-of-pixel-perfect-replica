@@ -83,16 +83,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const activeWorkspace = workspaces.find((w) => w.id === activeId) || null;
 
   const setActiveWorkspaceId = (id: string) => {
+    const previousId = activeId;
     setActiveId(id);
     localStorage.setItem("active_workspace_id", id);
-    // Invalidate data queries so they re-fetch with new workspace
-    qc.invalidateQueries({ queryKey: ["products"] });
-    qc.invalidateQueries({ queryKey: ["product-stats"] });
-    qc.invalidateQueries({ queryKey: ["uploaded-files"] });
-    qc.invalidateQueries({ queryKey: ["recent-activity"] });
-    qc.invalidateQueries({ queryKey: ["token-usage-summary"] });
-    qc.invalidateQueries({ queryKey: ["optimization-logs"] });
-    qc.invalidateQueries({ queryKey: ["quality-metrics"] });
+    if (previousId && previousId !== id) {
+      qc.invalidateQueries({
+        predicate: (query) => query.queryKey.includes(previousId),
+      });
+    }
   };
 
   const createMutation = useMutation({
