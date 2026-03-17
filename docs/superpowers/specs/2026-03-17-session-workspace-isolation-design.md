@@ -29,11 +29,13 @@
 | File | Change |
 |---|---|
 | `src/hooks/useActiveWorkflowRun.ts` | Accept `workspaceId` param, derive per-workspace key, `useRef`+`useEffect` reset |
-| `src/components/WorkflowRunSelector.tsx` | Pass `activeWorkspace?.id` to hook |
-| `src/components/WorkflowSessionBanner.tsx` | Pass `activeWorkspace?.id` to hook |
-| `src/components/SessionBadge.tsx` | Pass `activeWorkspace?.id` to hook |
-| `src/pages/WooImportPage.tsx` | Pass `activeWorkspace?.id` to hook |
-| `src/pages/UploadPage.tsx` | Pass `activeWorkspace?.id` to hook |
+| `src/components/WorkflowRunSelector.tsx` | Pass `activeWorkspace?.id` to hook (1 line) |
+| `src/components/WorkflowSessionBanner.tsx` | Pass `activeWorkspace?.id` to hook (1 line) |
+| `src/components/SessionBadge.tsx` | Add `useWorkspaceContext` import + pass `activeWorkspace?.id` to hook (2 lines) |
+| `src/pages/WooImportPage.tsx` | Pass `activeWorkspace?.id` to hook (1 line) |
+| `src/pages/UploadPage.tsx` | Pass `activeWorkspace?.id` to hook (1 line) |
+
+**Note on `SessionBadge.tsx`:** Unlike the other four consumers, `SessionBadge` does not currently import `useWorkspaceContext`. It requires both a new import line and an updated hook call — two lines changed, not one.
 
 ### What does NOT change
 
@@ -48,8 +50,11 @@
 ### localStorage key strategy
 
 ```
-active_workflow_run_id_${workspaceId}   // per-workspace key
+active_workflow_run_id_${workspaceId}   // per-workspace key (new)
+active_workflow_run_id                  // old global key — becomes orphaned, never read again
 ```
+
+The old global key `active_workflow_run_id` is not migrated or deleted. It becomes unreachable orphaned data in localStorage — harmless, and not worth the complexity of a one-time migration.
 
 When `workspaceId` is `undefined` (workspace not yet loaded), `lsKey` is `null` and `activeRunId` returns `null` — safe for loading states.
 
@@ -63,7 +68,7 @@ const [activeRunId, setActiveRunIdState] = useState<string | null>(() =>
 );
 ```
 
-The lazy initializer reads the per-workspace key once on mount. This safely restores the session after a page refresh (user was already in that workspace). It does NOT run again on workspace change.
+The lazy initializer reads the per-workspace key once on mount. This safely restores the session after a page refresh (the user was already in that workspace). It does NOT run again on workspace change.
 
 ### Reset on workspace change
 
@@ -83,18 +88,11 @@ useEffect(() => {
 
 `useRef` tracks the previous `workspaceId`. The effect only clears the session when a **real workspace change** occurs (not on the first render). No automatic restoration — `null` forces the user to select or create a session manually.
 
-### Workspace change behaviour
-
-| Situation | Result |
-|---|---|
-| Page refresh in workspace A | Session restored from `active_workflow_run_id_${A}` via `useState` initializer |
-| Workspace changes A → B | `activeRunId` set to `null` — always, regardless of what is stored for B |
-| `workspaceId` is `undefined` (loading) | `activeRunId` is `null` — safe |
-| User creates/selects session in B | Written to `active_workflow_run_id_${B}` — persisted for future use |
+**Important:** The reset path calls `setActiveRunIdState(null)` directly — it does NOT call `clearActiveRun`. This avoids the ordering hazard described below.
 
 ### `setActiveRun` and `clearActiveRun`
 
-Both operate on the current `lsKey`. If `lsKey` is `null` (no workspace), they are no-ops.
+Both depend on `lsKey` which is recomputed from `workspaceId` on every render. Since `lsKey` changes when `workspaceId` changes, both callbacks are recreated on workspace switch. This is safe because `clearActiveRun` and `setActiveRun` are only ever called by **explicit user interaction** (button clicks), never programmatically during the workspace-change render cycle. By the time a user can interact, `lsKey` always reflects the current workspace.
 
 ```typescript
 const setActiveRun = useCallback((runId: string) => {
@@ -122,6 +120,17 @@ return { activeRunId, setActiveRun, clearActiveRun, createNewSession };
 
 ---
 
+## Workspace change behaviour
+
+| Situation | Result |
+|---|---|
+| Page refresh in workspace A | Session restored from `active_workflow_run_id_${A}` via `useState` initializer |
+| Workspace changes A → B | `activeRunId` set to `null` — always, regardless of what is stored for B |
+| `workspaceId` is `undefined` (loading) | `activeRunId` is `null` — safe |
+| User creates/selects session in B | Written to `active_workflow_run_id_${B}` — persisted for future use |
+
+---
+
 ## Call Sites
 
 ### Uniform pattern
@@ -133,7 +142,19 @@ const { activeWorkspace } = useWorkspaceContext();
 const { activeRunId, ... } = useActiveWorkflowRun(activeWorkspace?.id);
 ```
 
-All five consumer files already import `useWorkspaceContext` — only the hook call line changes in each.
+`WorkflowRunSelector`, `WorkflowSessionBanner`, `WooImportPage`, and `UploadPage` already import `useWorkspaceContext` — only their hook call line changes. `SessionBadge` requires an additional import line.
+
+### Double-instantiation: `WorkflowSessionBanner` + `WorkflowRunSelector`
+
+`WorkflowSessionBanner` renders `WorkflowRunSelector` as a child and also calls `useActiveWorkflowRun` independently for its own display logic (session name, status badges). This means two separate hook instances exist simultaneously.
+
+Both instances:
+- Derive `lsKey` from the same `workspaceId`
+- Have independent `prevWorkspaceId` refs and `useState` values
+- Fire their `useEffect` in the same React render batch when workspace changes
+- Both set `activeRunId` to `null` in the same batch
+
+There is no observable divergence — both instances reach `null` in the same render cycle. The two-instance pattern is intentional: the Banner owns display, the Selector owns interaction.
 
 ---
 
@@ -147,15 +168,17 @@ No manual invalidation required. All queries gated by `enabled: !!activeRunId` a
 
 - Auto-creating a session when none exists
 - Auto-resuming the last session of a workspace
-- UI changes beyond what is already in place (WorkflowRunSelector, SessionBadge, WorkflowSessionBanner)
+- UI changes beyond what is already in place
 - Backend, edge functions, DB schema
+- Migration of old `active_workflow_run_id` localStorage key
 
 ---
 
 ## Success Criteria
 
 1. Switching workspace sets `activeRunId` to `null` in all consuming components
-2. The import button in `WooImportPage` and process button in `UploadPage` become disabled immediately after workspace switch (no session active)
+2. The import button in `WooImportPage` and process button in `UploadPage` become disabled immediately after workspace switch
 3. Page refresh in workspace A restores the session that was active before the refresh
 4. A session created in workspace B is stored under `active_workflow_run_id_${B}` and not visible when workspace A is active
 5. No changes required to `useWorkspaces.tsx` or any backend file
+6. `SessionBadge` requires both a new import and an updated hook call (2 lines, not 1)
