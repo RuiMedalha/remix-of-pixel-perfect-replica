@@ -204,12 +204,13 @@ const UploadPage = () => {
 
   return (
     <div className="p-3 sm:p-6 lg:p-8 space-y-6 animate-fade-in">
-      <div>
+      <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-foreground">Upload de Ficheiros</h1>
-        <p className="text-muted-foreground mt-1">
-          Carregue catálogos de produtos, ficheiros de conhecimento, ou extraia dados de sites de fornecedores.
-        </p>
+        <SessionBadge />
       </div>
+      <p className="text-muted-foreground mt-1">
+        Carregue catálogos de produtos, ficheiros de conhecimento, ou extraia dados de sites de fornecedores.
+      </p>
 
       {/* Session selector */}
       <WorkflowRunSelector />

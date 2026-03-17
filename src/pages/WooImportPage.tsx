@@ -366,6 +366,7 @@ const WooImportPage = () => {
           </CardContent>
         </Card>
       )}
+      <SessionRequiredDialog open={sessionGuardOpen} onOpenChange={setSessionGuardOpen} />
     </div>
   );
 };
