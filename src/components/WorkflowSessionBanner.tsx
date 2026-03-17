@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, FolderOpen } from "lucide-react";
 
 export function WorkflowSessionBanner() {
-  const { activeRunId } = useActiveWorkflowRun();
   const { activeWorkspace } = useWorkspaceContext();
+  const { activeRunId } = useActiveWorkflowRun(activeWorkspace?.id);
 
   const { data: activeRun } = useQuery({
     queryKey: ["workflow-run-detail", activeRunId],

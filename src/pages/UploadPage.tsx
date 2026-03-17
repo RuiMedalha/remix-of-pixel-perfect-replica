@@ -132,7 +132,7 @@ const UploadPage = () => {
   const { data: uploadHistory } = useUploadedFiles();
   const deleteUploadedFile = useDeleteUploadedFile();
   const { activeWorkspace } = useWorkspaceContext();
-  const { activeRunId } = useActiveWorkflowRun();
+  const { activeRunId } = useActiveWorkflowRun(activeWorkspace?.id);
   const qc = useQueryClient();
   const [dragOver, setDragOver] = useState(false);
   const [activeTab, setActiveTab] = useState<FileUploadType>("products");

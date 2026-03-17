@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveWorkflowRun } from "@/hooks/useActiveWorkflowRun";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { Badge } from "@/components/ui/badge";
 import { FolderOpen } from "lucide-react";
 
 export function SessionBadge() {
-  const { activeRunId } = useActiveWorkflowRun();
+  const { activeWorkspace } = useWorkspaceContext();
+  const { activeRunId } = useActiveWorkflowRun(activeWorkspace?.id);
 
   const { data: activeRun } = useQuery({
     queryKey: ["workflow-run-detail", activeRunId],

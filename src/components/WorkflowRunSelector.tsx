@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 import { FolderOpen, Plus, ChevronDown, CheckCircle, Clock } from "lucide-react";
 
 export function WorkflowRunSelector() {
-  const { activeRunId, setActiveRun, createNewSession } = useActiveWorkflowRun();
   const { activeWorkspace } = useWorkspaceContext();
+  const { activeRunId, setActiveRun, createNewSession } = useActiveWorkflowRun(activeWorkspace?.id);
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [isCreating, setIsCreating] = useState(false);

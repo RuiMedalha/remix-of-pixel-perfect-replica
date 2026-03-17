@@ -17,7 +17,7 @@ import { SessionRequiredDialog } from "@/components/SessionRequiredDialog";
 
 const WooImportPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
-  const { activeRunId } = useActiveWorkflowRun();
+  const { activeRunId } = useActiveWorkflowRun(activeWorkspace?.id);
   const { data: categories, isLoading: loadingCats } = useWooCategories(!!activeWorkspace);
   const { data: attributes, isLoading: loadingAttrs } = useWooAttributes(!!activeWorkspace);
   const { importProducts, isImporting, result } = useWooImport();
