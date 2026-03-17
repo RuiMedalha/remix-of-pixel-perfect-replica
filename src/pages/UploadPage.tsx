@@ -20,6 +20,8 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useActiveWorkflowRun } from "@/hooks/useActiveWorkflowRun";
+import { WorkflowRunSelector } from "@/components/WorkflowRunSelector";
 
 const UPDATE_FIELD_OPTIONS = [
   { key: "price", label: "Preço Original", group: "Preços" },
@@ -129,6 +131,7 @@ const UploadPage = () => {
   const { data: uploadHistory } = useUploadedFiles();
   const deleteUploadedFile = useDeleteUploadedFile();
   const { activeWorkspace } = useWorkspaceContext();
+  const { activeRunId } = useActiveWorkflowRun();
   const qc = useQueryClient();
   const [dragOver, setDragOver] = useState(false);
   const [activeTab, setActiveTab] = useState<FileUploadType>("products");
@@ -207,6 +210,9 @@ const UploadPage = () => {
           Carregue catálogos de produtos, ficheiros de conhecimento, ou extraia dados de sites de fornecedores.
         </p>
       </div>
+
+      {/* Session selector */}
+      <WorkflowRunSelector />
 
       {/* File type tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FileUploadType)}>
@@ -451,7 +457,12 @@ const UploadPage = () => {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Ficheiros ({files.length})</CardTitle>
             {hasPending && (
-              <Button onClick={() => processAll(activeWorkspace?.id)} disabled={isProcessing} size="sm">
+              <Button
+                onClick={() => processAll(activeWorkspace?.id, activeRunId ?? undefined)}
+                disabled={isProcessing || !activeRunId}
+                size="sm"
+                title={!activeRunId ? "Selecione uma Sessão de Trabalho para processar" : undefined}
+              >
                 <Play className="w-4 h-4 mr-1" />
                 Processar Todos
               </Button>
@@ -495,8 +506,9 @@ const UploadPage = () => {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => processFile(file, activeWorkspace?.id)}
-                          disabled={isProcessing}
+                          onClick={() => processFile(file, activeWorkspace?.id, activeRunId ?? undefined)}
+                          disabled={isProcessing || !activeRunId}
+                          title={!activeRunId ? "Selecione uma Sessão de Trabalho para processar" : undefined}
                         >
                           <Play className="w-3.5 h-3.5" />
                         </Button>

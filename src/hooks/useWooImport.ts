@@ -68,13 +68,13 @@ export function useWooImport() {
   const [result, setResult] = useState<WooImportResult | null>(null);
   const qc = useQueryClient();
 
-  const importProducts = async (workspaceId: string, filters: WooImportFilters) => {
+  const importProducts = async (workspaceId: string, filters: WooImportFilters, workflowRunId?: string) => {
     setIsImporting(true);
     setResult(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("import-woocommerce", {
-        body: { action: "import", workspaceId, filters },
+        body: { action: "import", workspaceId, filters, workflowRunId: workflowRunId || undefined },
       });
 
       if (error) throw error;
