@@ -141,17 +141,19 @@ function normalizeWooProduct(
   // Categories — resolve full hierarchy via catMap
   const wooCats: Array<{ id: number; name: string; slug: string }> = wp.categories || [];
   let category: string | null = null;
+  let categoryPaths: string[] = [];
   if (wooCats.length > 0 && catMap.size > 0) {
-    // Build the full path for each assigned category, pick the deepest one as canonical
-    const paths = wooCats
+    // Build the full path for every assigned category
+    categoryPaths = wooCats
       .map((c) => resolveCategoryPath(c.id, catMap))
       .filter(Boolean);
     // Sort descending by number of segments — deepest path first
-    paths.sort((a, b) => b.split(" > ").length - a.split(" > ").length);
-    category = paths[0] || null;
+    categoryPaths.sort((a, b) => b.split(" > ").length - a.split(" > ").length);
+    category = categoryPaths[0] || null;
   } else if (wooCats.length > 0) {
     // catMap not available (e.g. fetch failed) — fall back to flat names
-    category = wooCats.map((c) => c.name).join(", ");
+    categoryPaths = wooCats.map((c) => c.name);
+    category = categoryPaths.join(", ");
   }
 
   // Tags
@@ -197,6 +199,7 @@ function normalizeWooProduct(
     manage_stock: wp.manage_stock ?? null,
     catalog_visibility: wp.catalog_visibility || null,
     woo_categories: wooCats,
+    category_paths: categoryPaths.length > 0 ? categoryPaths : undefined,
     meta_data: meta,
   };
 
