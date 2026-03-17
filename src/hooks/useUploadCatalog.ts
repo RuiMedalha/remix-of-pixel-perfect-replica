@@ -256,7 +256,8 @@ async function sendParsedRowsInBatches(
   workspaceId: string | undefined,
   maxRetries = 3,
   updateMode?: boolean,
-  updateFields?: string[]
+  updateFields?: string[],
+  workflowRunId?: string
 ): Promise<{ count: number; updated: number; total: number; skipped: number; errors: string[] }> {
   const BATCH_SIZE = 500; // rows per request
   let totalCount = 0;
@@ -278,6 +279,7 @@ async function sendParsedRowsInBatches(
             workspaceId: workspaceId || undefined,
             updateMode: updateMode || undefined,
             updateFields: updateFields || undefined,
+            workflowRunId: workflowRunId || undefined,
           },
         });
 
@@ -469,7 +471,7 @@ export function useUploadCatalog() {
     } as any);
   };
 
-  const processFile = async (uploadedFile: UploadedFile, workspaceId?: string) => {
+  const processFile = async (uploadedFile: UploadedFile, workspaceId?: string, workflowRunId?: string) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData?.session?.user;
     if (!user) {
@@ -510,12 +512,13 @@ export function useUploadCatalog() {
         let extractedText = "";
         try {
           const { data: parseData, error: parseError } = await supabase.functions.invoke("parse-catalog", {
-            body: { 
-              filePath, 
-              fileName: uploadedFile.name, 
-              parseKnowledge: true, 
+            body: {
+              filePath,
+              fileName: uploadedFile.name,
+              parseKnowledge: true,
               workspaceId: workspaceId || undefined,
               fileId: insertedFile?.id,
+              workflowRunId: workflowRunId || undefined,
             },
           });
           if (!parseError && parseData?.extractedText) {
@@ -566,7 +569,8 @@ export function useUploadCatalog() {
           workspaceId,
           3,
           isUpdateMode,
-          isUpdateMode ? uploadedFile.updateFields : undefined
+          isUpdateMode ? uploadedFile.updateFields : undefined,
+          workflowRunId
         );
 
         const totalProcessed = (result.count || 0) + (result.updated || 0);
@@ -602,6 +606,7 @@ export function useUploadCatalog() {
           filePath,
           fileName: uploadedFile.name,
           workspaceId: workspaceId || undefined,
+          workflowRunId: workflowRunId || undefined,
         },
       });
 
@@ -655,10 +660,10 @@ export function useUploadCatalog() {
     }
   };
 
-  const processAllFiles = async (workspaceId?: string) => {
+  const processAllFiles = async (workspaceId?: string, workflowRunId?: string) => {
     const pending = files.filter((f) => f.status === "aguardando");
     for (const f of pending) {
-      await processFile(f, workspaceId);
+      await processFile(f, workspaceId, workflowRunId);
     }
   };
 

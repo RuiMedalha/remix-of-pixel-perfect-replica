@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useWooCategories, useWooAttributes, useWooImport, type WooImportFilters } from "@/hooks/useWooImport";
+import { useActiveWorkflowRun } from "@/hooks/useActiveWorkflowRun";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,10 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTriangle } from "lucide-react";
 import { WooSiteSelector } from "@/components/WooSiteSelector";
+import { WorkflowRunSelector } from "@/components/WorkflowRunSelector";
 import { useWooSites } from "@/hooks/useWooSites";
 
 const WooImportPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
+  const { activeRunId } = useActiveWorkflowRun();
   const { data: categories, isLoading: loadingCats } = useWooCategories(!!activeWorkspace);
   const { data: attributes, isLoading: loadingAttrs } = useWooAttributes(!!activeWorkspace);
   const { importProducts, isImporting, result } = useWooImport();
@@ -63,7 +66,7 @@ const WooImportPage = () => {
       finalFilters.attribute_term = selectedTerm;
     }
 
-    await importProducts(activeWorkspace.id, finalFilters);
+    await importProducts(activeWorkspace.id, finalFilters, activeRunId ?? undefined);
   };
 
   // Build hierarchical category tree
@@ -113,6 +116,9 @@ const WooImportPage = () => {
         </div>
         <WooSiteSelector setGlobal />
       </div>
+
+      {/* Session selector */}
+      <WorkflowRunSelector />
 
       {/* Filters Card */}
       <Card>
@@ -282,8 +288,9 @@ const WooImportPage = () => {
                 </Button>
                 <Button
                   onClick={handleImport}
-                  disabled={isImporting || !activeWorkspace}
+                  disabled={isImporting || !activeWorkspace || !activeRunId}
                   size="lg"
+                  title={!activeRunId ? "Selecione uma Sessão de Trabalho para importar" : undefined}
                 >
                   {isImporting ? (
                     <>
