@@ -190,9 +190,9 @@ const WooImportPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {hasBrands && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium">Marca</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Marca</Label>
+                  {hasBrands ? (
                     <Select value={selectedBrand || "all"} onValueChange={(v) => setSelectedBrand(v === "all" ? "" : v)}>
                       <SelectTrigger><SelectValue placeholder="Todas as marcas" /></SelectTrigger>
                       <SelectContent>
@@ -204,8 +204,17 @@ const WooImportPage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                )}
+                  ) : (
+                    <Select disabled value="all">
+                      <SelectTrigger className="text-muted-foreground">
+                        <SelectValue placeholder="Sem marcas disponíveis" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Sem marcas disponíveis</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Stock</Label>
                   <Select value={filters.stock_status || "all"} onValueChange={(v) => setFilters(f => ({ ...f, stock_status: v }))}>
@@ -331,6 +340,12 @@ const WooImportPage = () => {
                     ({result.total} encontrados no WooCommerce)
                   </div>
                 </div>
+                {result.total >= 100 && result.total === result.imported + result.skipped && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    O WooCommerce pode limitar os resultados por página. Se faltarem produtos, tente filtrar por categoria ou marca para importações mais completas.
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
