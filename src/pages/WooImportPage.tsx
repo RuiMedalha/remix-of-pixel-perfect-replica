@@ -12,6 +12,8 @@ import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTri
 import { WooSiteSelector } from "@/components/WooSiteSelector";
 import { WorkflowRunSelector } from "@/components/WorkflowRunSelector";
 import { useWooSites } from "@/hooks/useWooSites";
+import { SessionBadge } from "@/components/SessionBadge";
+import { SessionRequiredDialog } from "@/components/SessionRequiredDialog";
 
 const WooImportPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
@@ -24,6 +26,7 @@ const WooImportPage = () => {
   const [selectedAttribute, setSelectedAttribute] = useState<string>("");
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedBrand, setSelectedBrand] = useState<string>("");
+  const [sessionGuardOpen, setSessionGuardOpen] = useState(false);
 
   const isLoading = loadingCats || loadingAttrs;
 
@@ -48,6 +51,10 @@ const WooImportPage = () => {
 
   const handleImport = async () => {
     if (!activeWorkspace) return;
+    if (!activeRunId) {
+      setSessionGuardOpen(true);
+      return;
+    }
 
     const finalFilters: WooImportFilters = { ...filters };
     
@@ -109,6 +116,7 @@ const WooImportPage = () => {
           <h1 className="text-lg sm:text-2xl font-bold text-foreground flex items-center gap-2">
             <ShoppingCart className="w-6 h-6" />
             Importar do WooCommerce
+            <SessionBadge />
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Descarregue produtos da sua loja WooCommerce para otimizar e reimportar.
@@ -358,6 +366,7 @@ const WooImportPage = () => {
           </CardContent>
         </Card>
       )}
+      <SessionRequiredDialog open={sessionGuardOpen} onOpenChange={setSessionGuardOpen} />
     </div>
   );
 };
