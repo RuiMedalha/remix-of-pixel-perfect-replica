@@ -26,10 +26,14 @@ export async function invokeEdgeFunction<T = unknown>(
         const body = typeof ctx.json === "function" ? await ctx.json() : ctx;
         const detail = body?.error ?? body?.message ?? body;
         if (detail && typeof detail === "string") {
-          throw new Error(detail, { cause: error });
+          const err = new Error(detail);
+          (err as any).cause = error;
+          throw err;
         }
         if (detail && typeof detail === "object") {
-          throw new Error(JSON.stringify(detail), { cause: error });
+          const err = new Error(JSON.stringify(detail));
+          (err as any).cause = error;
+          throw err;
         }
       } catch (parseErr) {
         // Se a extracção falhar e for o erro que relançámos, propaga-o.

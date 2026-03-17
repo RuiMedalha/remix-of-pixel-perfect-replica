@@ -17,7 +17,7 @@ export function useRunDemandPipeline() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ workspaceId }: { workspaceId: string }) => {
-      const invoke = (fn: string) => invokeEdgeFunction(fn, { body: { workspaceId } });
+      const invoke = (fn: string) => invokeEdgeFunction<Record<string, any>>(fn, { body: { workspaceId } });
       await invoke("collect-demand-data");
       const r2 = await invoke("generate-demand-signals");
       const r3 = await invoke("detect-keyword-opportunities");
