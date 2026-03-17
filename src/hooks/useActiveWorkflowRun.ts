@@ -1,29 +1,46 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const LS_KEY = "active_workflow_run_id";
+export function useActiveWorkflowRun(workspaceId?: string) {
+  const lsKey = workspaceId ? `active_workflow_run_id_${workspaceId}` : null;
 
-export function useActiveWorkflowRun() {
   const [activeRunId, setActiveRunIdState] = useState<string | null>(() =>
-    localStorage.getItem(LS_KEY)
+    lsKey ? localStorage.getItem(lsKey) : null
   );
 
-  const setActiveRun = useCallback((runId: string) => {
-    localStorage.setItem(LS_KEY, runId);
-    setActiveRunIdState(runId);
-  }, []);
+  // Reset on real workspace change — never on first render
+  const prevWorkspaceId = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (
+      prevWorkspaceId.current !== undefined &&
+      prevWorkspaceId.current !== workspaceId
+    ) {
+      setActiveRunIdState(null);
+    }
+    prevWorkspaceId.current = workspaceId;
+  }, [workspaceId]);
+
+  const setActiveRun = useCallback(
+    (runId: string) => {
+      if (!lsKey) return;
+      localStorage.setItem(lsKey, runId);
+      setActiveRunIdState(runId);
+    },
+    [lsKey]
+  );
 
   const clearActiveRun = useCallback(() => {
-    localStorage.removeItem(LS_KEY);
+    if (!lsKey) return;
+    localStorage.removeItem(lsKey);
     setActiveRunIdState(null);
-  }, []);
+  }, [lsKey]);
 
   const createNewSession = useCallback(
-    async (name: string, workspaceId: string): Promise<string> => {
+    async (name: string, wsId: string): Promise<string> => {
       const { data: workflow, error: wfErr } = await supabase
         .from("catalog_workflows")
         .insert({
-          workspace_id: workspaceId,
+          workspace_id: wsId,
           workflow_name: name,
           workflow_type: "supplier_import",
         } as any)
@@ -34,7 +51,7 @@ export function useActiveWorkflowRun() {
       const { data: run, error: runErr } = await supabase
         .from("catalog_workflow_runs")
         .insert({
-          workspace_id: workspaceId,
+          workspace_id: wsId,
           workflow_id: workflow.id,
           trigger_source: "manual",
           status: "running",
