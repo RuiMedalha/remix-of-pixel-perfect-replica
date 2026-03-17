@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useActiveWorkflowRun } from "@/hooks/useActiveWorkflowRun";
 import { WorkflowRunSelector } from "@/components/WorkflowRunSelector";
+import { SessionBadge } from "@/components/SessionBadge";
 
 const UPDATE_FIELD_OPTIONS = [
   { key: "price", label: "Preço Original", group: "Preços" },
