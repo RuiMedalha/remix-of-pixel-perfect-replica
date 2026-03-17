@@ -116,6 +116,7 @@ const WooImportPage = () => {
           <h1 className="text-lg sm:text-2xl font-bold text-foreground flex items-center gap-2">
             <ShoppingCart className="w-6 h-6" />
             Importar do WooCommerce
+            <SessionBadge />
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Descarregue produtos da sua loja WooCommerce para otimizar e reimportar.
