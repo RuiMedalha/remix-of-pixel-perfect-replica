@@ -51,6 +51,10 @@ const WooImportPage = () => {
 
   const handleImport = async () => {
     if (!activeWorkspace) return;
+    if (!activeRunId) {
+      setSessionGuardOpen(true);
+      return;
+    }
 
     const finalFilters: WooImportFilters = { ...filters };
     
