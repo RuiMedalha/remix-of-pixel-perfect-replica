@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useActiveWorkflowRun } from "@/hooks/useActiveWorkflowRun";
-import { WorkflowRunSelector } from "@/components/WorkflowRunSelector";
+
 import { SessionBadge } from "@/components/SessionBadge";
 
 const UPDATE_FIELD_OPTIONS = [
@@ -213,8 +213,6 @@ const UploadPage = () => {
         Carregue catálogos de produtos, ficheiros de conhecimento, ou extraia dados de sites de fornecedores.
       </p>
 
-      {/* Session selector */}
-      <WorkflowRunSelector />
 
       {/* File type tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FileUploadType)}>

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTriangle } from "lucide-react";
 import { WooSiteSelector } from "@/components/WooSiteSelector";
-import { WorkflowRunSelector } from "@/components/WorkflowRunSelector";
+
 import { useWooSites } from "@/hooks/useWooSites";
 import { SessionBadge } from "@/components/SessionBadge";
 import { SessionRequiredDialog } from "@/components/SessionRequiredDialog";
@@ -125,8 +125,6 @@ const WooImportPage = () => {
         <WooSiteSelector setGlobal />
       </div>
 
-      {/* Session selector */}
-      <WorkflowRunSelector />
 
       {/* Filters Card */}
       <Card>
