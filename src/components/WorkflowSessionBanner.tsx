@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveWorkflowRun } from "@/hooks/useActiveWorkflowRun";
@@ -5,10 +6,25 @@ import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { WorkflowRunSelector } from "@/components/WorkflowRunSelector";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, FolderOpen } from "lucide-react";
+import { toast } from "sonner";
 
 export function WorkflowSessionBanner() {
   const { activeWorkspace } = useWorkspaceContext();
   const { activeRunId } = useActiveWorkflowRun(activeWorkspace?.id);
+
+  // Notify user when workspace changes so they know the session was cleared
+  const prevWorkspaceId = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (
+      prevWorkspaceId.current !== undefined &&
+      prevWorkspaceId.current !== activeWorkspace?.id
+    ) {
+      toast.info("Workspace alterado — sessão anterior limpa. Selecione ou crie uma nova sessão.", {
+        duration: 5000,
+      });
+    }
+    prevWorkspaceId.current = activeWorkspace?.id;
+  }, [activeWorkspace?.id]);
 
   const { data: activeRun } = useQuery({
     queryKey: ["workflow-run-detail", activeRunId],

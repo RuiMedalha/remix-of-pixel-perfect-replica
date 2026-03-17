@@ -294,9 +294,8 @@ const WooImportPage = () => {
                 </Button>
                 <Button
                   onClick={handleImport}
-                  disabled={isImporting || !activeWorkspace || !activeRunId}
+                  disabled={isImporting || !activeWorkspace}
                   size="lg"
-                  title={!activeRunId ? "Selecione uma Sessão de Trabalho para importar" : undefined}
                 >
                   {isImporting ? (
                     <>
@@ -364,7 +363,7 @@ const WooImportPage = () => {
           </CardContent>
         </Card>
       )}
-      <SessionRequiredDialog open={sessionGuardOpen} onOpenChange={setSessionGuardOpen} />
+      <SessionRequiredDialog open={sessionGuardOpen} onOpenChange={setSessionGuardOpen} workspaceId={activeWorkspace?.id} />
     </div>
   );
 };

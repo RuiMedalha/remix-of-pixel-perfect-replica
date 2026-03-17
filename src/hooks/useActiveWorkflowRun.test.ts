@@ -105,3 +105,61 @@ describe("useActiveWorkflowRun", () => {
     expect(result.current.activeRunId).toBeNull();
   });
 });
+
+describe("cross-instance sync via custom event", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("setActiveRun numa instância actualiza outra instância com o mesmo workspaceId", async () => {
+    const workspaceId = "ws-sync-test";
+    const { result: r1 } = renderHook(() => useActiveWorkflowRun(workspaceId));
+    const { result: r2 } = renderHook(() => useActiveWorkflowRun(workspaceId));
+
+    await act(async () => {
+      r1.current.setActiveRun("run-abc");
+    });
+
+    expect(r2.current.activeRunId).toBe("run-abc");
+  });
+
+  it("clearActiveRun numa instância actualiza outra instância", async () => {
+    const workspaceId = "ws-sync-clear";
+    localStorage.setItem(`active_workflow_run_id_${workspaceId}`, "run-xyz");
+
+    const { result: r1 } = renderHook(() => useActiveWorkflowRun(workspaceId));
+    const { result: r2 } = renderHook(() => useActiveWorkflowRun(workspaceId));
+
+    await act(async () => {
+      r1.current.clearActiveRun();
+    });
+
+    expect(r2.current.activeRunId).toBeNull();
+  });
+
+  it("evento de workspace diferente não actualiza instância (isolamento por workspaceId)", async () => {
+    localStorage.setItem("active_workflow_run_id_ws-A", "run-A");
+    const { result: rA } = renderHook(() => useActiveWorkflowRun("ws-A"));
+    const { result: rB } = renderHook(() => useActiveWorkflowRun("ws-B"));
+
+    await act(async () => {
+      rA.current.setActiveRun("run-A-new");
+    });
+
+    expect(rB.current.activeRunId).toBeNull();
+  });
+
+  it("listener é removido ao unmount (sem memory leak)", () => {
+    const addSpy = vi.spyOn(window, "addEventListener");
+    const removeSpy = vi.spyOn(window, "removeEventListener");
+
+    const { unmount } = renderHook(() => useActiveWorkflowRun("ws-leak"));
+    unmount();
+
+    expect(addSpy).toHaveBeenCalledWith("woo-active-run-changed", expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith("woo-active-run-changed", expect.any(Function));
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+});
