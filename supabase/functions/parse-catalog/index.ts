@@ -40,7 +40,7 @@ serve(async (req) => {
     const userId = user.id;
 
     const body = await req.json();
-    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields } = body;
+    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId } = body;
 
     // ─── Batch continuation mode (for large inserts) ───
     if (_batch) {
@@ -65,7 +65,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const promise = processKnowledge(supabase, userId, filePath, fileName, workspaceId, fileId);
+      const promise = processKnowledge(supabase, userId, filePath, fileName, workspaceId, fileId, workflowRunId);
       (globalThis as any).EdgeRuntime?.waitUntil?.(promise.catch((e: any) => console.error("Knowledge bg error:", e)));
       return new Response(
         JSON.stringify({ extractedText: "", count: 0, background: true }),
@@ -76,7 +76,7 @@ serve(async (req) => {
     // ─── Product parsing with pre-parsed rows from frontend ───
     if (parsedRows && Array.isArray(parsedRows)) {
       // Frontend already parsed the Excel — just insert into DB
-      const result = await insertProducts(parsedRows, columnMapping, userId, workspaceId, fileName, updateMode, updateFields);
+      const result = await insertProducts(parsedRows, columnMapping, userId, workspaceId, fileName, updateMode, updateFields, workflowRunId);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -87,7 +87,7 @@ serve(async (req) => {
       const ext = fileName.toLowerCase().split(".").pop();
       if (ext === "pdf") {
         // PDF: process in background
-        const promise = processPdfInBackground(supabase, userId, filePath, fileName, workspaceId);
+        const promise = processPdfInBackground(supabase, userId, filePath, fileName, workspaceId, workflowRunId);
         (globalThis as any).EdgeRuntime?.waitUntil?.(promise.catch((e: any) => console.error("PDF bg error:", e)));
         return new Response(
           JSON.stringify({ background: true, message: "PDF em processamento" }),
@@ -117,7 +117,8 @@ async function insertProducts(
   workspaceId: string | undefined,
   fileName: string,
   updateMode?: boolean,
-  updateFields?: string[]
+  updateFields?: string[],
+  workflowRunId?: string
 ) {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -232,6 +233,7 @@ async function insertProducts(
         productData.workspace_id = workspaceId || null;
         productData.source_file = fileName;
         productData.status = "pending";
+        productData.workflow_run_id = workflowRunId || null;
         if (!productData.sku) productData.sku = toStr(p.sku, 100);
         if (!productData.product_type) productData.product_type = "simple";
         if (!productData.original_title) productData.original_title = toStr(p.title, 500);
@@ -547,30 +549,30 @@ function buildMergedProductData(
 }
 
 
-async function processPdfInBackground(supabase: any, userId: string, filePath: string, fileName: string, workspaceId?: string) {
+async function processPdfInBackground(supabase: any, userId: string, filePath: string, fileName: string, workspaceId?: string, workflowRunId?: string) {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   const { data: fileData, error: downloadError } = await adminDb.storage.from("catalogs").download(filePath);
   if (downloadError || !fileData) {
     console.error("PDF download error:", downloadError?.message);
-    await updateParseStatus(adminDb, userId, fileName, workspaceId, { count: 0, updated: 0, total: 0, skipped: 0, errors: [downloadError?.message || "Download failed"], done: true });
+    await updateParseStatus(adminDb, userId, fileName, workspaceId, { count: 0, updated: 0, total: 0, skipped: 0, errors: [downloadError?.message || "Download failed"], done: true }, workflowRunId);
     return;
   }
 
   const products = await parsePdfWithAI(fileData, fileName);
   if (products.length === 0) {
-    await updateParseStatus(adminDb, userId, fileName, workspaceId, { count: 0, updated: 0, total: 0, skipped: 0, errors: [], done: true });
+    await updateParseStatus(adminDb, userId, fileName, workspaceId, { count: 0, updated: 0, total: 0, skipped: 0, errors: [], done: true }, workflowRunId);
     return;
   }
 
-  const result = await insertProducts(products, undefined, userId, workspaceId, fileName);
-  await updateParseStatus(adminDb, userId, fileName, workspaceId, { ...result, done: true });
+  const result = await insertProducts(products, undefined, userId, workspaceId, fileName, undefined, undefined, workflowRunId);
+  await updateParseStatus(adminDb, userId, fileName, workspaceId, { ...result, done: true }, workflowRunId);
 }
 
 // ─── Knowledge processing ───
 async function processKnowledge(
   supabase: any, userId: string, filePath: string, fileName: string,
-  workspaceId?: string, fileId?: string
+  workspaceId?: string, fileId?: string, workflowRunId?: string
 ) {
   const { data: fileData, error: downloadError } = await supabase.storage.from("catalogs").download(filePath);
   if (downloadError || !fileData) {
@@ -623,24 +625,24 @@ async function processKnowledge(
 
   const previewText = extractedText.substring(0, 50000);
   await supabase.from("uploaded_files")
-    .update({ extracted_text: previewText, status: "processed" } as any)
+    .update({ extracted_text: previewText, status: "processed", workflow_run_id: workflowRunId || null } as any)
     .eq("id", resolvedFileId);
 
   console.log(`✅ Stored ${chunkRows.length} knowledge chunks for "${fileName}"`);
 }
 
-async function updateParseStatus(supabase: any, userId: string, fileName: string, workspaceId: string | undefined, result: any) {
+async function updateParseStatus(supabase: any, userId: string, fileName: string, workspaceId: string | undefined, result: any, workflowRunId?: string) {
   const query = supabase.from("uploaded_files").select("id, metadata")
     .eq("user_id", userId).eq("file_name", fileName)
     .order("created_at", { ascending: false }).limit(1);
   if (workspaceId) query.eq("workspace_id", workspaceId);
-  
+
   const { data } = await query.maybeSingle();
   if (data) {
     const meta = (data.metadata || {}) as Record<string, unknown>;
     meta.parseResult = result;
     await supabase.from("uploaded_files")
-      .update({ metadata: meta, status: "processed", products_count: (result.count || 0) + (result.updated || 0) } as any)
+      .update({ metadata: meta, status: "processed", products_count: (result.count || 0) + (result.updated || 0), workflow_run_id: workflowRunId || null } as any)
       .eq("id", data.id);
   }
 }

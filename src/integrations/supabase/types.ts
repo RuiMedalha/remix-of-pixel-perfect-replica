@@ -6787,6 +6787,7 @@ export type Database = {
           updated_at: string
           updated_rows: number
           user_id: string | null
+          workflow_run_id: string | null
           workspace_id: string
         }
         Insert: {
@@ -6814,6 +6815,7 @@ export type Database = {
           updated_at?: string
           updated_rows?: number
           user_id?: string | null
+          workflow_run_id?: string | null
           workspace_id: string
         }
         Update: {
@@ -6841,6 +6843,7 @@ export type Database = {
           updated_at?: string
           updated_rows?: number
           user_id?: string | null
+          workflow_run_id?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -9314,6 +9317,7 @@ export type Database = {
           woocommerce_id: number | null
           workflow_changed_at: string | null
           workflow_changed_by: string | null
+          workflow_run_id: string | null
           workflow_state: Database["public"]["Enums"]["product_workflow"] | null
           workspace_id: string | null
         }
@@ -9366,6 +9370,7 @@ export type Database = {
           woocommerce_id?: number | null
           workflow_changed_at?: string | null
           workflow_changed_by?: string | null
+          workflow_run_id?: string | null
           workflow_state?:
             | Database["public"]["Enums"]["product_workflow"]
             | null
@@ -9420,6 +9425,7 @@ export type Database = {
           woocommerce_id?: number | null
           workflow_changed_at?: string | null
           workflow_changed_by?: string | null
+          workflow_run_id?: string | null
           workflow_state?:
             | Database["public"]["Enums"]["product_workflow"]
             | null
@@ -12540,6 +12546,7 @@ export type Database = {
           storage_path: string | null
           supplier_id: string | null
           user_id: string
+          workflow_run_id: string | null
           workspace_id: string | null
         }
         Insert: {
@@ -12563,6 +12570,7 @@ export type Database = {
           storage_path?: string | null
           supplier_id?: string | null
           user_id: string
+          workflow_run_id?: string | null
           workspace_id?: string | null
         }
         Update: {
@@ -12586,6 +12594,7 @@ export type Database = {
           storage_path?: string | null
           supplier_id?: string | null
           user_id?: string
+          workflow_run_id?: string | null
           workspace_id?: string | null
         }
         Relationships: [
