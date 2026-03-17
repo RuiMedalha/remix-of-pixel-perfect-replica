@@ -12,6 +12,8 @@ import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTri
 import { WooSiteSelector } from "@/components/WooSiteSelector";
 import { WorkflowRunSelector } from "@/components/WorkflowRunSelector";
 import { useWooSites } from "@/hooks/useWooSites";
+import { SessionBadge } from "@/components/SessionBadge";
+import { SessionRequiredDialog } from "@/components/SessionRequiredDialog";
 
 const WooImportPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
