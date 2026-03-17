@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { toast } from "sonner";
 import type { OptimizationField } from "@/hooks/useOptimizeProducts";
 import { logger } from "@/lib/logger";
@@ -96,14 +97,13 @@ export function useOptimizationJob() {
 
       wakeupInFlightRef.current = true;
       try {
-        const { error } = await supabase.functions.invoke("optimize-batch", {
+        await invokeEdgeFunction("optimize-batch", {
           body: {
             jobId: activeJob.id,
             startIndex: activeJob.processed_products,
           },
         });
 
-        if (error) throw error;
         toast.info("Job retomado automaticamente em background.");
       } catch (err: any) {
         logger.warn("Wakeup falhou (vai tentar novamente):", { message: err?.message || err });

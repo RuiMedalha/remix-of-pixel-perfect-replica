@@ -111,13 +111,12 @@ export function usePublishJob() {
 
       wakeupInFlightRef.current = true;
       try {
-        const { error } = await supabase.functions.invoke("publish-woocommerce", {
+        await invokeEdgeFunction("publish-woocommerce", {
           body: {
             jobId: activePublishJob.id,
             startIndex: activePublishJob.processed_products,
           },
         });
-        if (error) throw error;
         toast.info("Publicação retomada automaticamente.");
       } catch (err: any) {
         logger.warn("Wakeup publish falhou:", { message: err?.message || err });
