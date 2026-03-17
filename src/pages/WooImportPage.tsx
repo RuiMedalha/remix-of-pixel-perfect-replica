@@ -340,6 +340,12 @@ const WooImportPage = () => {
                     ({result.total} encontrados no WooCommerce)
                   </div>
                 </div>
+                {result.total >= 100 && result.total === result.imported + result.skipped && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    O WooCommerce pode limitar os resultados por página. Se faltarem produtos, tente filtrar por categoria ou marca para importações mais completas.
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
