@@ -213,8 +213,6 @@ const UploadPage = () => {
         Carregue catálogos de produtos, ficheiros de conhecimento, ou extraia dados de sites de fornecedores.
       </p>
 
-      {/* Session selector */}
-      <WorkflowRunSelector />
 
       {/* File type tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FileUploadType)}>

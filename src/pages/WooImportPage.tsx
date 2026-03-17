@@ -125,8 +125,6 @@ const WooImportPage = () => {
         <WooSiteSelector setGlobal />
       </div>
 
-      {/* Session selector */}
-      <WorkflowRunSelector />
 
       {/* Filters Card */}
       <Card>

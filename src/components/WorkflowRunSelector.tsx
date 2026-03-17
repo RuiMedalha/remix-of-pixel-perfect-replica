@@ -25,7 +25,7 @@ export function WorkflowRunSelector() {
     queryFn: async () => {
       const { data } = await supabase
         .from("catalog_workflow_runs")
-        .select("id, created_at, catalog_workflows(workflow_name)")
+        .select("id, status, created_at, catalog_workflows(workflow_name)")
         .eq("id", activeRunId!)
         .single();
       return data;
