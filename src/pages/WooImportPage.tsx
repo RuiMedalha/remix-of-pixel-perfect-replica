@@ -190,9 +190,9 @@ const WooImportPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {hasBrands && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium">Marca</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Marca</Label>
+                  {hasBrands ? (
                     <Select value={selectedBrand || "all"} onValueChange={(v) => setSelectedBrand(v === "all" ? "" : v)}>
                       <SelectTrigger><SelectValue placeholder="Todas as marcas" /></SelectTrigger>
                       <SelectContent>
@@ -204,8 +204,17 @@ const WooImportPage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                )}
+                  ) : (
+                    <Select disabled value="all">
+                      <SelectTrigger className="text-muted-foreground">
+                        <SelectValue placeholder="Sem marcas disponíveis" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Sem marcas disponíveis</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Stock</Label>
                   <Select value={filters.stock_status || "all"} onValueChange={(v) => setFilters(f => ({ ...f, stock_status: v }))}>
