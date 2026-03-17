@@ -1,11 +1,25 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
+import { WorkflowSessionBanner } from "./WorkflowSessionBanner";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const SESSION_ROUTES = [
+  "/woo-import",
+  "/upload",
+  "/products",
+  "/images",
+  "/variations",
+  "/review-queue",
+  "/ingestion",
+  "/pdf-extraction",
+];
+
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  const showBanner = SESSION_ROUTES.some((r) => location.pathname.startsWith(r));
 
   return (
     <div className="flex min-h-screen">
@@ -17,7 +31,7 @@ export function AppLayout() {
         />
       )}
 
-      {/* Sidebar - hidden on mobile unless open */}
+      {/* Sidebar */}
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto transition-transform duration-300",
@@ -44,6 +58,10 @@ export function AppLayout() {
             <span className="font-semibold text-sm">Hotelequip</span>
           </div>
         </div>
+
+        {/* Session banner on data pages */}
+        {showBanner && <WorkflowSessionBanner />}
+
         <Outlet />
       </main>
     </div>
