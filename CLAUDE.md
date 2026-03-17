@@ -1,61 +1,194 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file defines how Claude MUST work in this repository.
 
-## Project Overview
+---
 
-**Hotelequip Product Optimizer** — an AI-powered WooCommerce product management platform. Key capabilities: product ingestion from PDFs/websites/scrapers, AI-driven enrichment and optimization, and multi-channel publishing.
+# 🚨 MANDATORY WORKFLOW (Superpowers)
 
-## Commands
+Claude must ALWAYS follow this process:
 
-```bash
-npm run dev          # Dev server on port 8080
-npm run build        # Production build
-npm run lint         # ESLint check
-npm run test         # Run tests once (Vitest)
-npm run test:watch   # Tests in watch mode
-```
+## 1. Before coding
 
-Test files live at `src/**/*.{test,spec}.{ts,tsx}`. Run a single test file: `npx vitest run src/path/to/file.test.ts`.
+* Inspect current codebase
+* Identify relevant files
+* Understand existing logic (no assumptions)
+* Use brainstorming or write a plan
 
-## Architecture
+## 2. Planning (REQUIRED)
 
-**Stack:** React 18 + TypeScript + Vite, Supabase (PostgreSQL + Auth), TanStack React Query, React Router v6, shadcn/ui + Tailwind CSS.
+* Explain what will change
+* List files to modify
+* Describe system impact
+* Identify risks
 
-**Layer pattern:**
-- `src/pages/` — Feature pages (50+), mostly composed from components and hooks
-- `src/components/` — UI components; `src/components/ui/` holds shadcn/ui primitives
-- `src/hooks/` — All business logic and data fetching (85+ hooks using React Query)
-- `src/lib/` — Pure utility functions (scoring, field mappings, scraper analysis)
-- `src/integrations/supabase/` — Supabase client + auto-generated DB types (types.ts is large, 528KB)
+## 3. Execution
 
-**State management:** React Query for server state, React Context for auth (`useAuth`) and workspace (`useWorkspaces`). No Redux/Zustand.
+* Use controlled, minimal changes
+* DO NOT rewrite entire files unless necessary
+* Respect existing architecture and patterns
 
-**Key subsystems:**
-- `src/components/document-intelligence/` — PDF extraction, data preview, column mapping
-- `src/components/playbook-engine/` — Automated ingestion workflows and corrections
-- `src/components/scraper/` — Website data extraction (visual + manual)
-- `src/components/supplier/` — Supplier intelligence
-- `src/components/prompt-governance/` — AI prompt management and cost tracking
-- `src/config/navigation.ts` — All sidebar navigation (10 menu groups)
+## 4. Validation (REQUIRED)
 
-**Multi-tenancy:** Workspace-scoped data — always consider active workspace context when querying or mutating data.
+* Validate logic
+* Check edge cases
+* Ensure no regressions
+* Confirm compatibility with existing flows
 
-## Environment Variables
+---
 
-Required in `.env`:
+# ❌ STRICT RULES
+
+* Do NOT modify files outside scope
+* Do NOT simplify logic without analysis
+* Do NOT assume behavior without checking code
+* Do NOT introduce breaking changes silently
+* Do NOT refactor unrelated code
+
+---
+
+# 🧠 PROJECT CONTEXT
+
+**Hotelequip Product Optimizer** — AI-powered WooCommerce product management platform.
+
+Core capabilities:
+
+* Product ingestion (WooCommerce, PDF, scraping)
+* AI enrichment and optimization
+* Multi-channel publishing
+* Workflow automation
+
+---
+
+# 🏗 ARCHITECTURE
+
+Stack:
+
+* React 18 + TypeScript + Vite
+* Supabase (PostgreSQL + Auth)
+* React Query
+* React Router v6
+* Tailwind + shadcn/ui
+
+Structure:
+
+* `src/pages/` — feature pages
+* `src/components/` — UI components
+* `src/components/ui/` — shadcn primitives
+* `src/hooks/` — business logic (React Query)
+* `src/lib/` — pure utilities
+* `src/integrations/supabase/` — DB types + client
+
+---
+
+# 🔑 KEY SYSTEMS
+
+* document-intelligence → PDF extraction
+* playbook-engine → ingestion workflows
+* scraper → website extraction
+* supplier → supplier intelligence
+* prompt-governance → AI prompts + cost tracking
+
+---
+
+# ⚙️ MULTI-TENANCY
+
+* All data is workspace-scoped
+* Always consider active workspace context
+* Never query or mutate data without workspace awareness
+
+---
+
+# 🔌 ENVIRONMENT
+
 ```
 VITE_SUPABASE_URL=
 VITE_SUPABASE_PROJECT_ID=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-All client-side env vars use the `VITE_` prefix and are accessed via `import.meta.env`.
+---
 
-## Key Conventions
+# 🧩 DOMAIN RULES (IMPORTANT)
 
-- `cn()` from `src/lib/utils.ts` is used everywhere for conditional Tailwind class merging
-- WooCommerce field mappings live in `src/lib/wooPublishFields.ts`
-- SEO scoring logic in `src/lib/seoScore.ts`
-- Theme stored in localStorage as `he-theme`, defaults to `"light"`
-- PWA app name: "Hotelequip Product Optimizer" (configured in `vite.config.ts`)
+## WooCommerce integration
+
+* Always preserve `woocommerce_id`
+* Use SKU only as fallback
+* Never break deduplication logic
+
+## Product ingestion
+
+* Must preserve:
+
+  * attributes
+  * categories (hierarchical)
+  * SEO data
+  * meta_data
+
+## Data integrity
+
+* Never overwrite existing valid data blindly
+* Always use safe merge strategies
+
+---
+
+# 🔄 GIT + LOVABLE WORKFLOW (CRITICAL)
+
+## If changes come from Lovable:
+
+```bash
+git checkout main
+git pull origin main
+```
+
+## If changes are made locally (Claude):
+
+```bash
+git status
+git diff --stat
+git add .
+git commit -m "..."
+git pull --rebase origin main
+git push origin main
+```
+
+* Always rebase before push
+* Never force push to main
+* Avoid merge commits
+
+---
+
+# 🧪 TESTING
+
+```bash
+npm run test
+npm run test:watch
+```
+
+Single test:
+
+```bash
+npx vitest run src/path/to/file.test.ts
+```
+
+---
+
+# 🎯 DEVELOPMENT STYLE
+
+* Small, iterative changes
+* Clear reasoning
+* Explicit decisions
+* Production-ready mindset
+
+---
+
+# 🧠 FINAL RULE
+
+Claude is acting as a **senior engineer**, not a code generator.
+
+Every change must be:
+
+* intentional
+* scoped
+* validated
