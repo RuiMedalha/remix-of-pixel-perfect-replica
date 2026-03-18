@@ -14,6 +14,7 @@ import { WooSiteSelector } from "@/components/WooSiteSelector";
 import { useWooSites } from "@/hooks/useWooSites";
 import { SessionBadge } from "@/components/SessionBadge";
 import { SessionRequiredDialog } from "@/components/SessionRequiredDialog";
+import { ImportHistoryPanel } from "@/components/ImportHistoryPanel";
 
 const WooImportPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
@@ -363,6 +364,7 @@ const WooImportPage = () => {
           </CardContent>
         </Card>
       )}
+      <ImportHistoryPanel />
       <SessionRequiredDialog open={sessionGuardOpen} onOpenChange={setSessionGuardOpen} workspaceId={activeWorkspace?.id} />
     </div>
   );
