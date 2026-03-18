@@ -625,6 +625,8 @@ Deno.serve(async (req) => {
           variations: variationsInserted,
           skipped,
           filters,
+          workflow_run_id: workflowRunId || null,
+          imported_at: new Date().toISOString(),
         },
       });
 
