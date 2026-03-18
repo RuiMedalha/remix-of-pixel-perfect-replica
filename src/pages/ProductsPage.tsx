@@ -2064,27 +2064,31 @@ const ProductsPage = () => {
             <Button variant="outline" size="sm" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
             <Button size="sm" onClick={async () => {
               const prefix = exportSkuPrefix.trim() || undefined;
-              if (exportTarget === "selected" && !allPagesSelected) {
-                // If selection spans multiple pages, fetch all selected from DB
-                const selectedIds = Array.from(selected);
-                if (selectedIds.length <= PAGE_SIZE && selectedIds.every(id => products.some(p => p.id === id))) {
-                  const prods = products.filter(p => selected.has(p.id));
-                  exportProductsToExcel(prods, "produtos-selecionados", prefix);
+              try {
+                if (exportTarget === "selected" && !allPagesSelected) {
+                  // If selection spans multiple pages, fetch all selected from DB
+                  const selectedIds = Array.from(selected);
+                  if (selectedIds.length <= PAGE_SIZE && selectedIds.every(id => products.some(p => p.id === id))) {
+                    const prods = products.filter(p => selected.has(p.id));
+                    await exportProductsToExcel(prods, "produtos-selecionados", prefix);
+                  } else {
+                    await exportAllProductsToExcel(activeWorkspace?.id || "", {
+                      fileName: "produtos-selecionados",
+                      skuPrefix: prefix,
+                      statusFilter,
+                    });
+                  }
+                  setSelected(new Set());
                 } else {
+                  // Fetch ALL products from DB, not just current page
                   await exportAllProductsToExcel(activeWorkspace?.id || "", {
-                    fileName: "produtos-selecionados",
+                    fileName: "produtos-todos",
                     skuPrefix: prefix,
                     statusFilter,
                   });
                 }
-                setSelected(new Set());
-              } else {
-                // Fetch ALL products from DB, not just current page
-                await exportAllProductsToExcel(activeWorkspace?.id || "", {
-                  fileName: "produtos-todos",
-                  skuPrefix: prefix,
-                  statusFilter,
-                });
+              } catch (e: any) {
+                toast.error(e?.message ?? "Erro ao exportar produtos");
               }
               setShowExportDialog(false);
             }}>
