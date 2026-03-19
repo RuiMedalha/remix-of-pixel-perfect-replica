@@ -400,7 +400,7 @@ Deno.serve(async (req) => {
 
     // ── ACTION: Import products ──────────────────────────────────────────────
     if (action === "import") {
-      const { workspaceId, filters = {}, workflowRunId } = body;
+      const { workspaceId, filters = {}, workflowRunId, categoryMapping } = body;
 
       if (!workspaceId) {
         return new Response(JSON.stringify({ error: "workspaceId is required" }), {
@@ -501,13 +501,50 @@ Deno.serve(async (req) => {
         rangeFrom += 1000;
       }
 
+      // ── Build category mapping lookup: woo cat id → internal cat id ───────
+      const catMappingLookup: Map<string, string> = new Map();
+      if (categoryMapping && typeof categoryMapping === "object") {
+        for (const [wooCatId, internalCatId] of Object.entries(categoryMapping)) {
+          if (internalCatId) catMappingLookup.set(wooCatId, internalCatId as string);
+        }
+      }
+
+      // ── Load internal categories for name resolution ──────────────────────
+      const internalCatNames = new Map<string, string>();
+      if (catMappingLookup.size > 0) {
+        const catIds = [...new Set(catMappingLookup.values())];
+        for (let i = 0; i < catIds.length; i += 50) {
+          const batch = catIds.slice(i, i + 50);
+          const { data: cats } = await supabase.from("categories").select("id, name").in("id", batch);
+          for (const c of cats || []) internalCatNames.set(c.id, c.name);
+        }
+      }
+
+      /** Apply category mapping to a product row */
+      function applyCategoryMapping(product: Record<string, unknown>, wp: any): void {
+        if (catMappingLookup.size === 0) return;
+        const wooCats: Array<{ id: number }> = wp.categories || [];
+        for (const wc of wooCats) {
+          const internalId = catMappingLookup.get(String(wc.id));
+          if (internalId) {
+            product.category_id = internalId;
+            const internalName = internalCatNames.get(internalId);
+            if (internalName) product.category = internalName;
+            break; // Use the first matching mapped category
+          }
+        }
+      }
+
       // ── Build insert list + collect woo_id backfills ──────────────────────
       const userId = user.id;
       const toInsert: any[] = [];
+      const toInsertWps: any[] = []; // parallel array to track original wp for category mapping
       // parentIdMap: woo product id → db uuid (needed for variation linking)
       const parentIdMap: Record<string, string> = {};
       // Products matched by SKU that are missing woocommerce_id → backfill
       const wooIdBackfills: Array<{ id: string; woocommerce_id: number }> = [];
+      // Error tracking
+      const importErrors: Array<{ sku: string; title: string; error: string; phase: string }> = [];
 
       let skipped = 0;
 
@@ -535,7 +572,9 @@ Deno.serve(async (req) => {
 
         // New product
         const product = normalizeWooProduct(wp, userId, workspaceId, workflowRunId ?? null, catMap);
+        applyCategoryMapping(product, wp);
         toInsert.push(product);
+        toInsertWps.push(wp);
       }
 
       // ── Backfill woocommerce_id for SKU-matched products ──────────────────
@@ -552,6 +591,7 @@ Deno.serve(async (req) => {
       let inserted = 0;
       for (let i = 0; i < toInsert.length; i += 50) {
         const batch = toInsert.slice(i, i + 50);
+        const batchWps = toInsertWps.slice(i, i + 50);
         const { data: insertedData, error: insertErr } = await supabase
           .from("products")
           .insert(batch)
@@ -559,6 +599,15 @@ Deno.serve(async (req) => {
 
         if (insertErr) {
           console.error(`Insert batch error:`, insertErr);
+          // Track individual errors for this batch
+          for (const wp of batchWps) {
+            importErrors.push({
+              sku: wp.sku || String(wp.id),
+              title: wp.name || "",
+              error: insertErr.message || "Erro ao inserir",
+              phase: "insert",
+            });
+          }
           continue;
         }
 
@@ -608,6 +657,14 @@ Deno.serve(async (req) => {
             .select("id");
           if (vErr) {
             console.error(`Variation insert error for parent ${wooParentId}:`, vErr);
+            for (const vi of batch) {
+              importErrors.push({
+                sku: vi.sku || "",
+                title: vi.original_title || "",
+                error: vErr.message || "Erro ao inserir variação",
+                phase: "variation",
+              });
+            }
           } else {
             variationsInserted += vData?.length || 0;
           }
@@ -638,6 +695,7 @@ Deno.serve(async (req) => {
         variations: variationsInserted,
         skipped,
         total: allProducts.length,
+        errors: importErrors.length > 0 ? importErrors : undefined,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

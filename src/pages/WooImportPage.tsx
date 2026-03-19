@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useWooCategories, useWooAttributes, useWooImport, type WooImportFilters } from "@/hooks/useWooImport";
 import { useActiveWorkflowRun } from "@/hooks/useActiveWorkflowRun";
+import { useCategoryTree } from "@/hooks/useCategories";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTriangle } from "lucide-react";
 import { WooSiteSelector } from "@/components/WooSiteSelector";
+import { WooCategoryMapper, type CategoryMapping } from "@/components/WooCategoryMapper";
+import { WooImportErrorReport } from "@/components/WooImportErrorReport";
 
 import { useWooSites } from "@/hooks/useWooSites";
 import { SessionBadge } from "@/components/SessionBadge";
@@ -19,14 +22,16 @@ import { ImportHistoryPanel } from "@/components/ImportHistoryPanel";
 const WooImportPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
   const { activeRunId } = useActiveWorkflowRun(activeWorkspace?.id);
-  const { data: categories, isLoading: loadingCats } = useWooCategories(!!activeWorkspace);
+  const { data: wooCategories, isLoading: loadingCats } = useWooCategories(!!activeWorkspace);
   const { data: attributes, isLoading: loadingAttrs } = useWooAttributes(!!activeWorkspace);
+  const { data: internalTree, flat: internalFlat } = useCategoryTree();
   const { importProducts, isImporting, result } = useWooImport();
 
   const [filters, setFilters] = useState<WooImportFilters>({});
   const [selectedAttribute, setSelectedAttribute] = useState<string>("");
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedBrand, setSelectedBrand] = useState<string>("");
+  const [categoryMapping, setCategoryMapping] = useState<CategoryMapping>({});
   const [sessionGuardOpen, setSessionGuardOpen] = useState(false);
 
   const isLoading = loadingCats || loadingAttrs;
@@ -74,11 +79,11 @@ const WooImportPage = () => {
       finalFilters.attribute_term = selectedTerm;
     }
 
-    await importProducts(activeWorkspace.id, finalFilters, activeRunId ?? undefined);
+    await importProducts(activeWorkspace.id, finalFilters, activeRunId ?? undefined, categoryMapping);
   };
 
   // Build hierarchical category tree
-  const buildCatTree = (cats: typeof categories) => {
+  const buildCatTree = (cats: typeof wooCategories) => {
     if (!cats) return [];
     const topLevel = cats.filter(c => c.parent === 0).sort((a, b) => a.name.localeCompare(b.name));
     const getChildren = (parentId: number, depth: number): { id: number; name: string; count: number; depth: number }[] => {
@@ -98,7 +103,7 @@ const WooImportPage = () => {
     return tree;
   };
 
-  const catTree = buildCatTree(categories);
+  const catTree = buildCatTree(wooCategories);
 
   const activeFiltersCount = [
     filters.type && filters.type !== "all",
@@ -278,6 +283,19 @@ const WooImportPage = () => {
                 </div>
               )}
 
+              {/* Category Mapping */}
+              {wooCategories && wooCategories.length > 0 && internalFlat.length > 0 && (
+                <div className="border-t pt-3">
+                  <WooCategoryMapper
+                    wooCategories={wooCategories}
+                    internalCategories={internalFlat}
+                    internalTree={internalTree}
+                    mapping={categoryMapping}
+                    onChange={setCategoryMapping}
+                  />
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center justify-between pt-2 border-t">
                 <Button
@@ -288,8 +306,9 @@ const WooImportPage = () => {
                     setSelectedAttribute("");
                     setSelectedTerm("");
                     setSelectedBrand("");
+                    setCategoryMapping({});
                   }}
-                  disabled={activeFiltersCount === 0}
+                  disabled={activeFiltersCount === 0 && Object.keys(categoryMapping).length === 0}
                 >
                   Limpar filtros
                 </Button>
@@ -358,6 +377,9 @@ const WooImportPage = () => {
                     <AlertTriangle className="w-3 h-3" />
                     O WooCommerce pode limitar os resultados por página. Se faltarem produtos, tente filtrar por categoria ou marca para importações mais completas.
                   </p>
+                )}
+                {result.errors && result.errors.length > 0 && (
+                  <WooImportErrorReport errors={result.errors} />
                 )}
               </div>
             </div>

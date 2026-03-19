@@ -26,11 +26,19 @@ export interface WooImportFilters {
   attribute_term?: string;
 }
 
+export interface WooImportError {
+  sku: string;
+  title: string;
+  error: string;
+  phase: string;
+}
+
 export interface WooImportResult {
   imported: number;
   variations: number;
   skipped: number;
   total: number;
+  errors?: WooImportError[];
 }
 
 export function useWooCategories(enabled: boolean) {
@@ -68,13 +76,19 @@ export function useWooImport() {
   const [result, setResult] = useState<WooImportResult | null>(null);
   const qc = useQueryClient();
 
-  const importProducts = async (workspaceId: string, filters: WooImportFilters, workflowRunId?: string) => {
+  const importProducts = async (workspaceId: string, filters: WooImportFilters, workflowRunId?: string, categoryMapping?: Record<string, string>) => {
     setIsImporting(true);
     setResult(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("import-woocommerce", {
-        body: { action: "import", workspaceId, filters, workflowRunId: workflowRunId || undefined },
+        body: {
+          action: "import",
+          workspaceId,
+          filters,
+          workflowRunId: workflowRunId || undefined,
+          categoryMapping: categoryMapping && Object.keys(categoryMapping).length > 0 ? categoryMapping : undefined,
+        },
       });
 
       if (error) throw error;
@@ -85,6 +99,7 @@ export function useWooImport() {
         variations: data.variations,
         skipped: data.skipped,
         total: data.total,
+        errors: data.errors || undefined,
       };
 
       setResult(res);
@@ -93,7 +108,8 @@ export function useWooImport() {
 
       if (res.imported > 0) {
         const varMsg = res.variations > 0 ? ` + ${res.variations} variações` : '';
-        toast.success(`${res.imported} produtos importados do WooCommerce!${varMsg}${res.skipped > 0 ? ` (${res.skipped} duplicados ignorados)` : ''}`);
+        const errMsg = res.errors?.length ? ` (${res.errors.length} com erro)` : '';
+        toast.success(`${res.imported} produtos importados do WooCommerce!${varMsg}${res.skipped > 0 ? ` (${res.skipped} duplicados ignorados)` : ''}${errMsg}`);
       } else if (res.skipped > 0) {
         toast.info(`Todos os ${res.skipped} produtos já existem no workspace.`);
       } else {
