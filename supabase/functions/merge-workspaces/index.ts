@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 
         if (Object.keys(updates).length > 0) {
           const { error } = await supabase.from("products").update(updates).eq("id", existing.id);
-          if (error) console.warn(`Merge product ${sp.sku}:`, error.message);
+          if (error) console.warn(`Merge product ${sp.sku}:`, (error as Error).message);
         }
 
         toDelete.push(sp.id);
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
         const { error } = await supabase.from("products")
           .update({ workspace_id: targetId })
           .eq("id", sp.id);
-        if (error) console.warn(`Move product ${sp.sku}:`, error.message);
+        if (error) console.warn(`Move product ${sp.sku}:`, (error as Error).message);
         moved++;
       }
     }
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
         .from(table)
         .update({ workspace_id: targetId } as any)
         .eq("workspace_id", sourceId);
-      if (error) console.warn(`Move ${table}:`, error.message);
+      if (error) console.warn(`Move ${table}:`, (error as Error).message);
     }
 
     // 5. Delete source workspace
@@ -189,10 +189,10 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true, merged, moved, deleted: toDelete.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: error instanceof Error ? (error as Error).message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

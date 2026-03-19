@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     await supabase.from("catalog_twins").update({ updated_at: new Date().toISOString() }).eq("id", twinId);
 
     return new Response(JSON.stringify({ synced: entities.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

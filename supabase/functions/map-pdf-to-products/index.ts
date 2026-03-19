@@ -404,9 +404,9 @@ serve(async (req) => {
       JSON.stringify({ success: true, rowsMapped: structuredRows.length, preview: structuredRows.slice(0, 20) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("map-pdf-to-products error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

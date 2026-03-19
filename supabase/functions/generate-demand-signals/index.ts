@@ -23,5 +23,5 @@ Deno.serve(async (req) => {
     if (brainObs.length > 0) await supabase.from("catalog_brain_observations").insert(brainObs).catch(() => {});
 
     return new Response(JSON.stringify({ signals: Math.min(signals.length, 300) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) { return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
+  } catch (e: unknown) { return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
 });

@@ -44,7 +44,7 @@ async function sendTelegramNotification(chatId: string, message: string) {
     } else {
       console.log("📨 Telegram notification sent");
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn("Telegram notification error (non-fatal):", err);
   }
 }
@@ -75,7 +75,7 @@ async function selfInvokeWithRetry(authHeader: string, jobId: string, startIndex
       const delayMs = Math.min(1000 * 2 ** (attempt - 1), 8000);
       console.warn(`Self-invoke retry ${attempt}/${SELF_INVOKE_RETRIES} in ${delayMs}ms`);
       await sleep(delayMs);
-    } catch (err) {
+    } catch (err: unknown) {
       const delayMs = Math.min(1000 * 2 ** (attempt - 1), 8000);
       console.warn(`Self-invoke exception retry ${attempt}/${SELF_INVOKE_RETRIES} in ${delayMs}ms`, err);
       await sleep(delayMs);
@@ -430,8 +430,8 @@ serve(async (req) => {
               }
               productOk = true;
             } catch (err: any) {
-              console.error(`Product ${productId} phase ${phaseConfig.phase} error:`, err.message);
-              lastError = err.message;
+              console.error(`Product ${productId} phase ${phaseConfig.phase} error:`, (err as Error).message);
+              lastError = (err as Error).message;
               await supabase.from("optimization_job_items").insert({
                 job_id: job.id,
                 product_id: productId,
@@ -439,9 +439,9 @@ serve(async (req) => {
                 started_at: itemStartedAt,
                 completed_at: new Date().toISOString(),
                 duration_ms: Date.now() - itemStartMs,
-                error_message: err.message?.substring(0, 500),
+                error_message: (err as Error).message?.substring(0, 500),
               });
-              return { productId, status: "error", error: err.message };
+              return { productId, status: "error", error: (err as Error).message };
             }
           }
           // Write successful job item
@@ -572,7 +572,7 @@ serve(async (req) => {
     );
   } catch (err: any) {
     console.error("optimize-batch error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

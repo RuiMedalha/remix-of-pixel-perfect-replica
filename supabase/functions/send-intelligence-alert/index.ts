@@ -116,8 +116,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
-    console.error("Telegram alert error:", e.message);
-    return new Response(JSON.stringify({ error: e.message }), {
+    console.error("Telegram alert error:", (e as Error).message);
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

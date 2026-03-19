@@ -51,8 +51,8 @@ Deno.serve(async (req) => {
     await supabase.from("catalog_twin_scenarios").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", scenarioId);
 
     return new Response(JSON.stringify({ scenario_id: scenarioId, results_count: results.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
+  } catch (e: unknown) {
     await createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!).from("catalog_twin_scenarios").update({ status: "failed" }).eq("id", (await req.clone().json()).scenarioId).catch(() => {});
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

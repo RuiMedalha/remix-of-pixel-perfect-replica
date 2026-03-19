@@ -662,7 +662,7 @@ serve(async (req) => {
               _limit: 10,
             });
             return chunks || [];
-          } catch (e) {
+          } catch (e: unknown) {
             // Fallback to old search if hybrid fails
             console.warn(`Hybrid search failed for "${query.substring(0, 30)}", falling back:`, e);
             try {
@@ -1720,10 +1720,10 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("optimize-product error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      JSON.stringify({ error: e instanceof Error ? (e as Error).message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

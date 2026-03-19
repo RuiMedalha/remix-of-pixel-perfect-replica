@@ -300,8 +300,8 @@ Deno.serve(async (req) => {
 
         results.push(extracted);
         html = ''; // free memory
-      } catch (err) {
-        errors.push({ url, error: err instanceof Error ? err.message : 'Unknown error' });
+      } catch (err: unknown) {
+        errors.push({ url, error: err instanceof Error ? (err as Error).message : 'Unknown error' });
       }
     }
 
@@ -320,10 +320,10 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true, results, errors, total: urls.length, extracted: results.length, failed: errors.length, firecrawlCreditsUsed, method: useFirecrawl ? 'firecrawl' : 'native' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      JSON.stringify({ error: error instanceof Error ? (error as Error).message : 'Erro desconhecido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

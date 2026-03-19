@@ -25,5 +25,5 @@ Deno.serve(async (req) => {
     }
     if (bundles.length > 0) await supabase.from("bundle_recommendations").insert(bundles.slice(0, 50));
     return new Response(JSON.stringify({ bundles: Math.min(bundles.length, 50) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) { return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
+  } catch (e: unknown) { return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
 });

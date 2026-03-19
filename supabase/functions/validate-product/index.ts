@@ -330,7 +330,7 @@ Deno.serve(async (req) => {
     // Update product
     const validationErrors = errors.map(e => ({
       field: e.field,
-      rule: e.message,
+      rule: (e as Error).message,
       severity: e.severity,
     }));
 
@@ -408,7 +408,7 @@ Deno.serve(async (req) => {
       schema: activeSchema ? { id: activeSchema.id, name: activeSchema.name } : null,
       validationStatus,
       qualityScore,
-      errors: errors.map(e => ({ field: e.field, message: e.message, expected: e.expected, actual: e.actual })),
+      errors: errors.map(e => ({ field: e.field, message: (e as Error).message, expected: e.expected, actual: e.actual })),
       warnings: warnings.map(w => ({ field: w.field, message: w.message, expected: w.expected, actual: w.actual })),
       infos: infos.map(i => ({ field: i.field, message: i.message })),
       reviewQueued,
@@ -418,7 +418,7 @@ Deno.serve(async (req) => {
     });
   } catch (err: any) {
     console.error("validate-product error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       }
     } catch (e: any) {
       status = "error";
-      errorMessage = e.message;
+      errorMessage = (e as Error).message;
       latencyMs = Date.now() - startMs;
     }
 
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

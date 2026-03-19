@@ -388,11 +388,11 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("process-product-images error:", err);
     return new Response(
       JSON.stringify({
-        error: err instanceof Error ? err.message : "Erro interno",
+        error: err instanceof Error ? (err as Error).message : "Erro interno",
       }),
       {
         status: 400,

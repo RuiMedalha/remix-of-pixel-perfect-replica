@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
 
         results.push({ workspace: ws.name, success: true, data: pipelineRes.data });
       } catch (err: any) {
-        results.push({ workspace: ws.name, success: false, error: err.message });
+        results.push({ workspace: ws.name, success: false, error: (err as Error).message });
       }
     }
 
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

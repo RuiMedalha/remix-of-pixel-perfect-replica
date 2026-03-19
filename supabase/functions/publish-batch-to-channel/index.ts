@@ -59,11 +59,11 @@ serve(async (req) => {
 
         if (result.error) failed++;
         else processed++;
-      } catch (e) {
+      } catch (e: unknown) {
         failed++;
         await supabase.from("channel_publish_job_items").update({
           status: "failed",
-          error_message: e instanceof Error ? e.message : "Unknown error",
+          error_message: e instanceof Error ? (e as Error).message : "Unknown error",
           completed_at: new Date().toISOString(),
         }).eq("job_id", job.id).eq("product_id", pid);
       }
@@ -85,9 +85,9 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: true, job_id: job.id, processed, failed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("publish-batch error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
+    return new Response(JSON.stringify({ error: e instanceof Error ? (e as Error).message : "Unknown" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

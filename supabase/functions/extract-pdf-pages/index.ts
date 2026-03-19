@@ -280,7 +280,7 @@ Return ONLY valid JSON.`,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("extract-pdf-pages error:", e);
 
     try {
@@ -298,7 +298,7 @@ Return ONLY valid JSON.`,
       // ignore update failures in error path
     }
 
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+    return new Response(JSON.stringify({ error: e instanceof Error ? (e as Error).message : String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -343,8 +343,8 @@ async function invokeChunkExtraction(opts: {
     }
 
     return { chunk, ok: response.ok, result };
-  } catch (e) {
-    return { chunk, ok: false, result: { error: e instanceof Error ? e.message : String(e) } };
+  } catch (e: unknown) {
+    return { chunk, ok: false, result: { error: e instanceof Error ? (e as Error).message : String(e) } };
   }
 }
 

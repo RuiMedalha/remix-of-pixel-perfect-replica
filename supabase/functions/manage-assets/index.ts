@@ -175,10 +175,10 @@ Deno.serve(async (req) => {
     }
 
     throw new Error(`Ação desconhecida: ${action}`);
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("manage-assets error:", err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Erro interno" }),
+      JSON.stringify({ error: err instanceof Error ? (err as Error).message : "Erro interno" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -76,7 +76,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ run_id: run!.id, results: results.length, risk_level: riskLevel, confidence, avg_delta: avgDelta }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

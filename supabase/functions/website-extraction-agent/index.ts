@@ -465,7 +465,7 @@ Deno.serve(async (req) => {
             const classification = classifyPage(html, url);
             classifications.push({ url, ...classification, html_length: html.length });
           } catch (err: any) {
-            classifications.push({ url, type: 'error', confidence: 0, signals: {}, error: err.message });
+            classifications.push({ url, type: 'error', confidence: 0, signals: {}, error: (err as Error).message });
           }
         }
 
@@ -560,7 +560,7 @@ Deno.serve(async (req) => {
                 .eq('url', url);
             }
           } catch (err: any) {
-            extractions.push({ url, error: err.message, extracted_data: {}, field_confidence: {}, warnings: [err.message] });
+            extractions.push({ url, error: (err as Error).message, extracted_data: {}, field_confidence: {}, warnings: [(err as Error).message] });
           }
         }
 
@@ -635,7 +635,7 @@ Deno.serve(async (req) => {
     });
   } catch (error: any) {
     console.error('Website Extraction Agent error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Internal error' }), {
+    return new Response(JSON.stringify({ error: (error as Error).message || 'Internal error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

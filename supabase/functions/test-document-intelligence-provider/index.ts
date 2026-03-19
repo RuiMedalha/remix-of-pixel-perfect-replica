@@ -97,10 +97,10 @@ serve(async (req) => {
             responseTimeMs,
           }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-      } catch (e) {
+      } catch (e: unknown) {
         return new Response(JSON.stringify({
           status: "failed",
-          error: e.message,
+          error: (e as Error).message,
           provider: provider.provider_name,
           responseTimeMs: Date.now() - startTime,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -145,16 +145,16 @@ serve(async (req) => {
           responseTimeMs,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-    } catch (e) {
+    } catch (e: unknown) {
       return new Response(JSON.stringify({
         status: "failed",
-        error: e.message,
+        error: (e as Error).message,
         provider: provider.provider_name,
         responseTimeMs: Date.now() - startTime,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-  } catch (e) {
-    return new Response(JSON.stringify({ status: "failed", error: e.message }), {
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ status: "failed", error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

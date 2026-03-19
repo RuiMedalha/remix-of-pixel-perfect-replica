@@ -476,7 +476,7 @@ Deno.serve(async (req) => {
           if (catPage > 20) break;
         }
         console.log(`Loaded ${catMap.size} categories for hierarchy resolution`);
-      } catch (e) {
+      } catch (e: unknown) {
         console.warn("Could not load category tree, falling back to flat names:", e);
       }
 
@@ -646,10 +646,10 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "Invalid action" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: error instanceof Error ? (error as Error).message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
