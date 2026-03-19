@@ -401,3 +401,111 @@ verify_jwt = false
 
 [functions.import-woocommerce]
 verify_jwt = false
+
+[functions.analyze-pdf-layout]
+verify_jwt = false
+
+[functions.analyze-product-page]
+verify_jwt = false
+
+[functions.apply-supplier-corrections]
+verify_jwt = false
+
+[functions.attempt-auto-resolution]
+verify_jwt = false
+
+[functions.auto-detect-supplier]
+verify_jwt = false
+
+[functions.build-channel-payload]
+verify_jwt = false
+
+[functions.build-supplier-knowledge-graph]
+verify_jwt = false
+
+[functions.calculate-supplier-quality]
+verify_jwt = false
+
+[functions.detect-conflicts]
+verify_jwt = false
+
+[functions.detect-supplier-structure]
+verify_jwt = false
+
+[functions.detect-variations]
+verify_jwt = false
+
+[functions.enrich-products]
+verify_jwt = false
+
+[functions.evaluate-publish-approval]
+verify_jwt = false
+
+[functions.evaluate-quality-gate]
+verify_jwt = false
+
+[functions.generate-playbook-draft]
+verify_jwt = false
+
+[functions.infer-column-mapping]
+verify_jwt = false
+
+[functions.learn-supplier-patterns-v2]
+verify_jwt = false
+
+[functions.merge-workspaces]
+verify_jwt = false
+
+[functions.optimize-batch]
+verify_jwt = false
+
+[functions.optimize-product]
+verify_jwt = false
+
+[functions.parse-catalog]
+verify_jwt = false
+
+[functions.process-product-images]
+verify_jwt = false
+
+[functions.proxy-page]
+verify_jwt = false
+
+[functions.publish-woocommerce]
+verify_jwt = false
+
+[functions.rebuild-channel-payload]
+verify_jwt = false
+
+[functions.reprocess-pdf-extraction]
+verify_jwt = false
+
+[functions.resolve-conflict-case]
+verify_jwt = false
+
+[functions.run-document-intelligence]
+verify_jwt = false
+
+[functions.scrape-supplier]
+verify_jwt = false
+
+[functions.scrape-with-selectors]
+verify_jwt = false
+
+[functions.submit-review-decision]
+verify_jwt = false
+
+[functions.test-ai-provider]
+verify_jwt = false
+
+[functions.test-document-intelligence-provider]
+verify_jwt = false
+
+[functions.test-telegram]
+verify_jwt = false
+
+[functions.validate-channel-payload]
+verify_jwt = false
+
+[functions.website-extraction-agent]
+verify_jwt = false
