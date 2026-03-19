@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
 import { useOptimizeProducts, OPTIMIZATION_FIELDS, OPTIMIZATION_PHASES, AI_MODELS, CancellationToken, type OptimizationField } from "@/hooks/useOptimizeProducts";
 import { useOptimizationJob } from "@/hooks/useOptimizationJob";
+import { useOptimizationJobItems } from "@/hooks/useJobItems";
 import { usePublishWooCommerce, type PublishResult } from "@/hooks/usePublishWooCommerce";
 import { usePublishJob } from "@/hooks/usePublishJob";
 import { useDeleteProducts } from "@/hooks/useDeleteProducts";
@@ -90,6 +91,12 @@ const ProductsPage = () => {
   const updateStatus = useUpdateProductStatus();
   const optimizeProducts = useOptimizeProducts();
   const { activeJob, isCreating: isCreatingJob, createJob, cancelJob, dismissJob } = useOptimizationJob();
+  const [showJobErrors, setShowJobErrors] = useState(false);
+  const jobItems = useOptimizationJobItems(
+    activeJob && (activeJob.status === "completed" || activeJob.status === "cancelled") && activeJob.failed_products > 0
+      ? activeJob.id
+      : null
+  );
   const publishWoo = usePublishWooCommerce();
   const { activePublishJob, isCreating: isCreatingPublish, createPublishJob, cancelPublishJob, dismissPublishJob } = usePublishJob();
   const deleteProducts = useDeleteProducts();
@@ -1066,25 +1073,73 @@ const ProductsPage = () => {
       {activeJob && (activeJob.status === "completed" || activeJob.status === "cancelled") && (
         <Card className={cn(
           "border-l-4",
-          activeJob.status === "completed" ? "border-l-primary" : "border-l-warning"
+          activeJob.failed_products > 0 ? "border-l-destructive" : activeJob.status === "completed" ? "border-l-primary" : "border-l-warning"
         )}>
-          <CardContent className="p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {activeJob.status === "completed" ? (
-                <Check className="w-4 h-4 text-primary" />
-              ) : (
-                <Ban className="w-4 h-4 text-warning" />
-              )}
-              <span className="text-sm">
-                {activeJob.status === "completed"
-                  ? `Job concluído: ${activeJob.processed_products - activeJob.failed_products} otimizados, ${activeJob.failed_products} erros`
-                  : `Job cancelado: ${activeJob.processed_products} de ${activeJob.total_products} processados`
-                }
-              </span>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {activeJob.status === "completed" ? (
+                  <Check className="w-4 h-4 text-primary" />
+                ) : (
+                  <Ban className="w-4 h-4 text-warning" />
+                )}
+                <span className="text-sm">
+                  {activeJob.status === "completed"
+                    ? `Job concluído: ${activeJob.processed_products - activeJob.failed_products} otimizados, ${activeJob.failed_products} erros`
+                    : `Job cancelado: ${activeJob.processed_products} de ${activeJob.total_products} processados`
+                  }
+                </span>
+                {activeJob.failed_products > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
+                    onClick={() => setShowJobErrors((v) => !v)}
+                  >
+                    {showJobErrors ? <ChevronDown className="w-3 h-3 mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
+                    Ver erros ({activeJob.failed_products})
+                  </Button>
+                )}
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => { dismissJob(); setShowJobErrors(false); }} className="h-7 px-2 text-xs">
+                <XCircle className="w-3 h-3 mr-1" /> Fechar
+              </Button>
             </div>
-            <Button size="sm" variant="ghost" onClick={dismissJob} className="h-7 px-2 text-xs">
-              <XCircle className="w-3 h-3 mr-1" /> Fechar
-            </Button>
+
+            {showJobErrors && activeJob.failed_products > 0 && (
+              <div className="border border-destructive/20 rounded-md overflow-hidden">
+                <div className="bg-destructive/5 px-3 py-1.5 text-xs font-medium text-destructive">
+                  Produtos com erro
+                </div>
+                <div className="divide-y divide-border max-h-64 overflow-y-auto">
+                  {jobItems.isLoading ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">A carregar erros...</div>
+                  ) : (jobItems.data?.filter((item) => item.status === "error") || []).length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">Sem detalhes disponíveis.</div>
+                  ) : (
+                    jobItems.data!
+                      .filter((item) => item.status === "error")
+                      .map((item) => {
+                        const prod = products?.find((p) => p.id === item.product_id);
+                        const title = prod?.optimized_title || prod?.original_title || "Produto desconhecido";
+                        const sku = prod?.sku || item.product_id.slice(0, 8);
+                        return (
+                          <div key={item.id} className="px-3 py-2 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-3 h-3 text-destructive shrink-0" />
+                              <span className="text-xs font-medium truncate">{title}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono shrink-0">SKU: {sku}</span>
+                            </div>
+                            <p className="text-[11px] text-destructive/80 pl-5 leading-snug">
+                              {item.error_message || "Erro desconhecido"}
+                            </p>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
