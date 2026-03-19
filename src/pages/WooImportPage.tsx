@@ -79,7 +79,7 @@ const WooImportPage = () => {
       finalFilters.attribute_term = selectedTerm;
     }
 
-    await importProducts(activeWorkspace.id, finalFilters, activeRunId ?? undefined);
+    await importProducts(activeWorkspace.id, finalFilters, activeRunId ?? undefined, categoryMapping);
   };
 
   // Build hierarchical category tree
