@@ -83,7 +83,7 @@ const WooImportPage = () => {
   };
 
   // Build hierarchical category tree
-  const buildCatTree = (cats: typeof categories) => {
+  const buildCatTree = (cats: typeof wooCategories) => {
     if (!cats) return [];
     const topLevel = cats.filter(c => c.parent === 0).sort((a, b) => a.name.localeCompare(b.name));
     const getChildren = (parentId: number, depth: number): { id: number; name: string; count: number; depth: number }[] => {
