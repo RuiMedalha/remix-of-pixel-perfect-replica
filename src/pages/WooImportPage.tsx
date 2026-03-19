@@ -103,7 +103,7 @@ const WooImportPage = () => {
     return tree;
   };
 
-  const catTree = buildCatTree(categories);
+  const catTree = buildCatTree(wooCategories);
 
   const activeFiltersCount = [
     filters.type && filters.type !== "all",
