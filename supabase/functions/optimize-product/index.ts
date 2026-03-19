@@ -253,9 +253,6 @@ serve(async (req) => {
       .update({ status: "processing" })
       .in("id", productIds);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
     // Fetch user's chosen AI model from settings
     const MODEL_MAP: Record<string, string> = {
       "gemini-3-flash": "google/gemini-3-flash-preview",
