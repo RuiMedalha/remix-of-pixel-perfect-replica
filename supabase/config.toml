@@ -381,9 +381,6 @@ verify_jwt = false
 [functions.detect-product-bundles]
 verify_jwt = false
 
-[functions.collect-demand-data]
-verify_jwt = false
-
 [functions.run-intelligence-pipeline]
 verify_jwt = false
 
