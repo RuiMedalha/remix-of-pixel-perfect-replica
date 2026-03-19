@@ -378,6 +378,9 @@ const WooImportPage = () => {
                     O WooCommerce pode limitar os resultados por página. Se faltarem produtos, tente filtrar por categoria ou marca para importações mais completas.
                   </p>
                 )}
+                {result.errors && result.errors.length > 0 && (
+                  <WooImportErrorReport errors={result.errors} />
+                )}
               </div>
             </div>
           </CardContent>
