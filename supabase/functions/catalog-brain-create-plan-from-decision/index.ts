@@ -82,7 +82,7 @@ serve(async (req) => {
     let prevStepId: string | null = null;
     for (let i = 0; i < template.steps.length; i++) {
       const step = template.steps[i];
-      const { data: stepData, error: sErr } = await supabase.from("catalog_brain_plan_steps").insert({
+      const { data: stepData, error: sErr }: { data: any; error: any } = await supabase.from("catalog_brain_plan_steps").insert({
         plan_id: plan!.id,
         step_order: i + 1,
         step_type: step.type,
