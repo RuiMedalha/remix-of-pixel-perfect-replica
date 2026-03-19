@@ -26,11 +26,19 @@ export interface WooImportFilters {
   attribute_term?: string;
 }
 
+export interface WooImportError {
+  sku: string;
+  title: string;
+  error: string;
+  phase: string;
+}
+
 export interface WooImportResult {
   imported: number;
   variations: number;
   skipped: number;
   total: number;
+  errors?: WooImportError[];
 }
 
 export function useWooCategories(enabled: boolean) {
