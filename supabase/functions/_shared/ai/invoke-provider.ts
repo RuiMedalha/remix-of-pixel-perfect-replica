@@ -53,9 +53,11 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
 
   if (!resp.ok) {
     const text = await resp.text();
+    const category = classifyError(resp.status, text, params.provider.id);
+    console.error(`[invoke-provider] ${params.provider.id} HTTP ${resp.status} (${category}): ${text}`);
     throw new ProviderError(
       `${params.provider.id} ${resp.status}: ${text}`,
-      classifyError(resp.status, text, params.provider.id),
+      category,
     );
   }
 
@@ -138,9 +140,11 @@ async function invokeAnthropic(params: InvokeParams): Promise<InvokeResult> {
 
   if (!resp.ok) {
     const text = await resp.text();
+    const category = classifyError(resp.status, text, "anthropic");
+    console.error(`[invoke-provider] anthropic HTTP ${resp.status} (${category}): ${text}`);
     throw new ProviderError(
       `anthropic ${resp.status}: ${text}`,
-      classifyError(resp.status, text, "anthropic"),
+      category,
     );
   }
 
@@ -224,9 +228,11 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
 
   if (!resp.ok) {
     const text = await resp.text();
+    const category = classifyError(resp.status, text, "gemini");
+    console.error(`[invoke-provider] gemini HTTP ${resp.status} (${category}): ${text}`);
     throw new ProviderError(
       `gemini ${resp.status}: ${text}`,
-      classifyError(resp.status, text, "gemini"),
+      category,
     );
   }
 

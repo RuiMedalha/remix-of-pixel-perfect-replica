@@ -30,6 +30,7 @@ export async function executeWithFallback(
   const attemptedProviders: string[] = [];
   const attemptedModels: string[] = [];
   const errorCategories: Array<{ provider: string; category: ErrorCategory }> = [];
+  const errorMessages: Array<{ provider: string; message: string }> = [];
 
   for (let i = 0; i < chain.length; i++) {
     const { provider, model } = chain[i];
@@ -37,6 +38,7 @@ export async function executeWithFallback(
     attemptedModels.push(model);
 
     let lastCategory: ErrorCategory = "unknown_error";
+    let lastMessage = "unknown error";
 
     for (let attempt = 1; attempt <= retryConfig.maxAttempts; attempt++) {
       try {
@@ -50,7 +52,11 @@ export async function executeWithFallback(
         };
       } catch (err) {
         const category = err instanceof ProviderError ? err.category : "unknown_error";
+        const message = err instanceof Error ? err.message : String(err);
         lastCategory = category;
+        lastMessage = message;
+
+        console.error(`[fallback-policy] ${provider.id}/${model} attempt ${attempt} failed: ${message}`);
 
         // Non-retryable: skip remaining attempts for this provider immediately
         if (!isRetryable(category)) break;
@@ -64,11 +70,16 @@ export async function executeWithFallback(
     }
 
     errorCategories.push({ provider: provider.id, category: lastCategory });
+    errorMessages.push({ provider: provider.id, message: lastMessage });
   }
+
+  const errorDetail = errorMessages
+    .map((e) => `${e.provider}: ${e.message}`)
+    .join(" | ");
 
   throw new Error(
     `All providers failed. Attempted: ${attemptedProviders.join(", ")}. ` +
-      `Errors: ${errorCategories.map((e) => `${e.provider}=${e.category}`).join(", ")}`,
+      `Errors: ${errorDetail}`,
   );
 }
 
