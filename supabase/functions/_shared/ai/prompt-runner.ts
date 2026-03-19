@@ -1,0 +1,96 @@
+// supabase/functions/_shared/ai/prompt-runner.ts
+// Single entry point for all AI calls in edge functions.
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { InvokeParams, InvokeResult, RunMeta, RunPromptParams } from "./provider-types.ts";
+import { resolveRoute } from "./provider-registry.ts";
+import { executeWithFallback } from "./fallback-policy.ts";
+import { invokeProvider } from "./invoke-provider.ts";
+import { logUsage } from "./usage-logger.ts";
+import { getModel, estimateCost } from "./model-catalog.ts";
+
+export async function runPrompt(
+  supabase: SupabaseClient,
+  params: RunPromptParams,
+): Promise<{ result: InvokeResult; meta: RunMeta }> {
+  // Feature flag: kill-switch
+  if (Deno.env.get("AI_ROUTER_ENABLED") === "false") {
+    throw new Error("AI router disabled (AI_ROUTER_ENABLED=false)");
+  }
+
+  const shadowMode = Deno.env.get("AI_ROUTER_SHADOW_MODE") === "true";
+
+  const route = await resolveRoute(supabase, params);
+  const { selectedProvider, selectedModel, fallbackChain, finalParams } = route;
+
+  const chain = [
+    { provider: selectedProvider, model: selectedModel },
+    ...fallbackChain,
+  ];
+
+  // Build the base invoke params, merging workspace preferences (finalParams) as defaults
+  const baseInvokeParams: Omit<InvokeParams, "provider" | "model"> = {
+    systemPrompt: params.systemPrompt,
+    messages: (
+      params.messages ??
+      (params.userPrompt ? [{ role: "user" as const, content: params.userPrompt }] : [])
+    ) as InvokeParams["messages"],
+    temperature: params.temperature ?? finalParams.temperature,
+    maxTokens: params.maxTokens ?? finalParams.maxTokens,
+    jsonMode: params.jsonMode ?? finalParams.jsonMode,
+    tools: params.tools,
+    toolChoice: params.toolChoice,
+  };
+
+  const invokeFn = (
+    provider: typeof selectedProvider,
+    model: string,
+    p: typeof baseInvokeParams,
+  ) => invokeProvider({ provider, model, ...p });
+
+  const raw = await executeWithFallback(chain, baseInvokeParams, invokeFn);
+
+  // Cost estimation — DB-first with static fallback
+  const modelConfig = await getModel(supabase, raw.provider, raw.model);
+  const estimatedCostUsd = estimateCost(modelConfig, raw.inputTokens, raw.outputTokens);
+
+  // Surface the last error category encountered (present when fallback was used)
+  const lastErrorCategory = raw.errorCategories.length > 0
+    ? raw.errorCategories[raw.errorCategories.length - 1].category
+    : undefined;
+
+  const meta: RunMeta = {
+    provider: raw.provider,
+    model: raw.model,
+    fallbackUsed: raw.fallbackUsed,
+    attemptedProviders: raw.attemptedProviders,
+    attemptedModels: raw.attemptedModels,
+    decisionSource: route.decisionSource,
+    errorCategory: lastErrorCategory,
+    latencyMs: raw.latencyMs,
+    inputTokens: raw.inputTokens,
+    outputTokens: raw.outputTokens,
+    estimatedCostUsd,
+    shadowMode,
+  };
+
+  // Fire-and-forget — never awaited, never throws to caller
+  logUsage(supabase, {
+    workspaceId: params.workspaceId,
+    taskType: params.taskType,
+    capability: params.capability,
+    provider: raw.provider,
+    model: raw.model,
+    inputTokens: raw.inputTokens,
+    outputTokens: raw.outputTokens,
+    estimatedCostUsd,
+    fallbackUsed: raw.fallbackUsed,
+    decisionSource: route.decisionSource,
+    latencyMs: raw.latencyMs,
+    errorCategory: meta.errorCategory,
+    isShadow: shadowMode,
+  });
+
+  // Shadow mode: result is returned but callers must check meta.shadowMode
+  // before persisting to business state
+  return { result: raw, meta };
+}
