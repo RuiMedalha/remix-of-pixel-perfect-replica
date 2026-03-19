@@ -5,8 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Eye, EyeOff, Globe, ShieldCheck, TestTube } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Globe, ShieldCheck, TestTube, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useWooSites, useSaveWooSites, type WooSite } from "@/hooks/useWooSites";
+
+const MASK = "••••••••";
+
+type TestResult =
+  | { success: true; productsFound: number; latencyMs: number }
+  | { success: false; status: number; error: string };
+
+type TestState = { loading: boolean; result: TestResult | null };
 
 interface WooSitesManagerProps {
   onSitesChange?: (sites: WooSite[], activeSiteId: string | null) => void;
@@ -18,6 +27,7 @@ export function WooSitesManager({ onSitesChange }: WooSitesManagerProps) {
   const [sites, setSites] = useState<WooSite[]>([]);
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [testStates, setTestStates] = useState<Record<string, TestState>>({});
 
   useEffect(() => {
     if (data) {
@@ -59,6 +69,29 @@ export function WooSitesManager({ onSitesChange }: WooSitesManagerProps) {
 
   const handleSave = () => {
     saveSites.mutate({ sites, activeSiteId: activeSiteId || undefined });
+  };
+
+  const handleTest = async (siteId: string) => {
+    const site = sites.find(s => s.id === siteId);
+    if (!site) return;
+
+    setTestStates(prev => ({ ...prev, [siteId]: { loading: true, result: null } }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("test-woo-connection", {
+        body: { siteUrl: site.url, consumerKey: site.consumerKey, consumerSecret: site.consumerSecret },
+      });
+      if (error) throw error;
+      setTestStates(prev => ({ ...prev, [siteId]: { loading: false, result: data as TestResult } }));
+    } catch (err) {
+      setTestStates(prev => ({
+        ...prev,
+        [siteId]: {
+          loading: false,
+          result: { success: false, status: 0, error: err instanceof Error ? err.message : "Erro desconhecido" },
+        },
+      }));
+    }
   };
 
   return (
@@ -170,6 +203,54 @@ export function WooSitesManager({ onSitesChange }: WooSitesManagerProps) {
               />
               <Label className="text-xs text-muted-foreground">Site de produção</Label>
             </div>
+
+            {/* Test connection */}
+            {(() => {
+              const ts = testStates[site.id];
+              const masked = site.consumerKey === MASK || site.consumerSecret === MASK;
+              const canTest = !!site.url && !!site.consumerKey && !!site.consumerSecret && !masked;
+              return (
+                <div className="space-y-2 pt-1 border-t border-border/50">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={!canTest || ts?.loading}
+                    title={masked ? "Introduza as credenciais reais (não guardadas/mascaradas) para testar" : undefined}
+                    onClick={() => handleTest(site.id)}
+                  >
+                    {ts?.loading ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <Globe className="w-3 h-3 mr-1" />
+                    )}
+                    Testar ligação
+                  </Button>
+
+                  {ts?.result && (
+                    ts.result.success ? (
+                      <div className="flex items-start gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                        <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <div>
+                          <div className="font-medium">Ligação válida</div>
+                          <div className="text-green-500">
+                            Produtos encontrados: {ts.result.productsFound} · Latência: {ts.result.latencyMs} ms
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-1.5 text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+                        <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <div>
+                          <div className="font-medium">Erro de ligação</div>
+                          <div className="text-red-500">{ts.result.error}</div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ))}
 

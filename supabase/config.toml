@@ -395,3 +395,6 @@ verify_jwt = false
 
 [functions.sync-woo-categories]
 verify_jwt = false
+
+[functions.test-woo-connection]
+verify_jwt = false
