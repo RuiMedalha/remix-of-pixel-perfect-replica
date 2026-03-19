@@ -283,6 +283,19 @@ const WooImportPage = () => {
                 </div>
               )}
 
+              {/* Category Mapping */}
+              {wooCategories && wooCategories.length > 0 && internalFlat.length > 0 && (
+                <div className="border-t pt-3">
+                  <WooCategoryMapper
+                    wooCategories={wooCategories}
+                    internalCategories={internalFlat}
+                    internalTree={internalTree}
+                    mapping={categoryMapping}
+                    onChange={setCategoryMapping}
+                  />
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center justify-between pt-2 border-t">
                 <Button
@@ -293,8 +306,9 @@ const WooImportPage = () => {
                     setSelectedAttribute("");
                     setSelectedTerm("");
                     setSelectedBrand("");
+                    setCategoryMapping({});
                   }}
-                  disabled={activeFiltersCount === 0}
+                  disabled={activeFiltersCount === 0 && Object.keys(categoryMapping).length === 0}
                 >
                   Limpar filtros
                 </Button>
