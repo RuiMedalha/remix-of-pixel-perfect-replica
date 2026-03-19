@@ -400,7 +400,7 @@ Deno.serve(async (req) => {
 
     // ── ACTION: Import products ──────────────────────────────────────────────
     if (action === "import") {
-      const { workspaceId, filters = {}, workflowRunId } = body;
+      const { workspaceId, filters = {}, workflowRunId, categoryMapping } = body;
 
       if (!workspaceId) {
         return new Response(JSON.stringify({ error: "workspaceId is required" }), {
