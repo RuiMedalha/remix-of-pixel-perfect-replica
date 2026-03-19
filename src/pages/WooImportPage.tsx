@@ -22,14 +22,16 @@ import { ImportHistoryPanel } from "@/components/ImportHistoryPanel";
 const WooImportPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
   const { activeRunId } = useActiveWorkflowRun(activeWorkspace?.id);
-  const { data: categories, isLoading: loadingCats } = useWooCategories(!!activeWorkspace);
+  const { data: wooCategories, isLoading: loadingCats } = useWooCategories(!!activeWorkspace);
   const { data: attributes, isLoading: loadingAttrs } = useWooAttributes(!!activeWorkspace);
+  const { data: internalTree, flat: internalFlat } = useCategoryTree();
   const { importProducts, isImporting, result } = useWooImport();
 
   const [filters, setFilters] = useState<WooImportFilters>({});
   const [selectedAttribute, setSelectedAttribute] = useState<string>("");
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedBrand, setSelectedBrand] = useState<string>("");
+  const [categoryMapping, setCategoryMapping] = useState<CategoryMapping>({});
   const [sessionGuardOpen, setSessionGuardOpen] = useState(false);
 
   const isLoading = loadingCats || loadingAttrs;
