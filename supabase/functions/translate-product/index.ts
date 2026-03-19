@@ -241,9 +241,9 @@ Also translate these if present:
     return new Response(JSON.stringify({ success: true, quality_score: qualityScore, fields_translated: fieldsTranslated, needs_review: needsReview }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("translate-product error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: e instanceof Error ? (e as Error).message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

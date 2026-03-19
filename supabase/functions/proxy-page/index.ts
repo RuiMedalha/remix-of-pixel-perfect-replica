@@ -61,9 +61,9 @@ Deno.serve(async (req) => {
         html = result.html;
         metadata = result.metadata;
         fetchMethod = result.method;
-      } catch (e) {
+      } catch (e: unknown) {
         return new Response(
-          JSON.stringify({ error: e instanceof Error ? e.message : 'Erro Firecrawl' }),
+          JSON.stringify({ error: e instanceof Error ? (e as Error).message : 'Erro Firecrawl' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -177,10 +177,10 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Proxy error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      JSON.stringify({ error: error instanceof Error ? (error as Error).message : 'Erro desconhecido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -337,7 +337,7 @@ function buildCookieRemovalScript(): string {
     SELECTORS.forEach(function(sel) {
       try {
         document.querySelectorAll(sel).forEach(function(el) { el.remove(); });
-      } catch(e) {}
+      } catch (e: unknown) {}
     });
     document.querySelectorAll('[class*="overlay"]').forEach(function(el) {
       var s = getComputedStyle(el);

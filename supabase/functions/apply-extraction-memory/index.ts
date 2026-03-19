@@ -165,14 +165,16 @@ serve(async (req) => {
       for (const pid of usedPatternIds) {
         await supabase
           .from("extraction_memory_patterns")
-          .update({ usage_count: supabase.rpc ? undefined : 0, last_used_at: new Date().toISOString() })
+          .update({ last_used_at: new Date().toISOString() })
           .eq("id", pid);
       }
-      // Increment usage_count via raw update
+      // Increment usage_count via rpc
       for (const pid of usedPatternIds.slice(0, 20)) {
-        await supabase.rpc("increment_pattern_usage", { _pattern_id: pid }).catch(() => {
+        try {
+          await supabase.rpc("increment_pattern_usage", { _pattern_id: pid });
+        } catch {
           // Function may not exist yet, skip silently
-        });
+        }
       }
     }
 
@@ -186,9 +188,9 @@ serve(async (req) => {
       caseSimilarity: (caseSigs || []).length,
       supplierMatched: supplierName || null,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("apply-extraction-memory error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       success: true, allowed, status, currentUsage, projectedUsage, budgetLimit, percentUsed,
       hardLimitActive: budget.hard_limit_enabled,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({ success: false, error: e.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ success: false, error: (e as Error).message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

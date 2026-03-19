@@ -106,7 +106,7 @@ ${(page.raw_text || "").substring(0, 12000)}`;
         } else {
           console.warn(`Route failed for page ${pid}: ${routeResp.status}`);
         }
-      } catch (e) {
+      } catch (e: unknown) {
         console.warn(`Error processing page ${pid}:`, e);
       }
     }
@@ -137,9 +137,9 @@ ${(page.raw_text || "").substring(0, 12000)}`;
       fallbackProvider,
       processingTimeMs: Date.now() - startTime,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("run-document-intelligence error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

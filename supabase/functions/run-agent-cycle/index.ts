@@ -119,11 +119,11 @@ serve(async (req) => {
           result: { success: true, requires_approval: requiresApproval },
         }).eq("id", task.id);
         executed++;
-      } catch (e) {
+      } catch (e: unknown) {
         await supabase.from("agent_tasks").update({
           status: "failed",
           completed_at: new Date().toISOString(),
-          error_message: e.message,
+          error_message: (e as Error).message,
         }).eq("id", task.id);
         failed++;
       }
@@ -135,8 +135,8 @@ serve(async (req) => {
       executed,
       failed,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
 

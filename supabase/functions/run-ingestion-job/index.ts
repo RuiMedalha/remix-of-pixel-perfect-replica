@@ -213,12 +213,12 @@ Deno.serve(async (req) => {
             product_id: productId,
           }).eq("id", item.id);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         failed++;
         for (const item of groupItems) {
           await supabase.from("ingestion_job_items").update({
             status: "error",
-            error_message: err.message,
+            error_message: (err as Error).message,
           }).eq("id", item.id);
         }
       }
@@ -259,11 +259,11 @@ Deno.serve(async (req) => {
           }).eq("id", item.id);
           imported++;
         }
-      } catch (err) {
+      } catch (err: unknown) {
         failed++;
         await supabase.from("ingestion_job_items").update({
           status: "error",
-          error_message: err.message,
+          error_message: (err as Error).message,
         }).eq("id", item.id);
       }
     }
@@ -288,8 +288,8 @@ Deno.serve(async (req) => {
       failed,
       skuGroupsMerged: skuGroups.size,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({ success: false, error: e.message }), {
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ success: false, error: (e as Error).message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

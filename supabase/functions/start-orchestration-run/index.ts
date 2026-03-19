@@ -63,8 +63,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true, runId: run.id, runType }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ success: false, error: e.message }), {
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ success: false, error: (e as Error).message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

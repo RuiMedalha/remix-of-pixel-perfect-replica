@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
           user_id: userId, workspace_id: workspaceId, source,
           error_message: errorMessage, context, severity: 'error',
         });
-      } catch (e) { console.error("Failed to log error:", e); }
+      } catch (e: unknown) { console.error("Failed to log error:", e); }
     };
 
     // Helper: check/update scraping credits
@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
                 matchedPrefix = { name: 'web-search', prefix: '' };
               }
             }
-          } catch (e) {
+          } catch (e: unknown) {
             console.error(`Search fallback failed for ${sku}:`, e);
           }
         }
@@ -582,8 +582,8 @@ Deno.serve(async (req) => {
             isVariable: (aiParsed.variations?.length || 0) > 0,
             aiParsed: !!lovableApiKey,
           };
-        } catch (err) {
-          return { sku, success: false, url: searchUrl, error: err instanceof Error ? err.message : "Unknown" };
+        } catch (err: unknown) {
+          return { sku, success: false, url: searchUrl, error: err instanceof Error ? (err as Error).message : "Unknown" };
         }
       });
 
@@ -610,10 +610,10 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true, total: toEnrich.length, enriched, failed, skipped: products.length - toEnrich.length, results }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: error instanceof Error ? (error as Error).message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -793,7 +793,7 @@ ${truncatedMd}${variationHtml}`;
     const varSkusInfo = parsed.variations?.map((v: any) => `${v.name}:${v.values?.length || 0}vals/${v.skus?.length || 0}skus`).join(', ') || 'none';
     console.log(`AI parsed SKU ${sku}: ${parsed.product_images?.length || 0} images, variations=[${varSkusInfo}], ${Object.keys(parsed.specs || {}).length} specs`);
     return parsed;
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("AI parsing failed:", e);
     return null;
   }

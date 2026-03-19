@@ -98,9 +98,9 @@ export function WorkflowRunSelector() {
     setIsDeleting(runId);
     try {
       // 1. Disconnect products from session (safe regardless of FK type)
-      const { error: productErr } = await supabase
-        .from("products")
-        .update({ workflow_run_id: null } as any)
+      const { error: productErr } = await (supabase
+        .from("products") as any)
+        .update({ workflow_run_id: null })
         .eq("workflow_run_id", runId);
       if (productErr) throw productErr;
 

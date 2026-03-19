@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     await supabase.from("catalog_twin_scenarios").update({ status: "promoted", updated_at: new Date().toISOString() }).eq("id", scenarioId);
 
     return new Response(JSON.stringify({ plan_id: plan!.id, steps_count: steps.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

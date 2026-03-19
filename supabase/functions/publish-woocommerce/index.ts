@@ -29,7 +29,7 @@ async function selfInvokeWithRetry(authHeader: string, jobId: string, startIndex
       const delayMs = Math.min(1000 * 2 ** (attempt - 1), 8000);
       console.warn(`Self-invoke retry ${attempt}/${SELF_INVOKE_RETRIES} in ${delayMs}ms`);
       await sleep(delayMs);
-    } catch (err) {
+    } catch (err: unknown) {
       const delayMs = Math.min(1000 * 2 ** (attempt - 1), 8000);
       console.warn(`Self-invoke exception retry ${attempt}/${SELF_INVOKE_RETRIES} in ${delayMs}ms`, err);
       await sleep(delayMs);
@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
             failed_products: (job.failed_products || 0) + failed,
             results: existingResults,
           }).eq("id", jobId);
-        } catch (e) {
+        } catch (e: unknown) {
           existingResults.push({
             id: product.id,
             status: "error",
@@ -391,8 +391,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ jobId: newJob.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro desconhecido";
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? (e as Error).message : "Erro desconhecido";
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -452,7 +452,7 @@ async function wooFetch(baseUrl: string, auth: string, endpoint: string, method:
       if (parsed.code === "product_invalid_sku" && parsed.data?.resource_id) {
         throw new WooSkuConflictError(parsed.data.resource_id, `SKU conflict: existing ID ${parsed.data.resource_id}`);
       }
-    } catch (e) {
+    } catch (e: unknown) {
       if (e instanceof WooSkuConflictError) throw e;
     }
     throw new Error(`WooCommerce ${resp.status}: ${errBody.substring(0, 300)}`);
@@ -502,7 +502,7 @@ async function deleteWooProduct(baseUrl: string, auth: string, productId: number
       console.warn(`Falha a eliminar produto ${productId} no WooCommerce: ${resp.status} ${body.substring(0, 200)}`);
     }
     return resp.ok;
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn(`Exceção ao eliminar produto ${productId} no WooCommerce:`, e);
     return false;
   }
@@ -521,7 +521,7 @@ async function deleteWooVariation(baseUrl: string, auth: string, parentWooId: nu
       );
     }
     return resp.ok;
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn(`Exceção ao eliminar variação ${variationWooId} (pai ${parentWooId}) no WooCommerce:`, e);
     return false;
   }
@@ -604,7 +604,7 @@ async function handleVariationSkuConflict(
 
   try {
     return await wooFetch(baseUrl, auth, `/products/${parentWooId}/variations`, "POST", variationPayload);
-  } catch (e) {
+  } catch (e: unknown) {
     if (e instanceof WooSkuConflictError) {
       throw new Error(`SKU conflict persistente: o SKU continua a existir no WooCommerce (ID #${e.resourceId}).`);
     }
@@ -746,7 +746,7 @@ async function searchWPMediaByFilename(baseUrl: string, auth: string, filename: 
     if (items.length === 1) return items[0].id;
 
     return null;
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn(`WP Media search exception for "${filename}":`, e);
     return null;
   }
@@ -789,7 +789,7 @@ async function uploadImageToWPMedia(
     const mediaData = await uploadResp.json();
     console.log(`✅ Uploaded image to WP Media: ID ${mediaData.id}, filename ${fname}`);
     return mediaData.id;
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn(`Exception uploading image to WP Media:`, e);
     return null;
   }
@@ -1677,7 +1677,7 @@ async function publishSingleProduct(
     wooData = existingWooId
       ? await wooFetch(baseUrl, auth, `/products/${existingWooId}`, "PUT", wooProduct)
       : await wooFetch(baseUrl, auth, `/products`, "POST", wooProduct);
-  } catch (err) {
+  } catch (err: unknown) {
     if (err instanceof WooNotFoundError && existingWooId) {
       console.warn(`Product ${enrichedProduct.id} WC#${existingWooId} not found (deleted?), creating new.`);
       await supabase.from("products").update({ woocommerce_id: null }).eq("id", enrichedProduct.id);
@@ -1849,7 +1849,7 @@ async function publishVariableProduct(
       if (Array.isArray(existingWoo?.attributes)) {
         (parentPayload as any).attributes = mergeWooAttributes(existingWoo.attributes, (parentPayload as any).attributes);
       }
-    } catch (e) {
+    } catch (e: unknown) {
       if (e instanceof WooNotFoundError) {
         console.warn(`Variable parent ${parent.id} WC#${existingParentWooId} not found, will create new.`);
         await supabase.from("products").update({ woocommerce_id: null }).eq("id", parent.id);
@@ -1868,7 +1868,7 @@ async function publishVariableProduct(
     parentWooData = existingParentWooId
       ? await wooFetch(baseUrl, auth, `/products/${existingParentWooId}`, "PUT", parentPayload)
       : await wooFetch(baseUrl, auth, `/products`, "POST", parentPayload);
-  } catch (err) {
+  } catch (err: unknown) {
     if (err instanceof WooNotFoundError && existingParentWooId) {
       console.warn(`Variable parent ${parent.id} WC#${existingParentWooId} not found on PUT, creating new.`);
       await supabase.from("products").update({ woocommerce_id: null }).eq("id", parent.id);
@@ -1931,7 +1931,7 @@ async function publishVariation(
       varWooData = existingVarWooId
         ? await wooFetch(baseUrl, auth, `/products/${parentWooId}/variations/${existingVarWooId}`, "PUT", variationPayload)
         : await wooFetch(baseUrl, auth, `/products/${parentWooId}/variations`, "POST", variationPayload);
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof WooNotFoundError && existingVarWooId) {
         console.warn(`Variation ${variation.id} WC#${existingVarWooId} not found, creating new.`);
         await supabase.from("products").update({ woocommerce_id: null }).eq("id", variation.id);
@@ -1977,7 +1977,7 @@ async function finalizeJob(adminClient: any, jobId: string, job: any, userId: st
 
   try {
     await resolveUpsellCrosssellPass(adminClient, job, userId);
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn("Upsell/crosssell second pass failed:", e);
   }
 
@@ -2061,7 +2061,7 @@ async function resolveUpsellCrosssellPass(adminClient: any, job: any, userId: st
       try {
         await wooFetch(baseUrl, auth, `/products/${product.woocommerce_id}`, "PUT", updates);
         console.log(`✅ Updated upsell/crosssell for WC#${product.woocommerce_id}`);
-      } catch (e) {
+      } catch (e: unknown) {
         console.warn(`Failed to update upsell/crosssell for WC#${product.woocommerce_id}:`, e);
       }
     }

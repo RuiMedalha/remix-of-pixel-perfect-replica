@@ -24,5 +24,5 @@ Deno.serve(async (req) => {
     }
     if (opps.length > 0) await supabase.from("keyword_opportunities").insert(opps.slice(0, 100));
     return new Response(JSON.stringify({ opportunities: Math.min(opps.length, 100) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) { return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
+  } catch (e: unknown) { return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
 });

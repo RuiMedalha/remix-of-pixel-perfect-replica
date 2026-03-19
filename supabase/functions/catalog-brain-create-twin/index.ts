@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ twin_id: twin!.id, snapshot_id: snapshot!.id, entities_count: entities.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

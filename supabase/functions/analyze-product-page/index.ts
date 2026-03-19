@@ -132,7 +132,7 @@ ${pageDigests}`;
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[1].trim());
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error("Failed to parse AI response:", content);
       parsed = { error: "Failed to parse AI response", raw: content.substring(0, 500) };
     }
@@ -141,9 +141,9 @@ ${pageDigests}`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("analyze-product-page error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: e instanceof Error ? (e as Error).message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
