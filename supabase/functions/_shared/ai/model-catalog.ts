@@ -5,19 +5,19 @@ import type { ModelConfig, CapabilityType } from "./provider-types.ts";
 // Static fallback — used when DB is unreachable. Must be kept in sync with seed data.
 export const STATIC_CATALOG: ModelConfig[] = [
   {
-    providerId: "anthropic", modelId: "claude-3-5-sonnet-20241022", displayName: "Claude 3.5 Sonnet",
+    providerId: "anthropic", modelId: "claude-sonnet-4-6", displayName: "Claude Sonnet 4.6",
     contextWindow: 200000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
     supportsJsonMode: false, inputCostPer1k: 0.003, outputCostPer1k: 0.015, status: "active",
     recommendedFor: ["content_generation", "reasoning", "extraction"], enabled: true,
   },
   {
-    providerId: "anthropic", modelId: "claude-3-5-haiku-20241022", displayName: "Claude 3.5 Haiku",
+    providerId: "anthropic", modelId: "claude-haiku-4-5-20251001", displayName: "Claude Haiku 4.5",
     contextWindow: 200000, maxOutputTokens: 8192, supportsVision: false, supportsFunctionCalling: true,
     supportsJsonMode: false, inputCostPer1k: 0.001, outputCostPer1k: 0.005, status: "active",
     recommendedFor: ["seo_generation", "translation", "summarization"], enabled: true,
   },
   {
-    providerId: "anthropic", modelId: "claude-3-opus-20240229", displayName: "Claude 3 Opus",
+    providerId: "anthropic", modelId: "claude-opus-4-6", displayName: "Claude Opus 4.6",
     contextWindow: 200000, maxOutputTokens: 4096, supportsVision: true, supportsFunctionCalling: true,
     supportsJsonMode: false, inputCostPer1k: 0.015, outputCostPer1k: 0.075, status: "active",
     recommendedFor: ["reasoning"], enabled: true,
@@ -41,7 +41,7 @@ export const STATIC_CATALOG: ModelConfig[] = [
     recommendedFor: ["web_research", "reasoning"], enabled: true,
   },
   {
-    providerId: "gemini", modelId: "gemini-2.5-flash-preview-04-17", displayName: "Gemini 2.5 Flash",
+    providerId: "gemini", modelId: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash",
     contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
     supportsJsonMode: true, inputCostPer1k: 0.00015, outputCostPer1k: 0.0006, status: "active",
     recommendedFor: ["multimodal_vision", "enrichment"], enabled: true,

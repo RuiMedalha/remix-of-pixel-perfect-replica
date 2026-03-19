@@ -69,15 +69,15 @@ INSERT INTO ai_model_catalog
    status, recommended_for, enabled)
 VALUES
   -- Anthropic
-  ('anthropic', 'claude-3-5-sonnet-20241022', 'Claude 3.5 Sonnet',
+  ('anthropic', 'claude-sonnet-4-6', 'Claude Sonnet 4.6',
    200000, 8192, true,  true,  false, 0.003,   0.015,
    'active', ARRAY['content_generation','reasoning','extraction'], true),
 
-  ('anthropic', 'claude-3-5-haiku-20241022', 'Claude 3.5 Haiku',
+  ('anthropic', 'claude-haiku-4-5-20251001', 'Claude Haiku 4.5',
    200000, 8192, false, true,  false, 0.001,   0.005,
    'active', ARRAY['seo_generation','translation','summarization'], true),
 
-  ('anthropic', 'claude-3-opus-20240229', 'Claude 3 Opus',
+  ('anthropic', 'claude-opus-4-6', 'Claude Opus 4.6',
    200000, 4096, true,  true,  false, 0.015,   0.075,
    'active', ARRAY['reasoning'], true),
 
@@ -95,7 +95,7 @@ VALUES
    1000000, 8192, true, true, true,  0.00125, 0.005,
    'active', ARRAY['web_research','reasoning'], true),
 
-  ('gemini', 'gemini-2.5-flash-preview-04-17', 'Gemini 2.5 Flash',
+  ('gemini', 'gemini-2.5-flash', 'Gemini 2.5 Flash',
    1000000, 8192, true, true, true,  0.00015, 0.0006,
    'active', ARRAY['multimodal_vision','enrichment'], true),
 

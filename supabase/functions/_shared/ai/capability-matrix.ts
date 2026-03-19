@@ -7,27 +7,27 @@ export const CAPABILITY_DEFAULTS: Record<
   { provider: string; model: string; fallback: Array<{ provider: string; model: string }> }
 > = {
   content_generation: {
-    provider: "anthropic", model: "claude-3-5-sonnet-20241022",
+    provider: "anthropic", model: "claude-sonnet-4-6",
     fallback: [{ provider: "openai", model: "gpt-4o" }, { provider: "gemini", model: "gemini-2.5-pro" }],
   },
   seo_generation: {
-    provider: "anthropic", model: "claude-3-5-haiku-20241022",
+    provider: "anthropic", model: "claude-haiku-4-5-20251001",
     fallback: [{ provider: "openai", model: "gpt-4o-mini" }],
   },
   classification: {
     provider: "openai", model: "gpt-4o-mini",
-    fallback: [{ provider: "anthropic", model: "claude-3-5-haiku-20241022" }],
+    fallback: [{ provider: "anthropic", model: "claude-haiku-4-5-20251001" }],
   },
   extraction: {
     provider: "openai", model: "gpt-4o",
-    fallback: [{ provider: "anthropic", model: "claude-3-5-sonnet-20241022" }],
+    fallback: [{ provider: "anthropic", model: "claude-sonnet-4-6" }],
   },
   reasoning: {
-    provider: "anthropic", model: "claude-3-5-sonnet-20241022",
+    provider: "anthropic", model: "claude-sonnet-4-6",
     fallback: [{ provider: "openai", model: "gpt-4o" }],
   },
   multimodal_vision: {
-    provider: "gemini", model: "gemini-2.5-flash-preview-04-17",
+    provider: "gemini", model: "gemini-2.5-flash",
     fallback: [{ provider: "openai", model: "gpt-4o" }],
   },
   web_research: {
@@ -35,16 +35,16 @@ export const CAPABILITY_DEFAULTS: Record<
     fallback: [{ provider: "openai", model: "gpt-4o" }],
   },
   enrichment: {
-    provider: "gemini", model: "gemini-2.5-flash-preview-04-17",
+    provider: "gemini", model: "gemini-2.5-flash",
     fallback: [{ provider: "openai", model: "gpt-4o-mini" }],
   },
   translation: {
-    provider: "anthropic", model: "claude-3-5-haiku-20241022",
+    provider: "anthropic", model: "claude-haiku-4-5-20251001",
     fallback: [{ provider: "openai", model: "gpt-4o-mini" }],
   },
   summarization: {
-    provider: "anthropic", model: "claude-3-5-haiku-20241022",
-    fallback: [{ provider: "gemini", model: "gemini-2.5-flash-preview-04-17" }],
+    provider: "anthropic", model: "claude-haiku-4-5-20251001",
+    fallback: [{ provider: "gemini", model: "gemini-2.5-flash" }],
   },
 };
 
