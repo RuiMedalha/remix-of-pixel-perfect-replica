@@ -695,6 +695,7 @@ Deno.serve(async (req) => {
         variations: variationsInserted,
         skipped,
         total: allProducts.length,
+        errors: importErrors.length > 0 ? importErrors : undefined,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
