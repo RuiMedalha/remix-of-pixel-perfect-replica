@@ -657,6 +657,14 @@ Deno.serve(async (req) => {
             .select("id");
           if (vErr) {
             console.error(`Variation insert error for parent ${wooParentId}:`, vErr);
+            for (const vi of batch) {
+              importErrors.push({
+                sku: vi.sku || "",
+                title: vi.original_title || "",
+                error: vErr.message || "Erro ao inserir variação",
+                phase: "variation",
+              });
+            }
           } else {
             variationsInserted += vData?.length || 0;
           }
