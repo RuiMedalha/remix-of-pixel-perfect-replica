@@ -398,3 +398,6 @@ verify_jwt = false
 
 [functions.test-woo-connection]
 verify_jwt = false
+
+[functions.import-woocommerce]
+verify_jwt = false
