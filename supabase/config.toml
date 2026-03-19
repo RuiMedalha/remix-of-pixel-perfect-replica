@@ -1,5 +1,8 @@
 project_id = "hbjrycodpqjfreewyckl"
 
+[functions.resolve-ai-route]
+verify_jwt = false
+
 [functions.invite-workspace-member]
 verify_jwt = false
 
