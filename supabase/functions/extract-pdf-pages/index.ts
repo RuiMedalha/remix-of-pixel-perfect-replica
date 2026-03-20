@@ -72,7 +72,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a document analysis expert. Analyze this PDF and return a concise JSON overview.",
+            content: "És um especialista em análise de documentos. Analisa este PDF e devolve um JSON conciso com a visão geral do documento.",
           },
           {
             role: "user",

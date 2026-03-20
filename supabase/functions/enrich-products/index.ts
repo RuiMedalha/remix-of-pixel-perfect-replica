@@ -658,30 +658,30 @@ async function parseWithAI(apiKey: string, markdown: string, sku: string, title:
       }
     }
 
-    const systemPrompt = `You are a product data extraction specialist. You analyze scraped web pages of supplier/manufacturer product pages and extract structured data.
+    const systemPrompt = `És um especialista em extração de dados de produtos. Analisas páginas web de fornecedores/fabricantes e extraís dados estruturados.
 
-RULES FOR IMAGES:
-- Extract ONLY images that belong to THIS specific product being viewed on the page
-- Focus on: the main product photo, gallery/carousel/slider images, alternate angles, zoom views, detail shots
-- These are typically found inside a product image gallery container, lightbox, or carousel — usually the first set of images on the page
-- STRICTLY EXCLUDE: navigation icons, category thumbnails, footer logos, newsletter banners, social media icons, cookie popup images, "related products" images, "you may also like" images, brand logos, payment method icons, shipping icons, trust badges, SVG icons, any image smaller than 100px
-- DO NOT include images from "related products", "recommended products", "products from the same series", or any section that shows OTHER products
-- A typical product has 1-8 images. If you find more than 10, you are probably including non-product images — be more selective
-- When in doubt, EXCLUDE the image
+REGRAS PARA IMAGENS:
+- Extrai APENAS imagens que pertencem a ESTE produto específico visualizado na página
+- Foca em: foto principal do produto, imagens de galeria/carrossel, ângulos alternativos, vistas de detalhe, zoom
+- Estas encontram-se tipicamente dentro de um contentor de galeria de imagens, lightbox ou carrossel — geralmente o primeiro conjunto de imagens na página
+- EXCLUI ESTRITAMENTE: ícones de navegação, miniaturas de categoria, logótipos de rodapé, banners de newsletter, ícones de redes sociais, imagens de popup de cookies, imagens de "produtos relacionados", imagens de "também pode gostar", logótipos de marca, ícones de métodos de pagamento, ícones de envio, selos de confiança, ícones SVG, qualquer imagem com menos de 100px
+- NÃO incluas imagens de "produtos relacionados", "produtos recomendados", "produtos da mesma série", ou qualquer secção que mostre OUTROS produtos
+- Um produto típico tem 1-8 imagens. Se encontrares mais de 10, provavelmente estás a incluir imagens não relacionadas com o produto — sê mais seletivo
+- Em caso de dúvida, EXCLUI a imagem
 
-RULES FOR VARIATIONS:
-- Only detect variations if the page clearly shows a selector (size picker, color picker, dropdown) for THIS product
-- CRITICAL: Only report variations that have REAL SKUs visible on the page (in URLs, onclick attributes, data attributes, or option values)
-- NEVER invent or guess SKUs — if you cannot find a real SKU code for a variation, do NOT include it in the "skus" array
-- If you see variation values (e.g. sizes) but NO associated SKUs, return the values WITHOUT the skus array
-- The "skus" array MUST only contain short alphanumeric codes (e.g. "80020", "UD12345"), NEVER full URLs
-- If a variation link is "https://supplier.com/product-name/80020", the SKU is "80020"
+REGRAS PARA VARIAÇÕES:
+- Deteta variações APENAS se a página mostrar claramente um seletor (seletor de tamanho, de cor, dropdown) para ESTE produto
+- CRÍTICO: Reporta apenas variações que tenham SKUs REAIS visíveis na página (em URLs, atributos onclick, atributos data, ou valores de opção)
+- NUNCA inventes ou adivinhes SKUs — se não encontrares um código SKU real para uma variação, NÃO a incluas no array "skus"
+- Se vires valores de variação (ex: tamanhos) mas NENHUM SKU associado, devolve os valores SEM o array skus
+- O array "skus" DEVE conter apenas códigos alfanuméricos curtos (ex: "80020", "UD12345"), NUNCA URLs completos
+- Se o link de uma variação for "https://fornecedor.com/nome-produto/80020", o SKU é "80020"
 
-RULES FOR SPECS:
-- Extract technical specifications as structured key-value pairs
-- Identify the product series/family name if visible
+REGRAS PARA ESPECIFICAÇÕES:
+- Extrai especificações técnicas como pares chave-valor estruturados
+- Identifica o nome da série/família do produto se visível
 
-${instructions ? `USER INSTRUCTIONS FOR THIS SUPPLIER:\n${instructions}\n` : ''}`;
+${instructions ? `INSTRUÇÕES DO UTILIZADOR PARA ESTE FORNECEDOR:\n${instructions}\n` : ''}`;
 
     const userPrompt = `Analyze this scraped product page content for SKU "${sku}" (${title}).
 
