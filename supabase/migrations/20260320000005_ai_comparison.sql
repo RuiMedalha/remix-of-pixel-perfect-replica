@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS ai_comparison_runs (
   sections      JSONB       NOT NULL,  -- string[]
   product_count INTEGER     NOT NULL,
   model_count   INTEGER     NOT NULL,
-  status        TEXT        NOT NULL DEFAULT 'running', -- running | completed | cancelled
+  status        TEXT        NOT NULL DEFAULT 'running'
+                            CHECK (status IN ('running', 'completed', 'cancelled')),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   completed_at  TIMESTAMPTZ
 );
@@ -38,6 +39,9 @@ CREATE INDEX IF NOT EXISTS ai_comparison_results_run_product_idx
 CREATE INDEX IF NOT EXISTS ai_comparison_results_run_section_idx
   ON ai_comparison_results (run_id, product_id, section);
 
+CREATE INDEX IF NOT EXISTS ai_comparison_runs_workspace_idx
+  ON ai_comparison_runs (workspace_id);
+
 -- RLS
 ALTER TABLE ai_comparison_runs    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_comparison_results ENABLE ROW LEVEL SECURITY;
@@ -53,7 +57,12 @@ CREATE POLICY "authenticated_read_comparison_runs"
 
 CREATE POLICY "authenticated_insert_comparison_runs"
   ON ai_comparison_runs FOR INSERT TO authenticated
-  WITH CHECK (created_by = auth.uid());
+  WITH CHECK (
+    created_by = auth.uid()
+    AND workspace_id IN (
+      SELECT workspace_id FROM workspace_members WHERE user_id = auth.uid()
+    )
+  );
 
 CREATE POLICY "service_role_all_comparison_results"
   ON ai_comparison_results FOR ALL TO service_role USING (true) WITH CHECK (true);
