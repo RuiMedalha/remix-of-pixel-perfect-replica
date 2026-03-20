@@ -97,7 +97,7 @@ export function useCreateComparisonRun() {
       if (error) throw error;
       return data as ComparisonRun;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["comparison-runs"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["comparison-runs"], exact: false }),
   });
 }
 
@@ -160,7 +160,7 @@ export function useCompleteComparisonRun() {
         .eq("id", runId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["comparison-runs"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["comparison-runs"], exact: false }),
   });
 }
 
@@ -278,9 +278,11 @@ export function useComparisonHistory() {
 // ── Fetch products by array of IDs (for reopening historical runs) ──────────────
 
 export function useProductsByIds(ids: string[]) {
+  const { activeWorkspace } = useWorkspaceContext();
+
   return useQuery({
-    queryKey: ["products-by-ids", ids],
-    enabled: ids.length > 0,
+    queryKey: ["products-by-ids", activeWorkspace?.id, ids],
+    enabled: ids.length > 0 && !!activeWorkspace,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
