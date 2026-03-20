@@ -86,7 +86,7 @@ function buildChain(
 
 function getDefaultModelForProvider(providerId: string): string {
   const defaults: Record<string, string> = {
-    anthropic: "claude-3-5-sonnet-20241022",
+    anthropic: "claude-sonnet-4-6",
     openai: "gpt-4o",
     gemini: "gemini-2.5-pro",
     mistral: "mistral-large-latest",

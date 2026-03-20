@@ -46,6 +46,30 @@ export const STATIC_CATALOG: ModelConfig[] = [
     supportsJsonMode: true, inputCostPer1k: 0.00015, outputCostPer1k: 0.0006, status: "active",
     recommendedFor: ["multimodal_vision", "enrichment"], enabled: true,
   },
+  {
+    providerId: "gemini", modelId: "gemini-2.5-flash-lite", displayName: "Gemini 2.5 Flash Lite",
+    contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.0001, outputCostPer1k: 0.0004, status: "active",
+    recommendedFor: ["classification", "seo_generation", "summarization"], enabled: true,
+  },
+  {
+    providerId: "gemini", modelId: "gemini-3-flash-preview", displayName: "Gemini 3 Flash (preview)",
+    contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.00015, outputCostPer1k: 0.0006, status: "active",
+    recommendedFor: ["content_generation", "enrichment"], enabled: true,
+  },
+  {
+    providerId: "gemini", modelId: "gemini-3-pro-preview", displayName: "Gemini 3 Pro (preview)",
+    contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.00125, outputCostPer1k: 0.01, status: "active",
+    recommendedFor: ["reasoning", "web_research"], enabled: true,
+  },
+  {
+    providerId: "gemini", modelId: "gemini-3.1-flash-image-preview", displayName: "Gemini 3.1 Flash Image (preview)",
+    contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: false,
+    supportsJsonMode: false, inputCostPer1k: 0.00015, outputCostPer1k: 0.0006, status: "active",
+    recommendedFor: ["multimodal_vision"], enabled: true,
+  },
 ];
 
 function dbRowToModelConfig(row: Record<string, unknown>): ModelConfig {
