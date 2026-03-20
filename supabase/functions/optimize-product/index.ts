@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enforceFieldLimits } from "../_shared/ai/output-guardrails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1231,6 +1232,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         }
 
         const aiWrapper = await aiResponse.json();
+        const promptVersionId: string | null = aiWrapper.meta?.promptVersionId ?? null;
         const aiData = aiWrapper.result || aiWrapper;
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
         if (!toolCall) {
@@ -1244,7 +1246,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         const completionTokens = usage.completion_tokens || 0;
         const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
 
-        const optimized = JSON.parse(toolCall.function.arguments);
+        const rawOptimized = JSON.parse(toolCall.function.arguments);
+        const optimized = enforceFieldLimits(rawOptimized);
 
         // === VALIDATE upsell/crosssell SKUs against real DB (SKU-only format) ===
         if (optimized.upsell_skus && Array.isArray(optimized.upsell_skus) && optimized.upsell_skus.length > 0) {
@@ -1691,6 +1694,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           prompt_length: finalPrompt.length,
           chunks_used: topChunks.length,
           rag_match_types: ragMatchTypeCounts,
+          prompt_version_id: promptVersionId,
         } as any);
 
         return { id: product.id, status: "optimized" as const };
