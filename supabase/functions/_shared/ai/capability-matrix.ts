@@ -83,6 +83,7 @@ const TASK_TYPE_TO_CAPABILITY: Record<string, CapabilityType> = {
   // Enrichment
   enrichment: "enrichment",
   enrich_product: "enrichment",
+  product_enrichment: "enrichment",
   // Summarization
   summarization: "summarization",
   summarize: "summarization",

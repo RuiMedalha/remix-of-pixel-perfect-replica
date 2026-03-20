@@ -701,7 +701,6 @@ ${truncatedMd}${variationHtml}`;
       body: JSON.stringify({
         taskType: "product_enrichment",
         workspaceId: Deno.env.get("SUPABASE_URL")!, // workspace resolved elsewhere
-        modelOverride: "google/gemini-2.5-flash",
         systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
         options: {
