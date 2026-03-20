@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import type { Product } from "@/hooks/useProducts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -248,6 +249,46 @@ export function useApplyComparisonResult() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["product-stats"] });
+    },
+  });
+}
+
+// ── Comparison run history ─────────────────────────────────────────────────────
+
+export function useComparisonHistory() {
+  const { activeWorkspace } = useWorkspaceContext();
+
+  return useQuery({
+    queryKey: ["comparison-runs", activeWorkspace?.id],
+    enabled: !!activeWorkspace,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_comparison_runs" as any)
+        .select("*")
+        .eq("workspace_id", activeWorkspace!.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as ComparisonRun[];
+    },
+  });
+}
+
+// ── Fetch products by array of IDs (for reopening historical runs) ──────────────
+
+export function useProductsByIds(ids: string[]) {
+  return useQuery({
+    queryKey: ["products-by-ids", ids],
+    enabled: ids.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, optimized_title, original_title, sku")
+        .in("id", ids);
+      if (error) throw error;
+      return (data ?? []) as Pick<Product, "id" | "optimized_title" | "original_title" | "sku">[];
     },
   });
 }
