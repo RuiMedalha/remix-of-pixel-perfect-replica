@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera } from "lucide-react";
+import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
@@ -36,6 +36,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
 import { DuplicateDetectionDialog } from "@/components/DuplicateDetectionDialog";
+import { AiComparisonWizard } from "@/components/ai-comparison/AiComparisonWizard";
 const statusLabels: Record<Enums<"product_status">, string> = {
   pending: "Pendente",
   processing: "A Processar",
@@ -134,6 +135,7 @@ const ProductsPage = () => {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
   const [exportSkuPrefix, setExportSkuPrefix] = useState("");
   const [dismissedMissing, setDismissedMissing] = useState(false);
   const [exportTarget, setExportTarget] = useState<"all" | "selected">("all");
@@ -930,6 +932,9 @@ const ProductsPage = () => {
               </Button>
               <Button size="sm" variant="secondary" className="text-xs h-8" onClick={() => handleOptimizeClick(Array.from(selected))} disabled={optimizeProducts.isPending}>
                 <Sparkles className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Otimizar </span>IA ({selected.size})
+              </Button>
+              <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setShowCompareModal(true)}>
+                <GitCompare className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Comparar </span>IA ({selected.size})
               </Button>
               <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => {
                 setExportTarget("selected");
@@ -2153,6 +2158,12 @@ const ProductsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AiComparisonWizard
+        open={showCompareModal}
+        onOpenChange={setShowCompareModal}
+        preSelectedProducts={products.filter((p) => selected.has(p.id))}
+        allProducts={products}
+      />
       <DuplicateDetectionDialog
         open={showDuplicates}
         onOpenChange={setShowDuplicates}
