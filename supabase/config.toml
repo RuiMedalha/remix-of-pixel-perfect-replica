@@ -509,3 +509,6 @@ verify_jwt = false
 
 [functions.website-extraction-agent]
 verify_jwt = false
+
+[functions.run-ai-comparison]
+verify_jwt = false
