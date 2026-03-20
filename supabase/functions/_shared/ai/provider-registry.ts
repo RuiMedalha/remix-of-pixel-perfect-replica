@@ -215,7 +215,7 @@ export async function resolveRoute(
   // 5. System default: Anthropic → OpenAI → Gemini
   const systemChain = buildChain(
     PROVIDER_CONFIGS["anthropic"]!,
-    "claude-3-5-sonnet-20241022",
+    "claude-sonnet-4-6",
     [{ provider: "openai", model: "gpt-4o" }, { provider: "gemini", model: "gemini-2.5-pro" }],
   );
 
