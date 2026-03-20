@@ -446,27 +446,47 @@ const Dashboard = () => {
                       <thead>
                         <tr className="border-b border-border text-xs text-muted-foreground">
                           <th className="text-left py-1.5 pr-3">Modelo</th>
+                          <th className="text-left py-1.5 pr-3 hidden sm:table-cell">Uso recomendado</th>
                           <th className="text-right py-1.5 pr-3">Chamadas</th>
-                          <th className="text-right py-1.5 pr-3">Entrada</th>
-                          <th className="text-right py-1.5 pr-3">Saída</th>
+                          <th className="text-right py-1.5 pr-3 hidden md:table-cell">Entrada</th>
+                          <th className="text-right py-1.5 pr-3 hidden md:table-cell">Saída</th>
                           <th className="text-right py-1.5">Custo (USD)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {aiCost.costByModel.map((m) => (
-                          <tr key={m.modelId} className="border-b border-border/50 last:border-0">
-                            <td className="py-1.5 pr-3">
-                              <span className="font-medium">{m.displayName}</span>
-                              {!m.pricingFound && (
-                                <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">sem preço</Badge>
-                              )}
-                            </td>
-                            <td className="text-right py-1.5 pr-3 text-muted-foreground">{m.callCount}</td>
-                            <td className="text-right py-1.5 pr-3 text-muted-foreground">{(m.inputTokens / 1000).toFixed(1)}k</td>
-                            <td className="text-right py-1.5 pr-3 text-muted-foreground">{(m.outputTokens / 1000).toFixed(1)}k</td>
-                            <td className="text-right py-1.5 font-mono">${m.estimatedCostUsd.toFixed(4)}</td>
-                          </tr>
-                        ))}
+                        {aiCost.costByModel.map((m) => {
+                          const meta = m.metadata;
+                          const speedColor = { fast: "text-success", medium: "text-warning", slow: "text-destructive" }[meta.speed_tier ?? ""] ?? "text-muted-foreground";
+                          const qualityColor = { premium: "text-purple-500", high: "text-blue-500", standard: "text-muted-foreground" }[meta.quality_tier ?? ""] ?? "text-muted-foreground";
+                          const costColor = { cheap: "text-success", medium: "text-warning", expensive: "text-destructive" }[meta.cost_tier ?? ""] ?? "text-muted-foreground";
+                          const speedLabel = { fast: "Rápido", medium: "Médio", slow: "Lento" }[meta.speed_tier ?? ""] ?? "";
+                          const qualityLabel = { premium: "Premium", high: "Alta", standard: "Padrão" }[meta.quality_tier ?? ""] ?? "";
+                          const costLabel = { cheap: "Barato", medium: "Médio", expensive: "Caro" }[meta.cost_tier ?? ""] ?? "";
+                          return (
+                            <tr key={m.modelId} className="border-b border-border/50 last:border-0 align-top">
+                              <td className="py-2 pr-3">
+                                <div className="font-medium leading-snug">{m.displayName}</div>
+                                {!m.pricingFound && (
+                                  <span className="text-[10px] text-destructive">Sem preço configurado — modelo em logs sem linha na tabela</span>
+                                )}
+                                {(speedLabel || qualityLabel || costLabel) && (
+                                  <div className="flex gap-1.5 mt-0.5 flex-wrap">
+                                    {speedLabel && <span className={`text-[10px] font-medium ${speedColor}`}>⚡ {speedLabel}</span>}
+                                    {qualityLabel && <span className={`text-[10px] font-medium ${qualityColor}`}>★ {qualityLabel}</span>}
+                                    {costLabel && <span className={`text-[10px] font-medium ${costColor}`}>$ {costLabel}</span>}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2 pr-3 hidden sm:table-cell">
+                                <span className="text-xs text-muted-foreground">{meta.best_for ?? "—"}</span>
+                              </td>
+                              <td className="text-right py-2 pr-3 text-muted-foreground">{m.callCount}</td>
+                              <td className="text-right py-2 pr-3 text-muted-foreground hidden md:table-cell">{(m.inputTokens / 1000).toFixed(1)}k</td>
+                              <td className="text-right py-2 pr-3 text-muted-foreground hidden md:table-cell">{(m.outputTokens / 1000).toFixed(1)}k</td>
+                              <td className="text-right py-2 font-mono">${m.estimatedCostUsd.toFixed(4)}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

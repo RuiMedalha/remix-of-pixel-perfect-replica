@@ -7,6 +7,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 
+export interface ModelMetadata {
+  best_for?: string;
+  strengths?: string[];
+  speed_tier?: "fast" | "medium" | "slow";
+  quality_tier?: "standard" | "high" | "premium";
+  cost_tier?: "cheap" | "medium" | "expensive";
+  recommended_tasks?: string[];
+}
+
 export interface AiModelPricing {
   id: string;
   provider_id: string;
@@ -20,6 +29,7 @@ export interface AiModelPricing {
   is_active: boolean;
   source_url: string | null;
   notes: string | null;
+  metadata: ModelMetadata;
 }
 
 export interface ModelCostRow {
@@ -31,6 +41,7 @@ export interface ModelCostRow {
   estimatedCostUsd: number;
   callCount: number;
   pricingFound: boolean;
+  metadata: ModelMetadata;
 }
 
 export interface AiCostSummary {
@@ -167,6 +178,7 @@ export function useAiPricingDashboard() {
         estimatedCostUsd: 0,
         callCount: 0,
         pricingFound: !!p,
+        metadata: (p?.metadata ?? {}) as ModelMetadata,
       };
 
       existing.inputTokens += inputTokens;
