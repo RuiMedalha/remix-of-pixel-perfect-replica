@@ -177,16 +177,19 @@ export function useProductStats() {
       });
       if (error) throw error;
 
-      let pending = 0, optimized = 0, published = 0, total = 0;
+      let pending = 0, processing = 0, optimized = 0, needs_review = 0, published = 0, failed = 0, total = 0;
       (data || []).forEach((row: any) => {
         const count = Number(row.count);
         total += count;
-        if (row.status === "pending" || row.status === "processing") pending += count;
+        if (row.status === "pending") pending += count;
+        else if (row.status === "processing") processing += count;
         else if (row.status === "optimized") optimized += count;
+        else if (row.status === "needs_review") needs_review += count;
         else if (row.status === "published") published += count;
+        else if (row.status === "error") failed += count;
       });
 
-      return { pending, optimized, published, total };
+      return { pending, processing, optimized, needs_review, published, failed, total };
     },
   });
 }

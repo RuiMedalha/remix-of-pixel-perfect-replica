@@ -60,10 +60,13 @@ const Dashboard = () => {
     enabled: !!activeWorkspace,
   });
 
-  const statCards = [
-    { label: "Produtos Pendentes", value: stats?.pending ?? 0, icon: Clock, color: "text-warning" },
-    { label: "Produtos Otimizados", value: stats?.optimized ?? 0, icon: CheckCircle, color: "text-success" },
-    { label: "Total Processados", value: stats?.total ?? 0, icon: Package, color: "text-primary" },
+  const lifecycleStages = [
+    { label: "Pendentes",       value: stats?.pending      ?? 0, color: "text-warning",     bg: "bg-warning/10",     icon: Clock },
+    { label: "A processar",     value: stats?.processing   ?? 0, color: "text-primary",     bg: "bg-primary/10",     icon: Loader2 },
+    { label: "Otimizados",      value: stats?.optimized    ?? 0, color: "text-success",     bg: "bg-success/10",     icon: CheckCircle },
+    { label: "Em revisão",      value: stats?.needs_review ?? 0, color: "text-amber-500",   bg: "bg-amber-500/10",   icon: AlertTriangle },
+    { label: "Publicados",      value: stats?.published    ?? 0, color: "text-blue-500",    bg: "bg-blue-500/10",    icon: Globe },
+    { label: "Com erro",        value: stats?.failed       ?? 0, color: "text-destructive", bg: "bg-destructive/10", icon: AlertTriangle },
   ];
 
   return (
@@ -75,24 +78,31 @@ const Dashboard = () => {
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-3xl font-bold mt-1">
-                    {statsLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : stat.value}
-                  </p>
+      {/* Product Lifecycle State */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center justify-between text-base">
+            <span className="flex items-center gap-2"><Package className="w-4 h-4" /> Pipeline de Produtos</span>
+            {!statsLoading && (
+              <span className="text-sm font-normal text-muted-foreground">{stats?.total ?? 0} total</span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {statsLoading ? (
+            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {lifecycleStages.map((stage) => (
+                <div key={stage.label} className={`rounded-lg p-3 text-center ${stage.bg}`}>
+                  <p className={`text-2xl font-bold ${stage.color}`}>{stage.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{stage.label}</p>
                 </div>
-                <stat.icon className={`w-10 h-10 ${stat.color} opacity-80`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Intelligence Dashboard */}
       <IntelligenceDashboardPanel />
