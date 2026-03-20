@@ -683,12 +683,12 @@ REGRAS PARA ESPECIFICAÇÕES:
 
 ${instructions ? `INSTRUÇÕES DO UTILIZADOR PARA ESTE FORNECEDOR:\n${instructions}\n` : ''}`;
 
-    const userPrompt = `Analyze this scraped product page content for SKU "${sku}" (${title}).
+    const userPrompt = `Analisa o conteúdo desta página de produto para o SKU "${sku}" (${title}).
 
-Extract the following data and return it using the extract_product_data function.
-Pay special attention to variation selectors (radio buttons, dropdowns) — extract the SKU from each variation's URL.
+Extrai os seguintes dados e devolve-os usando a função extract_product_data.
+Presta especial atenção aos seletores de variação (botões de rádio, dropdowns) — extrai o SKU do URL de cada variação.
 
-MARKDOWN CONTENT:
+CONTEÚDO MARKDOWN:
 ${truncatedMd}${variationHtml}`;
 
 

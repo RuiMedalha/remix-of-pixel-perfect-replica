@@ -1510,7 +1510,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
                       taskType: "variation_attribute_extraction",
                       workspaceId: workspaceId,
                       modelOverride: "google/gemini-2.5-flash-lite",
-                      systemPrompt: "You extract variation attributes from product titles. Compare the parent title with each child title to identify the differentiating attribute (e.g. Color, Size, Material, Capacity, Dimensions). Return structured data via the tool. CRITICAL: NEVER use EAN codes, barcodes, numeric references (8+ digit numbers), brand names, or SKU codes as attribute values. Only use meaningful physical attributes like size, color, capacity, material.",
+                      systemPrompt: "Extrais atributos de variação a partir de títulos de produtos. Compara o título do produto pai com cada título filho para identificar o atributo diferenciador (ex: Cor, Tamanho, Material, Capacidade, Dimensões). Devolve dados estruturados via tool call. CRÍTICO: NUNCA uses códigos EAN, códigos de barras, referências numéricas (8+ dígitos), nomes de marca ou códigos SKU como valores de atributo. Usa apenas atributos físicos com significado como tamanho, cor, capacidade, material.",
                       messages: [{
                         role: "user",
                         content: `Parent product title: "${parentTitleForAI}"\n\nChild variation titles:\n${Object.entries(childTitles).map(([id, t]) => `- ID ${id}: "${t}"`).join("\n")}\n\nExtract the variation attribute name and value for each child. The differentiating attribute should be a PHYSICAL characteristic (size, color, capacity, dimensions, etc.), NEVER an EAN code, barcode, reference number, or brand name.`
