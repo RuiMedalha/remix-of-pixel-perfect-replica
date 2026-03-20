@@ -288,6 +288,7 @@ export function useProductsByIds(ids: string[]) {
       const { data, error } = await supabase
         .from("products")
         .select("id, optimized_title, original_title, sku")
+        .eq("workspace_id", activeWorkspace!.id)
         .in("id", ids);
       if (error) throw error;
       return (data ?? []) as Pick<Product, "id" | "optimized_title" | "original_title" | "sku">[];
