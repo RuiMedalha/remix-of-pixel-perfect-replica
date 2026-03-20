@@ -95,7 +95,7 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
 
   return (
     <>
-    <ScrollArea className="h-full">
+      <ScrollArea className="h-full">
       <div className="space-y-8 pr-2">
         {products.map((product) => {
           const productResults = grouped.get(product.id);
@@ -203,12 +203,14 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
                                   {result.output_text || "—"}
                                 </p>
                                 {(result.output_text?.length ?? 0) > 300 && (
-                                  <button
-                                    className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="h-auto p-0 text-[10px] gap-0.5"
                                     onClick={() => setViewingResult(result)}
                                   >
                                     <Expand className="w-2.5 h-2.5" /> Ver completo
-                                  </button>
+                                  </Button>
                                 )}
                               </div>
 
@@ -251,46 +253,49 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
           );
         })}
       </div>
-    </ScrollArea>
+      </ScrollArea>
 
-    {/* Full-output viewer dialog — placed OUTSIDE ScrollArea */}
-    <Dialog open={!!viewingResult} onOpenChange={(o) => { if (!o) setViewingResult(null); }}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-sm">
-            {viewingResult
-              ? `${COMPARISON_SECTIONS.find((s) => s.id === viewingResult.section)?.label ?? viewingResult.section} — ${viewingResult.model_id}`
-              : ""}
-          </DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="flex-1 mt-2">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap pr-4">
-            {viewingResult?.output_text}
-          </p>
-        </ScrollArea>
-        {viewingResult && (
-          <div className="border-t pt-3 flex items-center justify-between">
-            <div className="flex gap-3 text-[10px] text-muted-foreground">
-              <span>${Number(viewingResult.estimated_cost).toFixed(5)}</span>
-              <span>{viewingResult.latency_ms}ms</span>
-              <span>{viewingResult.input_tokens + viewingResult.output_tokens} tokens</span>
+      {/* Full-output viewer dialog — placed OUTSIDE ScrollArea */}
+      <Dialog open={!!viewingResult} onOpenChange={(o) => { if (!o) setViewingResult(null); }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              {viewingResult
+                ? `${COMPARISON_SECTIONS.find((s) => s.id === viewingResult.section)?.label ?? viewingResult.section} — ${viewingResult.model_id}`
+                : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 mt-2">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap pr-4">
+              {viewingResult?.output_text}
+            </p>
+          </ScrollArea>
+          {viewingResult && (
+            <div className="border-t pt-3 flex items-center justify-between">
+              <div className="flex gap-3 text-[10px] text-muted-foreground">
+                <span>${Number(viewingResult.estimated_cost).toFixed(5)}</span>
+                <span>{viewingResult.latency_ms}ms</span>
+                <span>{viewingResult.input_tokens + viewingResult.output_tokens} tokens</span>
+              </div>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                disabled={applying === viewingResult.id}
+                onClick={async () => {
+                  await handleSelectAndApply(viewingResult);
+                  setViewingResult(null);
+                }}
+              >
+                {applying === viewingResult.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  "Selecionar e aplicar"
+                )}
+              </Button>
             </div>
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              disabled={applying === viewingResult.id}
-              onClick={() => { handleSelectAndApply(viewingResult); setViewingResult(null); }}
-            >
-              {applying === viewingResult.id ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                "Selecionar e aplicar"
-              )}
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
