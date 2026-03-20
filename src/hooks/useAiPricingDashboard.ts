@@ -59,7 +59,7 @@ export interface AiCostSummary {
 // so new-format IDs ("gemini-2.5-flash") match old-format ("google/gemini-2.5-flash").
 function normalizeModelId(raw: string): string {
   return raw
-    .replace(/^(google|openai|anthropic|mistral|meta-llama|cohere)\//, "")
+    .replace(/^(google|openai|anthropic|mistral|meta-llama|cohere|deepseek)\//, "")
     .trim();
 }
 
@@ -67,6 +67,7 @@ function providerFromModelId(raw: string): string {
   if (raw.startsWith("google/") || raw.includes("gemini")) return "gemini";
   if (raw.startsWith("openai/") || raw.includes("gpt")) return "openai";
   if (raw.startsWith("anthropic/") || raw.includes("claude")) return "anthropic";
+  if (raw.startsWith("deepseek/") || raw.includes("deepseek")) return "deepseek";
   return "unknown";
 }
 

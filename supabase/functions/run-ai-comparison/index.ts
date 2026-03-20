@@ -11,6 +11,9 @@ function toProviderModel(modelId: string): string {
   if (modelId.startsWith("gemini-"))  return `google/${modelId}`;
   if (modelId.startsWith("gpt-"))     return `openai/${modelId}`;
   if (modelId.startsWith("claude-"))  return `anthropic/${modelId}`;
+  // TODO: resolve-ai-route does not yet support deepseek provider.
+  // DeepSeek models are is_active=false in ai_model_pricing until this is wired.
+  if (modelId.startsWith("deepseek")) return `deepseek/${modelId}`;
   return modelId;
 }
 
