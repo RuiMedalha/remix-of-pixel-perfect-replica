@@ -26,8 +26,8 @@ Deno.serve(async (req) => {
     if (!taskType || !workspaceId) throw new Error("taskType and workspaceId required");
 
     // Resolve system prompt from prompt_templates/prompt_versions if a routing rule
-    // specifies one. This is existing logic extracted from the old resolve-ai-route.
-    const resolvedPrompt = await resolvePromptTemplate(
+    // specifies one. Checks workspace-specific rule first, then global (workspace_id IS NULL).
+    const { text: resolvedPrompt, versionId: promptVersionId } = await resolvePromptTemplate(
       supabase,
       workspaceId,
       taskType,
@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
       modelOverride,
       tools: options?.tools,
       toolChoice: options?.tool_choice,
+      promptVersionId: promptVersionId ?? undefined,
     });
 
     return new Response(
@@ -57,6 +58,7 @@ Deno.serve(async (req) => {
           fallbackUsed: meta.fallbackUsed,
           latencyMs: meta.latencyMs,
           taskType,
+          promptVersionId: promptVersionId ?? null,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -71,39 +73,59 @@ Deno.serve(async (req) => {
 });
 
 // Resolves the system prompt via prompt_templates / prompt_versions.
-// Precedence: active prompt_version > base_prompt from template > caller's systemPrompt.
-// Extracted verbatim from the old resolve-ai-route — no new logic.
+// Precedence: workspace-specific active version > global active version >
+//             base_prompt from template > caller's systemPrompt.
+// Returns { text, versionId } — versionId is null when falling back to
+// base_prompt or the caller's hardcoded systemPrompt.
 async function resolvePromptTemplate(
   supabase: ReturnType<typeof createClient>,
   workspaceId: string,
   taskType: string,
   fallbackPrompt: string,
-): Promise<string> {
+): Promise<{ text: string; versionId: string | null }> {
   try {
-    const { data: rule } = await supabase
+    // 1. Workspace-specific rule
+    const { data: wsRule } = await supabase
       .from("ai_routing_rules")
       .select("prompt_template_id, prompt:prompt_template_id(base_prompt)")
       .eq("workspace_id", workspaceId)
       .eq("task_type", taskType)
       .eq("is_active", true)
-      .single();
+      .maybeSingle();
+
+    // 2. Global rule (workspace_id IS NULL) — checked only if no workspace rule found
+    const { data: globalRule } = wsRule?.prompt_template_id
+      ? { data: null }
+      : await supabase
+          .from("ai_routing_rules")
+          .select("prompt_template_id, prompt:prompt_template_id(base_prompt)")
+          .is("workspace_id", null)
+          .eq("task_type", taskType)
+          .eq("is_active", true)
+          .maybeSingle();
+
+    const rule = wsRule?.prompt_template_id ? wsRule : globalRule;
 
     if (rule?.prompt_template_id) {
       const { data: version } = await supabase
         .from("prompt_versions")
-        .select("prompt_text")
+        .select("id, prompt_text")
         .eq("template_id", rule.prompt_template_id)
         .eq("is_active", true)
         .order("version_number", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (version?.prompt_text) return version.prompt_text;
+      if (version?.prompt_text) {
+        return { text: version.prompt_text, versionId: version.id as string };
+      }
 
       const basePrompt = (rule.prompt as { base_prompt?: string } | null)?.base_prompt;
-      if (basePrompt) return basePrompt;
+      if (basePrompt) return { text: basePrompt, versionId: null };
     }
-  } catch { /* no rule or template — use caller's prompt */ }
+  } catch {
+    /* no rule or template — use caller's prompt */
+  }
 
-  return fallbackPrompt || "";
+  return { text: fallbackPrompt || "", versionId: null };
 }
