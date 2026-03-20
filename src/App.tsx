@@ -57,6 +57,7 @@ import CatalogWorkflowCenterPage from "./pages/CatalogWorkflowCenterPage";
 import VisualScraperPage from "./pages/VisualScraperPage";
 import WebsiteExtractionAgentPage from "./pages/WebsiteExtractionAgentPage";
 import ScraperManualPage from "./pages/ScraperManualPage";
+import AiComparisonHistoryPage from "./pages/AiComparisonHistoryPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -130,6 +131,7 @@ function ProtectedRoutes() {
           <Route path="/visual-scraper" element={<VisualScraperPage />} />
           <Route path="/website-agent" element={<WebsiteExtractionAgentPage />} />
           <Route path="/scraper-manual" element={<ScraperManualPage />} />
+          <Route path="/ai-comparacoes" element={<AiComparisonHistoryPage />} />
           <Route path="/admin/utilizadores" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

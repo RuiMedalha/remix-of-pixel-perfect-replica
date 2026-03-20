@@ -41,6 +41,7 @@ import {
   Route,
   TowerControl,
   GitMerge,
+  GitCompare,
   MousePointerClick,
   type LucideIcon,
 } from "lucide-react";
@@ -169,6 +170,7 @@ export const navGroups: NavGroup[] = [
       { title: "AI Provider Center", icon: Cpu, route: "/ai-provider-center" },
       { title: "AI Governance", icon: Gauge, route: "/ai-governance" },
       { title: "Cost Intelligence", icon: DollarSign, route: "/cost-intelligence" },
+      { title: "Comparações IA", icon: GitCompare, route: "/ai-comparacoes" },
       { title: "Supplier Intelligence", icon: Building2, route: "/supplier-intelligence" },
       { title: "Supplier Playbooks", icon: BookOpen, route: "/supplier-playbooks" },
     ],
