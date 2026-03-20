@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
 
               if (lovableKey) {
                 const productName = product.original_title || product.sku || "produto";
-                const prompt = `Place this product in a realistic, professional commercial environment. The product should be the main focus, centered and prominent. The environment should match the product category - for example, kitchen equipment in a modern professional kitchen, furniture in an elegant room. Professional lighting, high quality commercial photography style. Product: ${productName}`;
+                const prompt = `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto — por exemplo, equipamento de cozinha numa cozinha profissional moderna, mobiliário num espaço elegante. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: ${productName}`;
 
                 const aiResp = await fetch(
                   `${supabaseUrl}/functions/v1/resolve-ai-route`,
@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
 
             // Standard optimization mode: pad to square with white background
             if (lovableKey) {
-              const padPrompt = `Take this product image and place it centered on a pure white square background. Maintain the original proportions without any cropping or distortion. Add equal white padding on all sides so the final image is perfectly square. The product should occupy about 80% of the frame. Clean, professional e-commerce style. Do not add any text, watermarks or extra elements.`;
+              const padPrompt = `Pega nesta imagem de produto e coloca-a centrada sobre um fundo quadrado branco puro. Mantém as proporções originais sem cortar nem distorcer. Adiciona margens brancas iguais em todos os lados para que a imagem final seja perfeitamente quadrada. O produto deve ocupar cerca de 80% da área. Estilo limpo e profissional de e-commerce. Não adiciones texto, marcas de água nem elementos extra.`;
 
               const aiResp = await fetch(
                 `${supabaseUrl}/functions/v1/resolve-ai-route`,

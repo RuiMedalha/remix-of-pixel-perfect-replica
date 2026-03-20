@@ -378,7 +378,7 @@ async function processChunk(opts: {
       messages: [
         {
           role: "system",
-          content: "You are a product data extraction expert. Extract ALL products from the specified pages with maximum precision. Pay special attention to product images — describe each image in detail for SEO alt-text generation.",
+          content: "És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.",
         },
         {
           role: "user",
@@ -386,24 +386,24 @@ async function processChunk(opts: {
             { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
             {
               type: "text",
-              text: `Extract ALL products from pages ${chunkStart} to ${chunkEnd} of this PDF.
-Language: ${overviewData?.language || "auto-detect"}
-Supplier: ${overviewData?.supplier_name || "unknown"}
+              text: `Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
+Idioma: ${overviewData?.language || "auto-detect"}
+Fornecedor: ${overviewData?.supplier_name || "desconhecido"}
 
-For each product return:
+Para cada produto devolve:
 - sku, title, description, price (number), currency, category, dimensions, weight, material, color_options (array), technical_specs (object), confidence (0-100)
-- images (array of objects): For EACH product image visible on the page, provide:
-  - image_description: detailed description of what the image shows (product angle, context, styling)
-  - alt_text: SEO-optimized alt text (max 125 chars)
+- images (array de objetos): Para CADA imagem de produto visível na página, indica:
+  - image_description: descrição detalhada do que a imagem mostra (ângulo do produto, contexto, estilo)
+  - alt_text: texto alternativo otimizado para SEO (máx 125 caracteres)
   - image_type: "product_photo"|"technical_drawing"|"lifestyle"|"packaging"|"detail_closeup"|"color_swatch"|"dimension_diagram"
   - position_on_page: "top"|"middle"|"bottom"|"left"|"right"|"center"
   - estimated_size: "small"|"medium"|"large"|"full_width"
-  - contains_text: boolean (if the image has overlaid text)
+  - contains_text: boolean (se a imagem tem texto sobreposto)
   - background: "white"|"transparent"|"lifestyle"|"colored"|"studio"
 
-JSON format:
+Formato JSON:
 {"pages":[{"page_number":N,"page_type":"product_listing","zones":["header","table","images"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
-Return ONLY valid JSON.`,
+Devolve APENAS JSON válido.`,
             },
           ],
         },

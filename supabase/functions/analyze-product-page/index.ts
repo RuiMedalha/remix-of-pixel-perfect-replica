@@ -37,20 +37,20 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (effectiveMode === "fingerprint" || effectiveMode === "both") {
-      systemPrompt = `You are an expert web scraping analyst. You analyze HTML pages from e-commerce/catalog websites.
+      systemPrompt = `És um especialista em análise de estrutura web. Analisas a estrutura HTML de páginas para identificar os seletores CSS e padrões XPath que identificam de forma única os campos de dados dos produtos.
 
-Your task:
-1. FINGERPRINT: Identify what makes PRODUCT pages different from NON-PRODUCT pages (categories, about, contact, etc).
-   Look for distinguishing patterns like:
-   - Presence of SKU/reference numbers
-   - Price elements
-   - Add-to-cart buttons
-   - Product-specific structured data (schema.org Product)
-   - Specific CSS classes or HTML structures unique to product pages
-   
-2. FIELDS: For pages that ARE products, identify the CSS selectors for extractable fields.
+A tua tarefa:
+1. FINGERPRINT: Identifica o que distingue páginas de PRODUTO de páginas que NÃO são produto (categorias, sobre, contacto, etc).
+   Procura padrões diferenciadores como:
+   - Presença de SKU/números de referência
+   - Elementos de preço
+   - Botões de adicionar ao carrinho
+   - Dados estruturados específicos de produto (schema.org Product)
+   - Classes CSS ou estruturas HTML únicas de páginas de produto
 
-Return ONLY valid JSON with this structure:
+2. FIELDS: Para páginas que SÃO produtos, identifica os seletores CSS para os campos extraíveis.
+
+Devolve APENAS JSON válido com esta estrutura:
 {
   "fingerprint": {
     "product_indicators": [
@@ -72,9 +72,9 @@ Return ONLY valid JSON with this structure:
 
 ${pageDigests}`;
     } else if (effectiveMode === "fields") {
-      systemPrompt = `You are an expert web scraping analyst. Analyze the HTML of product pages and identify all extractable fields with their CSS selectors.
+      systemPrompt = `És um especialista em análise de páginas web de fornecedores. Analisas o HTML de páginas de produtos e extraís os campos de produto solicitados.
 
-Return ONLY valid JSON:
+Devolve APENAS JSON válido:
 {
   "fields": [
     { "name": "field name in Portuguese", "selector": "CSS selector", "type": "text|image|html|link", "confidence": 0.0-1.0, "sample_value": "preview" }
@@ -82,7 +82,7 @@ Return ONLY valid JSON:
   "overall_confidence": 0.0-1.0
 }
 
-Common fields to look for: Título, Referência/SKU, Preço, Descrição, Imagem Principal, Galeria, Características/Especificações, Categoria, Marca, Peso, Dimensões, Stock, EAN/GTIN, Documentos PDF.`;
+Campos comuns a procurar: Título, Referência/SKU, Preço, Descrição, Imagem Principal, Galeria, Características/Especificações, Categoria, Marca, Peso, Dimensões, Stock, EAN/GTIN, Documentos PDF.`;
 
       userPrompt = `Analyze these product page(s) and identify all extractable fields with precise CSS selectors:
 
