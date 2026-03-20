@@ -1,4 +1,4 @@
-import { Package, CheckCircle, Clock, Activity, Loader2, Brain, BookOpen, Globe, Database, Search, Layers, BarChart3, TrendingUp, AlertTriangle, Tag, Cpu, ImageIcon } from "lucide-react";
+import { Package, CheckCircle, Clock, Activity, Loader2, Brain, BookOpen, Globe, Database, Search, Layers, BarChart3, TrendingUp, AlertTriangle, Tag, Cpu, ImageIcon, DollarSign } from "lucide-react";
 import { IntelligenceDashboardPanel } from "@/components/IntelligenceDashboardPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useProductStats } from "@/hooks/useProducts";
 import { useRecentActivity } from "@/hooks/useActivityLog";
 import { useTokenUsageSummary, useQualityMetrics } from "@/hooks/useOptimizationLogs";
+import { useAiPricingDashboard } from "@/hooks/useAiPricingDashboard";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,7 @@ const Dashboard = () => {
   const { data: activity, isLoading: activityLoading } = useRecentActivity();
   const { data: tokenSummary, isLoading: tokenLoading } = useTokenUsageSummary();
   const { data: quality, isLoading: qualityLoading } = useQualityMetrics();
+  const { summary: aiCost, isLoading: aiCostLoading } = useAiPricingDashboard();
 
   const { data: imageCredits } = useQuery({
     queryKey: ["image-credits", activeWorkspace?.id],
@@ -369,6 +371,100 @@ const Dashboard = () => {
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* AI Cost Dashboard */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <DollarSign className="w-4 h-4" />
+            Custo estimado por IA
+            {!aiCost.pricingLoaded && !aiCostLoading && (
+              <Badge variant="outline" className="text-xs ml-auto">Sem preços no BD</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {aiCostLoading ? (
+            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <div className="space-y-4">
+              {/* Totals row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-lg bg-muted/40 p-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Custo total</p>
+                  <p className="text-lg font-bold">${aiCost.totalCostUsd.toFixed(4)}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Por otimização</p>
+                  <p className="text-lg font-bold">${aiCost.costPerOptimization.toFixed(4)}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Tokens entrada</p>
+                  <p className="text-lg font-bold">{(aiCost.totalInputTokens / 1000).toFixed(1)}k</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Tokens saída</p>
+                  <p className="text-lg font-bold">{(aiCost.totalOutputTokens / 1000).toFixed(1)}k</p>
+                </div>
+              </div>
+
+              {/* Cost by provider */}
+              {aiCost.costByProvider.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Por fornecedor</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {aiCost.costByProvider.map(({ provider, costUsd }) => (
+                      <Badge key={provider} variant="secondary" className="text-sm px-3 py-1">
+                        {provider}: ${costUsd.toFixed(4)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cost by model table */}
+              {aiCost.costByModel.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Por modelo</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="text-left py-1.5 pr-3">Modelo</th>
+                          <th className="text-right py-1.5 pr-3">Chamadas</th>
+                          <th className="text-right py-1.5 pr-3">Entrada</th>
+                          <th className="text-right py-1.5 pr-3">Saída</th>
+                          <th className="text-right py-1.5">Custo (USD)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {aiCost.costByModel.map((m) => (
+                          <tr key={m.modelId} className="border-b border-border/50 last:border-0">
+                            <td className="py-1.5 pr-3">
+                              <span className="font-medium">{m.displayName}</span>
+                              {!m.pricingFound && (
+                                <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">sem preço</Badge>
+                              )}
+                            </td>
+                            <td className="text-right py-1.5 pr-3 text-muted-foreground">{m.callCount}</td>
+                            <td className="text-right py-1.5 pr-3 text-muted-foreground">{(m.inputTokens / 1000).toFixed(1)}k</td>
+                            <td className="text-right py-1.5 pr-3 text-muted-foreground">{(m.outputTokens / 1000).toFixed(1)}k</td>
+                            <td className="text-right py-1.5 font-mono">${m.estimatedCostUsd.toFixed(4)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {aiCost.costByModel.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Sem dados de custo disponíveis.</p>
               )}
             </div>
           )}
