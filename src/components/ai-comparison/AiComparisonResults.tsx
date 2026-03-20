@@ -1,9 +1,10 @@
 // src/components/ai-comparison/AiComparisonResults.tsx
 import { useState } from "react";
-import { Check, Zap, DollarSign, Loader2 } from "lucide-react";
+import { Check, Zap, DollarSign, Loader2, Expand } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   COMPARISON_SECTIONS,
@@ -42,6 +43,7 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
   const selectResult = useSelectComparisonResult();
   const applyResult  = useApplyComparisonResult();
   const [applying, setApplying] = useState<string | null>(null);
+  const [viewingResult, setViewingResult] = useState<ComparisonResult | null>(null);
 
   if (isLoading) {
     return (
@@ -92,6 +94,7 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
   };
 
   return (
+    <>
     <ScrollArea className="h-full">
       <div className="space-y-8 pr-2">
         {products.map((product) => {
@@ -195,9 +198,19 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
                               </div>
 
                               {/* Output text */}
-                              <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap line-clamp-6 flex-1">
-                                {result.output_text || "—"}
-                              </p>
+                              <div className="flex-1 space-y-1">
+                                <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap line-clamp-4">
+                                  {result.output_text || "—"}
+                                </p>
+                                {(result.output_text?.length ?? 0) > 300 && (
+                                  <button
+                                    className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                                    onClick={() => setViewingResult(result)}
+                                  >
+                                    <Expand className="w-2.5 h-2.5" /> Ver completo
+                                  </button>
+                                )}
+                              </div>
 
                               {/* Stats row */}
                               <div className="flex gap-3 text-[10px] text-muted-foreground">
@@ -239,5 +252,45 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
         })}
       </div>
     </ScrollArea>
+
+    {/* Full-output viewer dialog — placed OUTSIDE ScrollArea */}
+    <Dialog open={!!viewingResult} onOpenChange={(o) => { if (!o) setViewingResult(null); }}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-sm">
+            {viewingResult
+              ? `${COMPARISON_SECTIONS.find((s) => s.id === viewingResult.section)?.label ?? viewingResult.section} — ${viewingResult.model_id}`
+              : ""}
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="flex-1 mt-2">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap pr-4">
+            {viewingResult?.output_text}
+          </p>
+        </ScrollArea>
+        {viewingResult && (
+          <div className="border-t pt-3 flex items-center justify-between">
+            <div className="flex gap-3 text-[10px] text-muted-foreground">
+              <span>${Number(viewingResult.estimated_cost).toFixed(5)}</span>
+              <span>{viewingResult.latency_ms}ms</span>
+              <span>{viewingResult.input_tokens + viewingResult.output_tokens} tokens</span>
+            </div>
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              disabled={applying === viewingResult.id}
+              onClick={() => { handleSelectAndApply(viewingResult); setViewingResult(null); }}
+            >
+              {applying === viewingResult.id ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                "Selecionar e aplicar"
+              )}
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
