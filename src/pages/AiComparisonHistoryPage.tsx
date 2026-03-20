@@ -4,7 +4,6 @@ import { GitCompare, Loader2, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useComparisonHistory,
   useProductsByIds,
@@ -43,7 +42,7 @@ function RunViewer({ run, onClose }: { run: ComparisonRun; onClose: () => void }
           ) : (
             <AiComparisonResults
               runId={run.id}
-              products={products as any}
+              products={products}
               modelIds={run.model_ids}
               sections={run.sections}
             />

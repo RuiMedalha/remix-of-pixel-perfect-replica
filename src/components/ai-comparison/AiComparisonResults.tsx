@@ -17,9 +17,11 @@ import type { Product } from "@/hooks/useProducts";
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
+type ProductSummary = Pick<Product, "id" | "optimized_title" | "original_title" | "sku">;
+
 interface Props {
   runId: string;
-  products: Product[];
+  products: ProductSummary[];
   modelIds: string[];
   sections: string[];
 }
@@ -102,10 +104,10 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
           if (!productResults) return null;
 
           const productTitle =
-            (product as any).optimized_title ||
-            (product as any).original_title ||
+            product.optimized_title ||
+            product.original_title ||
             "Sem título";
-          const productSku = (product as any).sku;
+          const productSku = product.sku;
 
           return (
             <div key={product.id}>
