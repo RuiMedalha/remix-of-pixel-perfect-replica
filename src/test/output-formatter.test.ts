@@ -12,7 +12,6 @@ const WEAK_PHRASE_PATTERNS: RegExp[] = [
   /^Apresentamos o\b/i,
   /^Descubra o\b/i,
   /^Conheça o\b/i,
-  /^O nosso produto\b/i,
   /^De alta qualidade[,.]?\s*/i,
   /^Alta qualidade[,.]?\s*/i,
   /^Excelente desempenho[,.]?\s*/i,
@@ -48,6 +47,7 @@ interface OptimizedFields {
   meta_description?: string;
   seo_slug?: string;
   optimized_short_description?: string;
+  optimized_description?: string;
   [key: string]: unknown;
 }
 interface ValidationResult {
@@ -137,7 +137,7 @@ describe("stripWeakPhrases", () => {
   it("capitalizes the first character of the stripped remainder", () => {
     const input = "Este produto é perfeito para restaurantes de luxo com serviço completo.";
     const result = stripWeakPhrases(input);
-    expect(result.charAt(0)).toBe(result.charAt(0).toUpperCase());
+    expect(result.charAt(0)).toBe("R");
   });
 
   it("returns empty string unchanged", () => {
@@ -213,5 +213,18 @@ describe("formatProductOutput", () => {
     };
     const { fields } = formatProductOutput(input);
     expect(fields.optimized_short_description).toBe("Descrição com espaços a mais.");
+  });
+
+  it("applies weak phrase stripping to optimized_description", () => {
+    const fields = {
+      optimized_title: "Título.",
+      optimized_short_description: "Descrição curta.",
+      meta_title: "Meta título.",
+      meta_description: "Meta descrição.",
+      optimized_description: "Este produto é ideal para restaurantes e hotéis com alto volume de produção.",
+    };
+    const { fields: out } = formatProductOutput(fields);
+    expect(out.optimized_description).not.toMatch(/^Este produto é ideal para/i);
+    expect(out.optimized_description as string).toContain("Restaurantes");
   });
 });

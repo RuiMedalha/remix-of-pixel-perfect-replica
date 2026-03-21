@@ -15,7 +15,6 @@ const WEAK_PHRASE_PATTERNS: RegExp[] = [
   /^Apresentamos o\b/i,
   /^Descubra o\b/i,
   /^Conheça o\b/i,
-  /^O nosso produto\b/i,
   /^De alta qualidade[,.]?\s*/i,
   /^Alta qualidade[,.]?\s*/i,
   /^Excelente desempenho[,.]?\s*/i,
@@ -23,7 +22,7 @@ const WEAK_PHRASE_PATTERNS: RegExp[] = [
 ];
 
 export function stripWeakPhrases(text: string): string {
-  if (!text) return text;
+  if (!text) return "";
   for (const pattern of WEAK_PHRASE_PATTERNS) {
     const match = text.match(pattern);
     if (match) {
