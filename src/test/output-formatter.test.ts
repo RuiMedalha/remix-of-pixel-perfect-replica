@@ -19,7 +19,7 @@ const WEAK_PHRASE_PATTERNS: RegExp[] = [
 ];
 
 function stripWeakPhrases(text: string): string {
-  if (!text) return text;
+  if (!text) return "";
   for (const pattern of WEAK_PHRASE_PATTERNS) {
     const match = text.match(pattern);
     if (match) {
