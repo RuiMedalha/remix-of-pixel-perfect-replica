@@ -1689,7 +1689,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         await supabase.from("optimization_logs").insert({
           product_id: product.id,
           user_id: userId,
-          model: chosenModel,
+          model: chosenModel.model,
           prompt_tokens: promptTokens,
           completion_tokens: completionTokens,
           total_tokens: totalTokens,
