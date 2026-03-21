@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { taskType, workspaceId, messages, systemPrompt, options, modelOverride } =
+    const { taskType, workspaceId, messages, systemPrompt, options, modelOverride, providerOverride } =
       await req.json();
     if (!taskType || !workspaceId) throw new Error("taskType and workspaceId required");
 
@@ -44,6 +44,7 @@ Deno.serve(async (req) => {
       maxTokens: options?.max_tokens,
       jsonMode: !!options?.response_format,
       modelOverride,
+      providerOverride,
       tools: options?.tools,
       toolChoice: options?.tool_choice,
       promptVersionId: promptVersionId ?? undefined,

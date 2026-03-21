@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { enforceFieldLimits } from "../_shared/ai/output-guardrails.ts";
+import { formatProductOutput } from "../_shared/ai/output-formatter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -255,23 +256,25 @@ serve(async (req) => {
       .in("id", productIds);
 
     // Fetch user's chosen AI model from settings
-    const MODEL_MAP: Record<string, string> = {
-      "gemini-3-flash": "google/gemini-3-flash-preview",
-      "gemini-3-pro": "google/gemini-3-pro-preview",
-      "gemini-2.5-pro": "google/gemini-2.5-pro",
-      "gemini-2.5-flash": "google/gemini-2.5-flash",
-      "gemini-2.5-flash-lite": "google/gemini-2.5-flash-lite",
+    // CANONICAL_MODEL_MAP: maps UI model keys to provider-registry format.
+    // Use { provider, model } pairs — never Lovable-gateway "google/..." strings.
+    const CANONICAL_MODEL_MAP: Record<string, { provider: string; model: string }> = {
+      "gemini-3-flash":        { provider: "gemini", model: "gemini-2.5-flash" },   // gemini-3 preview → latest stable flash
+      "gemini-3-pro":          { provider: "gemini", model: "gemini-2.5-pro" },     // gemini-3 preview → latest stable pro
+      "gemini-2.5-pro":        { provider: "gemini", model: "gemini-2.5-pro" },
+      "gemini-2.5-flash":      { provider: "gemini", model: "gemini-2.5-flash" },
+      "gemini-2.5-flash-lite": { provider: "gemini", model: "gemini-2.5-flash-lite" },
     };
+    const DEFAULT_MODEL_KEY = "gemini-2.5-flash";
     const { data: modelSetting } = await supabase
       .from("settings")
       .select("value")
       .eq("key", "default_model")
       .maybeSingle();
-    // Use override if provided, otherwise fall back to settings
-    const chosenModel = modelOverride 
-      ? (MODEL_MAP[modelOverride] || MODEL_MAP["gemini-3-flash"])
-      : (MODEL_MAP[modelSetting?.value || "gemini-3-flash"] || "google/gemini-3-flash-preview");
-    console.log(`Using AI model: ${chosenModel} (override: ${modelOverride || "none"}, setting: ${modelSetting?.value || "default"})`);
+    // Use override if provided, otherwise fall back to settings, then to DEFAULT_MODEL_KEY
+    const modelKey = modelOverride || modelSetting?.value || DEFAULT_MODEL_KEY;
+    const chosenModel = CANONICAL_MODEL_MAP[modelKey] ?? CANONICAL_MODEL_MAP[DEFAULT_MODEL_KEY];
+    console.log(`Using AI model: ${chosenModel.model} via provider: ${chosenModel.provider} (key: ${modelKey}, override: ${modelOverride || "none"}, setting: ${modelSetting?.value || "default"})`);
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
 
@@ -1191,7 +1194,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           body: JSON.stringify({
             taskType: "product_optimization",
             workspaceId: workspaceId,
-            modelOverride: chosenModel,
+            modelOverride: chosenModel.model,
+            providerOverride: chosenModel.provider,
             systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.",
             messages: [{ role: "user", content: finalPrompt }],
             options: {
@@ -1247,7 +1251,12 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
 
         const rawOptimized = JSON.parse(toolCall.function.arguments);
-        const optimized = enforceFieldLimits(rawOptimized);
+        const guardrailed = enforceFieldLimits(rawOptimized);
+        const { fields: finalOptimized, issues: outputIssues } = formatProductOutput(guardrailed);
+        if (outputIssues.length > 0) {
+          console.warn("[optimize-product] output quality issues:", outputIssues);
+        }
+        const optimized = finalOptimized;
 
         // === VALIDATE upsell/crosssell SKUs against real DB (SKU-only format) ===
         if (optimized.upsell_skus && Array.isArray(optimized.upsell_skus) && optimized.upsell_skus.length > 0) {
