@@ -115,12 +115,17 @@ export interface RunPromptParams {
   providerOverride?: string;
   tools?: unknown[];
   toolChoice?: unknown;
+  promptVersionId?: string;
 }
 
 export interface RunMeta {
   provider: string;
   model: string;
   fallbackUsed: boolean;
+  /** The model ID the caller requested via modelOverride, if any. */
+  requestedModel?: string;
+  /** Human-readable reason a fallback was used, if fallbackUsed === true. */
+  fallbackReason?: string;
   attemptedProviders: string[];
   attemptedModels: string[];
   decisionSource: ResolvedRoute['decisionSource'];
@@ -146,6 +151,7 @@ export interface UsageLogEntry {
   latencyMs: number;
   errorCategory?: string;
   isShadow: boolean;
+  promptVersionId?: string;
 }
 
 export interface RetryConfig {

@@ -62,6 +62,8 @@ export async function runPrompt(
     provider: raw.provider,
     model: raw.model,
     fallbackUsed: raw.fallbackUsed,
+    requestedModel: params.modelOverride ?? undefined,
+    fallbackReason: raw.fallbackUsed ? "primary_provider_failed" : undefined,
     attemptedProviders: raw.attemptedProviders,
     attemptedModels: raw.attemptedModels,
     decisionSource: route.decisionSource,
@@ -88,6 +90,7 @@ export async function runPrompt(
     latencyMs: raw.latencyMs,
     errorCategory: meta.errorCategory,
     isShadow: shadowMode,
+    promptVersionId: params.promptVersionId,
   });
 
   // Shadow mode: result is returned but callers must check meta.shadowMode

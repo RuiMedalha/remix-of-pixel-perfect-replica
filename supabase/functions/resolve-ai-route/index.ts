@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
           usedProvider: meta.provider,
           usedModel: meta.model,
           fallbackUsed: meta.fallbackUsed,
+          requestedModel: meta.requestedModel ?? null,
+          fallbackReason: meta.fallbackReason ?? null,
           latencyMs: meta.latencyMs,
           taskType,
           promptVersionId: promptVersionId ?? null,
