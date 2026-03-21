@@ -22,6 +22,7 @@ export async function logUsage(
       latency_ms: entry.latencyMs,
       error_category: entry.errorCategory ?? null,
       is_shadow: entry.isShadow,
+      prompt_version_id: entry.promptVersionId ?? null,
     });
     if (error) {
       console.warn("[usage-logger] Failed to log usage:", error.message);
