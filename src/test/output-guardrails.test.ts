@@ -107,3 +107,138 @@ describe("output guardrails", () => {
     });
   });
 });
+
+// ─── Inlined helpers for new tests ───────────────────────────────────────────
+// trimHtmlSafe — inlined from output-guardrails.ts; keep in sync.
+function trimHtmlSafe(
+  value: string,
+  maxLen: number,
+  fallbackFn: (v: string, n: number) => string,
+): string {
+  if (!value || value.length <= maxLen) return value;
+  const cut = value.substring(0, maxLen);
+  const lastClose = cut.lastIndexOf(">");
+  if (lastClose < 0) return fallbackFn(value, maxLen);
+  const beforeClose = cut.substring(0, lastClose + 1);
+  const lastOpen = beforeClose.lastIndexOf("<");
+  if (lastOpen >= 0) {
+    const closeAfterOpen = beforeClose.indexOf(">", lastOpen);
+    if (closeAfterOpen < 0) {
+      const safeEnd = beforeClose.substring(0, lastOpen).trimEnd();
+      return fallbackFn(safeEnd, safeEnd.length);
+    }
+  }
+  return fallbackFn(value, lastClose + 1);
+}
+
+// validateProductOutput — inlined from output-guardrails.ts; keep in sync.
+interface ValidationResult {
+  valid: boolean;
+  issues: string[];
+}
+function validateProductOutput(fields: Record<string, unknown>): ValidationResult {
+  const issues: string[] = [];
+  const REQUIRED = ["optimized_title", "optimized_short_description", "meta_title", "meta_description"];
+  for (const field of REQUIRED) {
+    const val = fields[field];
+    if (typeof val !== "string" || (val as string).trim().length === 0) {
+      issues.push(`required field "${field}" is empty or missing`);
+    }
+  }
+  const DESCRIPTION_FIELDS = ["optimized_short_description", "optimized_description"];
+  for (const field of DESCRIPTION_FIELDS) {
+    const val = fields[field];
+    if (typeof val !== "string" || (val as string).trim().length === 0) continue;
+    const visibleText = (val as string).replace(/<[^>]+>/g, "").trim();
+    if (visibleText.length === 0) continue;
+    const lastChar = visibleText[visibleText.length - 1];
+    if (!/[.!?]/.test(lastChar)) {
+      issues.push(`field "${field}" ends abruptly (last visible char: "${lastChar}")`);
+    }
+  }
+  const HTML_FIELDS = ["optimized_short_description", "optimized_description"];
+  for (const field of HTML_FIELDS) {
+    const val = fields[field];
+    if (typeof val !== "string" || (val as string).trim().length === 0) continue;
+    const openWithoutClose = /<[^>]*$/.test(val as string);
+    if (openWithoutClose) {
+      issues.push(`field "${field}" contains an unclosed HTML tag`);
+    }
+    const BLOCK_TAGS = ["table", "thead", "tbody", "tr", "td", "th", "ul", "ol", "li"];
+    for (const tag of BLOCK_TAGS) {
+      const openCount = ((val as string).match(new RegExp(`<${tag}[\\s>]`, "gi")) || []).length;
+      const closeCount = ((val as string).match(new RegExp(`</${tag}>`, "gi")) || []).length;
+      if (openCount !== closeCount) {
+        issues.push(`field "${field}" has mismatched <${tag}> tags (${openCount} open, ${closeCount} close)`);
+      }
+    }
+  }
+  return { valid: issues.length === 0, issues };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("trimHtmlSafe", () => {
+  it("stops before an opening <table> tag that would be cut mid-way", () => {
+    const input = "Texto antes. <table><tr><td>celula</td></tr></table>";
+    const result = trimHtmlSafe(input, 15, trimToWord);
+    expect(result).toBe("Texto antes.");
+    expect(result).not.toContain("<table");
+  });
+
+  it("returns full string when within maxLen", () => {
+    const input = "<p>Curto.</p>";
+    expect(trimHtmlSafe(input, 100, trimToWord)).toBe("<p>Curto.</p>");
+  });
+
+  it("delegates to fallback when no HTML tags are present", () => {
+    const input = "palavra um dois tres quatro cinco seis sete";
+    const result = trimHtmlSafe(input, 20, trimToWord);
+    expect(result.length).toBeLessThanOrEqual(20);
+    expect(result).not.toMatch(/\s$/);
+  });
+});
+
+describe("validateProductOutput", () => {
+  const baseValid = {
+    optimized_title: "Título válido.",
+    optimized_short_description: "Descrição curta válida.",
+    meta_title: "Meta título.",
+    meta_description: "Meta descrição completa.",
+  };
+
+  it("returns valid=true for a complete, well-formed output", () => {
+    const { valid, issues } = validateProductOutput(baseValid);
+    expect(valid).toBe(true);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("reports missing required field when optimized_title is empty", () => {
+    const { valid, issues } = validateProductOutput({ ...baseValid, optimized_title: "" });
+    expect(valid).toBe(false);
+    expect(issues.some((i) => i.includes('"optimized_title"') && i.includes("empty"))).toBe(true);
+  });
+
+  it("reports abrupt ending when optimized_short_description does not end with punctuation", () => {
+    const { valid, issues } = validateProductOutput({
+      ...baseValid,
+      optimized_short_description: "Esta descrição termina de forma abrupta sem pontuação",
+    });
+    expect(valid).toBe(false);
+    expect(issues.some((i) => i.includes('"optimized_short_description"') && i.includes("abruptly"))).toBe(true);
+  });
+
+  it("reports broken HTML table when <table> has no </table>", () => {
+    const { valid, issues } = validateProductOutput({
+      ...baseValid,
+      optimized_short_description: "Texto. <table><tr><td>Dado</td></tr>",
+    });
+    expect(valid).toBe(false);
+    expect(issues.some((i) => i.includes("<table>") && i.includes("mismatched"))).toBe(true);
+  });
+
+  it("does not flag optimized_description as required (it is optional)", () => {
+    const withoutDesc = { ...baseValid };
+    const { issues } = validateProductOutput(withoutDesc);
+    expect(issues.some((i) => i.includes('"optimized_description"') && i.includes("required"))).toBe(false);
+  });
+});

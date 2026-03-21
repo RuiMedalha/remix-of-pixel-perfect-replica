@@ -10,6 +10,41 @@ function trimToWord(value: string, maxLen: number): string {
   return lastSpace > 0 ? cut.substring(0, lastSpace).trimEnd() : cut;
 }
 
+/**
+ * Trim a string to maxLen characters in an HTML-safe way.
+ * Finds the last `>` before maxLen to avoid cutting inside a tag's content,
+ * then walks back to before any unclosed `<` tag, then applies fallbackFn.
+ * If no `>` exists before maxLen, delegates directly to fallbackFn.
+ */
+function trimHtmlSafe(
+  value: string,
+  maxLen: number,
+  fallbackFn: (v: string, n: number) => string,
+): string {
+  if (!value || value.length <= maxLen) return value;
+  // Find the last `>` at or before maxLen
+  const cut = value.substring(0, maxLen);
+  const lastClose = cut.lastIndexOf(">");
+  if (lastClose < 0) {
+    // No HTML structure detected — use fallback directly
+    return fallbackFn(value, maxLen);
+  }
+  // Work from lastClose backward to find any unclosed `<`
+  const beforeClose = cut.substring(0, lastClose + 1);
+  const lastOpen = beforeClose.lastIndexOf("<");
+  if (lastOpen >= 0) {
+    // Check if there is a matching `>` after this `<` within beforeClose
+    const closeAfterOpen = beforeClose.indexOf(">", lastOpen);
+    if (closeAfterOpen < 0) {
+      // Unclosed tag found — trim to before the `<`
+      const safeEnd = beforeClose.substring(0, lastOpen).trimEnd();
+      return fallbackFn(safeEnd, safeEnd.length);
+    }
+  }
+  // All tags are closed — apply fallback to the cut at lastClose+1
+  return fallbackFn(value, lastClose + 1);
+}
+
 /** Trim a string to maxLen characters at the last sentence boundary (. ! ?). */
 function trimToSentence(value: string, maxLen: number): string {
   if (!value || value.length <= maxLen) return value;
@@ -54,6 +89,7 @@ export interface OptimizedFields {
   meta_description?: string;
   seo_slug?: string;
   optimized_short_description?: string;
+  optimized_description?: string;
   [key: string]: unknown;
 }
 
@@ -84,8 +120,98 @@ export function enforceFieldLimits(fields: OptimizedFields): OptimizedFields {
     result.seo_slug = normalizeSlug(result.seo_slug, 100);
   }
   if (typeof result.optimized_short_description === "string") {
-    result.optimized_short_description = trimToSentence(result.optimized_short_description, 500);
+    result.optimized_short_description = trimHtmlSafe(
+      result.optimized_short_description,
+      500,
+      trimToSentence,
+    );
+  }
+  if (typeof result.optimized_description === "string") {
+    result.optimized_description = trimHtmlSafe(
+      result.optimized_description,
+      5000,
+      trimToWord,
+    );
   }
 
   return result;
+}
+
+/** Result of output validation. */
+export interface ValidationResult {
+  valid: boolean;
+  issues: string[];
+}
+
+/**
+ * Validate AI-generated product output fields.
+ * Returns { valid: boolean; issues: string[] }.
+ * Does not throw. Issues array is empty when valid === true.
+ *
+ * Checks:
+ *   1. Required fields are present and non-empty.
+ *   2. Description fields end with sentence-ending punctuation (not abrupt).
+ *   3. HTML fields do not have broken (unclosed) tags.
+ */
+export function validateProductOutput(fields: OptimizedFields): ValidationResult {
+  const issues: string[] = [];
+
+  // 1. Required fields must be non-empty strings
+  const REQUIRED = [
+    "optimized_title",
+    "optimized_short_description",
+    "meta_title",
+    "meta_description",
+  ] as const;
+  for (const field of REQUIRED) {
+    const val = fields[field];
+    if (typeof val !== "string" || val.trim().length === 0) {
+      issues.push(`required field "${field}" is empty or missing`);
+    }
+  }
+
+  // 2. Description fields must not end abruptly (last visible char must be sentence-ending punctuation)
+  const DESCRIPTION_FIELDS = [
+    "optimized_short_description",
+    "optimized_description",
+  ] as const;
+  for (const field of DESCRIPTION_FIELDS) {
+    const val = fields[field];
+    if (typeof val !== "string" || val.trim().length === 0) continue;
+    // Strip HTML tags to get visible text
+    const visibleText = val.replace(/<[^>]+>/g, "").trim();
+    if (visibleText.length === 0) continue;
+    const lastChar = visibleText[visibleText.length - 1];
+    if (!/[.!?]/.test(lastChar)) {
+      issues.push(`field "${field}" ends abruptly (last visible char: "${lastChar}")`);
+    }
+  }
+
+  // 3. HTML fields must not have broken (unclosed) tags
+  const HTML_FIELDS = [
+    "optimized_short_description",
+    "optimized_description",
+  ] as const;
+  for (const field of HTML_FIELDS) {
+    const val = fields[field];
+    if (typeof val !== "string" || val.trim().length === 0) continue;
+    // Check for any `<tag...` without a matching `>` — simple heuristic
+    const openWithoutClose = /<[^>]*$/.test(val);
+    if (openWithoutClose) {
+      issues.push(`field "${field}" contains an unclosed HTML tag`);
+    }
+    // Check for unmatched block-level open tags (e.g. <table without </table>)
+    const BLOCK_TAGS = ["table", "thead", "tbody", "tr", "td", "th", "ul", "ol", "li"];
+    for (const tag of BLOCK_TAGS) {
+      const openCount = (val.match(new RegExp(`<${tag}[\\s>]`, "gi")) || []).length;
+      const closeCount = (val.match(new RegExp(`</${tag}>`, "gi")) || []).length;
+      if (openCount !== closeCount) {
+        issues.push(
+          `field "${field}" has mismatched <${tag}> tags (${openCount} open, ${closeCount} close)`,
+        );
+      }
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
 }
