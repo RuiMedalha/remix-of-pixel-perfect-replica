@@ -63,12 +63,16 @@ export default function AiComparisonHistoryPage() {
     completed: "Concluída",
     running:   "A correr",
     cancelled: "Cancelada",
+    failed:    "Falhou",
+    partial:   "Parcial",
   };
 
   const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
     completed: "default",
     running:   "secondary",
     cancelled: "outline",
+    failed:    "destructive",
+    partial:   "outline",
   };
 
   return (
@@ -119,6 +123,14 @@ export default function AiComparisonHistoryPage() {
                     <Badge variant={statusVariant[run.status] ?? "secondary"} className="text-[10px]">
                       {statusLabel[run.status] ?? run.status}
                     </Badge>
+                    {run.status === "running" && run.created_at && (
+                      (() => {
+                        const ageMinutes = (Date.now() - new Date(run.created_at).getTime()) / 60_000;
+                        return ageMinutes > 30 ? (
+                          <span className="text-xs text-muted-foreground ml-1">(pode estar presa)</span>
+                        ) : null;
+                      })()
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button

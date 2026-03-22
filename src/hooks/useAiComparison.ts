@@ -17,7 +17,8 @@ export interface ComparisonRun {
   sections: string[];
   product_count: number;
   model_count: number;
-  status: "running" | "completed" | "cancelled";
+  status: "running" | "completed" | "cancelled" | "failed" | "partial";
+  error_message?: string | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -157,6 +158,26 @@ export function useCompleteComparisonRun() {
       const { error } = await supabase
         .from("ai_comparison_runs" as any)
         .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", runId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["comparison-runs"], exact: false }),
+  });
+}
+
+// ── Mark run failed ───────────────────────────────────────────────────────────
+
+export function useFailComparisonRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ runId, errorMessage }: { runId: string; errorMessage: string }) => {
+      const { error } = await supabase
+        .from("ai_comparison_runs" as any)
+        .update({
+          status: "failed",
+          completed_at: new Date().toISOString(),
+          error_message: errorMessage,
+        })
         .eq("id", runId);
       if (error) throw error;
     },

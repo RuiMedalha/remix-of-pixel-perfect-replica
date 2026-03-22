@@ -1,5 +1,6 @@
 // src/components/ai-comparison/AiComparisonWizard.tsx
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import { Loader2, ChevronRight, ChevronLeft, Play } from "lucide-react";
 import {
   Dialog,
@@ -20,6 +21,7 @@ import {
   executeComparison,
   useCreateComparisonRun,
   useCompleteComparisonRun,
+  useFailComparisonRun,
 } from "@/hooks/useAiComparison";
 import type { Product } from "@/hooks/useProducts";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -66,6 +68,7 @@ export function AiComparisonWizard({
   const { data: allPricing = [] } = useAiModelPricing();
   const createRun   = useCreateComparisonRun();
   const completeRun = useCompleteComparisonRun();
+  const failRun     = useFailComparisonRun();
 
   const [step,             setStep]             = useState<WizardStep>("products");
   const [selectedProducts, setSelectedProducts] = useState<Product[]>(preSelectedProducts);
@@ -88,14 +91,22 @@ export function AiComparisonWizard({
     setError(null);
     setProgress({ completed: 0, total: totalCalls });
 
+    let run: Awaited<ReturnType<typeof createRun.mutateAsync>> | null = null;
     try {
-      const run = await createRun.mutateAsync({
+      run = await createRun.mutateAsync({
         productIds: selectedProducts.map((p) => p.id),
         modelIds:   Array.from(selectedModelIds),
         sections:   Array.from(selectedSections),
       });
       setRunId(run.id);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      setStep("sections");
+      return;
+    }
 
+    try {
       await executeComparison({
         runId:       run.id,
         productIds:  selectedProducts.map((p) => p.id),
@@ -108,11 +119,13 @@ export function AiComparisonWizard({
       await completeRun.mutateAsync(run.id);
       setStep("results");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg);
-      setStep("sections");
+      const msg = err instanceof Error ? err.message : "Erro durante a comparação";
+      console.error("[AiComparisonWizard] comparison failed:", msg);
+      await failRun.mutateAsync({ runId: run.id, errorMessage: msg });
+      toast.error(`Comparação falhou: ${msg}`);
+      return;
     }
-  }, [activeWorkspace, selectedProducts, selectedModelIds, selectedSections, totalCalls, createRun, completeRun]);
+  }, [activeWorkspace, selectedProducts, selectedModelIds, selectedSections, totalCalls, createRun, completeRun, failRun]);
 
   const handleClose = useCallback(() => {
     setStep("products");
