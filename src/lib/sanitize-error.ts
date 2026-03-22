@@ -9,7 +9,7 @@ export function sanitizeErrorMessage(raw: string): { message: string; hasDetail:
   if (!raw || !raw.trim()) return { message: "Erro desconhecido", hasDetail: false };
 
   // Detect HTML error pages (502, 503, etc.)
-  if (/<html|<!doctype|<body|<head/i.test(raw) || (raw.trim().startsWith("<") && raw.includes(">"))) {
+  if (/<html|<!doctype|<body|<head/i.test(raw)) {
     const titleMatch = raw.match(/<title[^>]*>([^<]+)<\/title>/i);
     const h1Match = raw.match(/<h\d[^>]*>([^<]+)<\/h\d>/i);
     const extracted = (titleMatch?.[1] || h1Match?.[1] || "Erro do servidor")

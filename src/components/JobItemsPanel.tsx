@@ -54,6 +54,8 @@ export function JobItemsPanel({ items, title = "Items do Job", productNames = {}
               const config = statusConfig[item.status] || statusConfig.queued;
               const name = productNames[item.product_id] || item.product_id.slice(0, 8);
 
+              const sanitizedError = item.error_message ? sanitizeErrorMessage(item.error_message) : null;
+
               return (
                 <div
                   key={item.id}
@@ -76,12 +78,12 @@ export function JobItemsPanel({ items, title = "Items do Job", productNames = {}
                         R{item.retry_count}
                       </Badge>
                     )}
-                    {item.error_message && (
+                    {sanitizedError && (
                       <span
                         className="text-destructive truncate max-w-[150px]"
-                        title={sanitizeErrorMessage(item.error_message).message}
+                        title={sanitizedError.message}
                       >
-                        {sanitizeErrorMessage(item.error_message).message.slice(0, 40)}
+                        {sanitizedError.message.slice(0, 40)}
                       </span>
                     )}
                   </div>
