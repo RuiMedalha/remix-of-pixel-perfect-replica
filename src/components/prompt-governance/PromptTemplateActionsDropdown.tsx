@@ -21,17 +21,23 @@ export function PromptTemplateActionsDropdown({ template, onEdit, onDuplicate, o
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-        <DropdownMenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2" />Editar</DropdownMenuItem>
-        <DropdownMenuItem onClick={onDuplicate}><Copy className="h-4 w-4 mr-2" />Duplicar</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {template.is_active ? (
-          <DropdownMenuItem onClick={onArchive}><Archive className="h-4 w-4 mr-2" />Arquivar</DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem onClick={onRestore}><ArchiveRestore className="h-4 w-4 mr-2" />Restaurar</DropdownMenuItem>
+        {template.workspace_id && (
+          <DropdownMenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2" />Editar</DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
-          <Trash2 className="h-4 w-4 mr-2" />Apagar
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onDuplicate}><Copy className="h-4 w-4 mr-2" />Duplicar</DropdownMenuItem>
+        {template.workspace_id && (
+          <>
+            <DropdownMenuSeparator />
+            {template.is_active ? (
+              <DropdownMenuItem onClick={onArchive}><Archive className="h-4 w-4 mr-2" />Arquivar</DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={onRestore}><ArchiveRestore className="h-4 w-4 mr-2" />Restaurar</DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+              <Trash2 className="h-4 w-4 mr-2" />Apagar
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
