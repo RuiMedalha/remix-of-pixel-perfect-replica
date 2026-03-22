@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Check, X, Clock, SkipForward } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { JobItem } from "@/hooks/useJobItems";
+import { sanitizeErrorMessage } from "@/lib/sanitize-error";
 
 const statusConfig: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
   queued: { icon: <Clock className="h-3 w-3" />, label: "Na fila", className: "text-muted-foreground" },
@@ -76,8 +77,11 @@ export function JobItemsPanel({ items, title = "Items do Job", productNames = {}
                       </Badge>
                     )}
                     {item.error_message && (
-                      <span className="text-destructive truncate max-w-[150px]" title={item.error_message}>
-                        {item.error_message.slice(0, 40)}
+                      <span
+                        className="text-destructive truncate max-w-[150px]"
+                        title={sanitizeErrorMessage(item.error_message).message}
+                      >
+                        {sanitizeErrorMessage(item.error_message).message.slice(0, 40)}
                       </span>
                     )}
                   </div>

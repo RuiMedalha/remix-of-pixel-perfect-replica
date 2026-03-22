@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { sanitizeErrorMessage } from "@/lib/sanitize-error";
 
 export interface ImageProcessProgress {
   total: number;
@@ -83,9 +84,8 @@ export function useProcessImages() {
       qc.invalidateQueries({ queryKey: ["product-images"] });
       return { totalProcessed, totalSkipped, totalFailed };
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Erro ao processar imagens"
-      );
+      const rawMsg = err instanceof Error ? err.message : "Erro ao processar imagens";
+      toast.error(sanitizeErrorMessage(rawMsg).message);
       return null;
     } finally {
       setIsProcessing(false);
