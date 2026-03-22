@@ -131,6 +131,11 @@ export default function AiComparisonHistoryPage() {
                         ) : null;
                       })()
                     )}
+                    {(run.applications_count?.[0]?.count ?? 0) > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {run.applications_count![0].count} campo(s) aplicado(s)
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button

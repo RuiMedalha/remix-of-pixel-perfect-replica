@@ -21,6 +21,7 @@ export interface ComparisonRun {
   error_message?: string | null;
   created_at: string;
   completed_at: string | null;
+  applications_count?: [{ count: number }] | null;
 }
 
 export interface ComparisonResult {
@@ -250,10 +251,14 @@ export function useApplyComparisonResult() {
       productId,
       section,
       outputText,
+      resultId,
+      runId,
     }: {
       productId: string;
       section: string;
       outputText: string;
+      resultId?: string;
+      runId?: string;
     }) => {
       const sectionDef = COMPARISON_SECTIONS.find((s) => s.id === section);
       if (!sectionDef) throw new Error(`Unknown section: ${section}`);
@@ -266,6 +271,27 @@ export function useApplyComparisonResult() {
         .eq("id", productId)
         .eq("workspace_id", activeWorkspace.id);
       if (error) throw error;
+
+      // 4. Write audit record — fetch model/provider from result first
+      if (resultId && runId) {
+        const { data: resultRow } = await supabase
+          .from("ai_comparison_results" as any)
+          .select("model_id, provider_id")
+          .eq("id", resultId)
+          .single();
+
+        if (resultRow) {
+          await supabase.from("ai_comparison_applications" as any).insert({
+            run_id:      runId,
+            result_id:   resultId,
+            product_id:  productId,
+            field_name:  sectionDef.productField,
+            model_id:    (resultRow as { model_id: string; provider_id: string }).model_id,
+            provider_id: (resultRow as { model_id: string; provider_id: string }).provider_id,
+            applied_by:  (await supabase.auth.getUser()).data.user?.id ?? null,
+          });
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["products"] });
@@ -286,7 +312,10 @@ export function useComparisonHistory() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_comparison_runs" as any)
-        .select("*")
+        .select(`
+          *,
+          applications_count:ai_comparison_applications(count)
+        `)
         .eq("workspace_id", activeWorkspace!.id)
         .order("created_at", { ascending: false })
         .limit(50);
