@@ -111,11 +111,13 @@ Deno.serve(async (req) => {
           } catch {
             console.warn(`[process-product-images] Skipping invalid URL for product ${productId}: ${originalUrl}`);
             processedUrls.push(originalUrl);
+            imageErrors.push({ index: i, url: originalUrl, error: "Invalid URL" });
             continue;
           }
           if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
             console.warn(`[process-product-images] Skipping non-http URL for product ${productId}: ${originalUrl}`);
             processedUrls.push(originalUrl);
+            imageErrors.push({ index: i, url: originalUrl, error: "Non-http URL" });
             continue;
           }
 
