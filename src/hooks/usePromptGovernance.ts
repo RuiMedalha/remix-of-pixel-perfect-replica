@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 export interface PromptTemplate {
   id: string;
-  workspace_id: string;
+  workspace_id: string | null;
   prompt_name: string;
   prompt_type: string;
   base_prompt: string;
@@ -57,12 +57,12 @@ export function usePromptGovernance() {
   const wsId = activeWorkspace?.id;
 
   const templates = useQuery({
-    queryKey: ["prompt-templates", wsId],
+    queryKey: ["prompt-templates", wsId, "with-global"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prompt_templates")
         .select("*")
-        .eq("workspace_id", wsId!)
+        .or(`workspace_id.eq.${wsId!},workspace_id.is.null`)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as PromptTemplate[];
