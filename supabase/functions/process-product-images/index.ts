@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
         }
 
         const processedUrls: string[] = [];
+        const imageErrors: Array<{ index: number; url: string; error: string }> = [];
         const lifestyleUrls: string[] = [];
 
         const { data: latestImageRow } = await sb
@@ -102,6 +103,21 @@ Deno.serve(async (req) => {
         for (let i = 0; i < product.image_urls.length; i++) {
           const originalUrl = product.image_urls[i];
           if (!originalUrl) continue;
+
+          // Validate URL is absolute before processing
+          let parsedUrl: URL | null = null;
+          try {
+            parsedUrl = new URL(originalUrl);
+          } catch {
+            console.warn(`[process-product-images] Skipping invalid URL for product ${productId}: ${originalUrl}`);
+            processedUrls.push(originalUrl);
+            continue;
+          }
+          if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+            console.warn(`[process-product-images] Skipping non-http URL for product ${productId}: ${originalUrl}`);
+            processedUrls.push(originalUrl);
+            continue;
+          }
 
           try {
             if (mode === "lifestyle") {
@@ -123,7 +139,8 @@ Deno.serve(async (req) => {
                     body: JSON.stringify({
                       taskType: "image_lifestyle_generation",
                       workspaceId,
-                      modelOverride: "google/gemini-3.1-flash-image-preview",
+                      modelOverride: "gemini-3.1-flash-image-preview",
+                      providerOverride: "gemini",
                       messages: [
                         {
                           role: "user",
@@ -212,7 +229,8 @@ Deno.serve(async (req) => {
                   body: JSON.stringify({
                     taskType: "image_optimization",
                     workspaceId,
-                    modelOverride: "google/gemini-3.1-flash-image-preview",
+                    modelOverride: "gemini-3.1-flash-image-preview",
+                    providerOverride: "gemini",
                     messages: [
                       {
                         role: "user",
@@ -288,8 +306,11 @@ Deno.serve(async (req) => {
               processedUrls.push(originalUrl);
             }
           } catch (imgErr) {
-            console.error(`Error processing image ${i} for ${productId}:`, imgErr);
-            processedUrls.push(originalUrl); // Keep original on error
+            const errMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
+            console.error(`Error processing image ${i} for ${productId}:`, errMsg);
+            // Keep original URL but record that this image failed
+            processedUrls.push(originalUrl);
+            imageErrors.push({ index: i, url: originalUrl, error: errMsg });
           }
         }
 
@@ -367,6 +388,8 @@ Deno.serve(async (req) => {
           status: "done",
           original: product.image_urls.length,
           processed: processedUrls.length,
+          imageErrorCount: imageErrors.length,
+          imageErrors: imageErrors.length > 0 ? imageErrors : undefined,
         });
       } catch (prodErr) {
         console.error(`Error processing product ${productId}:`, prodErr);
