@@ -121,8 +121,13 @@ export function AiComparisonWizard({
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro durante a comparação";
       console.error("[AiComparisonWizard] comparison failed:", msg);
-      await failRun.mutateAsync({ runId: run.id, errorMessage: msg });
+      try {
+        await failRun.mutateAsync({ runId: run.id, errorMessage: msg });
+      } catch (failErr) {
+        console.error("[AiComparisonWizard] could not mark run as failed:", failErr);
+      }
       toast.error(`Comparação falhou: ${msg}`);
+      setStep("sections");
       return;
     }
   }, [activeWorkspace, selectedProducts, selectedModelIds, selectedSections, totalCalls, createRun, completeRun, failRun]);
