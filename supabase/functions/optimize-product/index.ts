@@ -712,7 +712,8 @@ Devolve os índices dos 6 excertos mais relevantes, priorizando:
               body: JSON.stringify({
                 taskType: "knowledge_reranking",
                 workspaceId: workspaceId,
-                modelOverride: "google/gemini-2.5-flash-lite",
+                modelOverride: "gemini-2.5-flash-lite",
+                providerOverride: "gemini",
                 systemPrompt: "Responde APENAS com a tool call. Seleciona os excertos mais relevantes.",
                 messages: [{ role: "user", content: rerankPrompt }],
                 options: {
@@ -1518,7 +1519,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
                     body: JSON.stringify({
                       taskType: "variation_attribute_extraction",
                       workspaceId: workspaceId,
-                      modelOverride: "google/gemini-2.5-flash-lite",
+                      modelOverride: "gemini-2.5-flash-lite",
+                      providerOverride: "gemini",
                       systemPrompt: "Extrais atributos de variação a partir de títulos de produtos. Compara o título do produto pai com cada título filho para identificar o atributo diferenciador (ex: Cor, Tamanho, Material, Capacidade, Dimensões). Devolve dados estruturados via tool call. CRÍTICO: NUNCA uses códigos EAN, códigos de barras, referências numéricas (8+ dígitos), nomes de marca ou códigos SKU como valores de atributo. Usa apenas atributos físicos com significado como tamanho, cor, capacidade, material.",
                       messages: [{
                         role: "user",

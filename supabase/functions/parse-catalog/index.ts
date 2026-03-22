@@ -714,7 +714,8 @@ async function extractPdfText(fileData: Blob, fileName: string): Promise<string>
     body: JSON.stringify({
       taskType: "pdf_text_extraction",
       workspaceId: "system",
-      modelOverride: "google/gemini-2.5-flash",
+      modelOverride: "gemini-2.5-flash",
+      providerOverride: "gemini",
       systemPrompt: `És um extrator de conteúdo de documentos técnicos e catálogos de produtos. Extrai TODO o texto relevante do PDF, incluindo nomes de produtos, especificações técnicas, tabelas de preços, descrições e códigos de referência. Mantém a estrutura organizada. Responde APENAS com o texto extraído.`,
       messages: [{
         role: "user",
@@ -747,7 +748,8 @@ async function extractPdfTextViaUrl(fileName: string, fileSize: number): Promise
     body: JSON.stringify({
       taskType: "pdf_text_extraction",
       workspaceId: "system",
-      modelOverride: "google/gemini-2.5-flash",
+      modelOverride: "gemini-2.5-flash",
+      providerOverride: "gemini",
       systemPrompt: `O utilizador carregou um catálogo técnico demasiado grande. Gera informação útil sobre a marca/categoria baseado no nome do ficheiro.`,
       messages: [{
         role: "user",
@@ -812,7 +814,8 @@ Responde APENAS com a tool call.`;
     body: JSON.stringify({
       taskType: "pdf_product_extraction",
       workspaceId: "system",
-      modelOverride: "google/gemini-2.5-pro",
+      modelOverride: "gemini-2.5-pro",
+      providerOverride: "gemini",
       systemPrompt,
       messages: [{
         role: "user",
