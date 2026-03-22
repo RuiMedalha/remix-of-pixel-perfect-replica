@@ -272,28 +272,33 @@ export function useApplyComparisonResult() {
         .eq("workspace_id", activeWorkspace.id);
       if (error) throw error;
 
-      // 4. Write audit record — fetch model/provider from result first
-      const { data: resultRow } = await supabase
-        .from("ai_comparison_results" as any)
-        .select("model_id, provider_id")
-        .eq("id", resultId)
-        .single();
+      // 4. Write audit record (best-effort — failure must not block the product update)
+      try {
+        const { data: resultRow } = await supabase
+          .from("ai_comparison_results" as any)
+          .select("model_id, provider_id")
+          .eq("id", resultId)
+          .single();
 
-      if (resultRow) {
-        await supabase.from("ai_comparison_applications" as any).insert({
-          run_id:      runId,
-          result_id:   resultId,
-          product_id:  productId,
-          field_name:  sectionDef.productField,
-          model_id:    (resultRow as { model_id: string; provider_id: string }).model_id,
-          provider_id: (resultRow as { model_id: string; provider_id: string }).provider_id,
-          applied_by:  (await supabase.auth.getUser()).data.user?.id ?? null,
-        });
+        if (resultRow) {
+          await supabase.from("ai_comparison_applications" as any).insert({
+            run_id:      runId,
+            result_id:   resultId,
+            product_id:  productId,
+            field_name:  sectionDef.productField,
+            model_id:    (resultRow as { model_id: string; provider_id: string }).model_id,
+            provider_id: (resultRow as { model_id: string; provider_id: string }).provider_id,
+            applied_by:  (await supabase.auth.getUser()).data.user?.id ?? null,
+          });
+        }
+      } catch (auditErr) {
+        console.warn("[useApplyComparisonResult] audit record failed (non-blocking):", auditErr);
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["product-stats"] });
+      qc.invalidateQueries({ queryKey: ["comparison-runs"], exact: false });
     },
   });
 }
