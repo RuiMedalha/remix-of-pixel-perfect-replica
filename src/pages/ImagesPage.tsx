@@ -274,12 +274,26 @@ const ImagesPage = () => {
                 >
                   <div className="relative aspect-square bg-muted flex items-center justify-center">
                     {images.length > 0 ? (
-                      <img
-                        src={images[0]}
-                        alt={title}
-                        className="w-full h-full object-contain"
-                        loading="lazy"
-                      />
+                      <>
+                        <img
+                          src={images[0]}
+                          alt={title}
+                          className="w-full h-full object-contain"
+                          loading="lazy"
+                          onError={(e) => {
+                            const img = e.currentTarget;
+                            img.style.display = "none";
+                            const fallback = img.nextElementSibling as HTMLElement | null;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                        <div
+                          className="absolute inset-0 items-center justify-center bg-muted"
+                          style={{ display: "none" }}
+                        >
+                          <span className="text-xs text-muted-foreground">Imagem indisponível</span>
+                        </div>
+                      </>
                     ) : (
                       <ImageIcon className="w-12 h-12 text-muted-foreground/30" />
                     )}
@@ -362,12 +376,26 @@ const ImagesPage = () => {
                     {/* Original */}
                     <div className="relative aspect-square bg-muted flex items-center justify-center">
                       {img.original_url ? (
-                        <img
-                          src={img.original_url}
-                          alt="Original"
-                          className="w-full h-full object-contain"
-                          loading="lazy"
-                        />
+                        <>
+                          <img
+                            src={img.original_url}
+                            alt="Original"
+                            className="w-full h-full object-contain"
+                            loading="lazy"
+                            onError={(e) => {
+                              const img = e.currentTarget;
+                              img.style.display = "none";
+                              const fallback = img.nextElementSibling as HTMLElement | null;
+                              if (fallback) fallback.style.display = "flex";
+                            }}
+                          />
+                          <div
+                            className="absolute inset-0 items-center justify-center bg-muted"
+                            style={{ display: "none" }}
+                          >
+                            <span className="text-xs text-muted-foreground">Imagem indisponível</span>
+                          </div>
+                        </>
                       ) : (
                         <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
                       )}
@@ -382,7 +410,19 @@ const ImagesPage = () => {
                         alt="Processada"
                         className="w-full h-full object-contain"
                         loading="lazy"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          img.style.display = "none";
+                          const fallback = img.nextElementSibling as HTMLElement | null;
+                          if (fallback) fallback.style.display = "flex";
+                        }}
                       />
+                      <div
+                        className="absolute inset-0 items-center justify-center bg-muted"
+                        style={{ display: "none" }}
+                      >
+                        <span className="text-xs text-muted-foreground">Imagem indisponível</span>
+                      </div>
                       <span className={cn(
                         "absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded font-medium",
                         img.isLifestyle

@@ -191,7 +191,26 @@ const AssetLibraryPage = () => {
             >
               <div className="relative aspect-square bg-muted flex items-center justify-center">
                 {asset.public_url ? (
-                  <img src={asset.public_url} alt={asset.ai_alt_text || asset.original_filename || ""} className="w-full h-full object-contain" loading="lazy" />
+                  <>
+                    <img
+                      src={asset.public_url}
+                      alt={asset.ai_alt_text || asset.original_filename || ""}
+                      className="w-full h-full object-contain"
+                      loading="lazy"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        img.style.display = "none";
+                        const fallback = img.nextElementSibling as HTMLElement | null;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
+                    />
+                    <div
+                      className="absolute inset-0 items-center justify-center bg-muted"
+                      style={{ display: "none" }}
+                    >
+                      <span className="text-xs text-muted-foreground">Imagem indisponível</span>
+                    </div>
+                  </>
                 ) : (
                   <ImageIcon className="w-10 h-10 text-muted-foreground/30" />
                 )}
@@ -282,7 +301,25 @@ function AssetDetailContent({ asset, onReview, onDelete }: { asset: Asset; onRev
         <div className="space-y-3">
           <div className="aspect-square bg-muted rounded-lg overflow-hidden flex items-center justify-center">
             {asset.public_url ? (
-              <img src={asset.public_url} alt={asset.ai_alt_text || ""} className="w-full h-full object-contain" />
+              <div className="relative w-full h-full">
+                <img
+                  src={asset.public_url}
+                  alt={asset.ai_alt_text || ""}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    img.style.display = "none";
+                    const fallback = img.nextElementSibling as HTMLElement | null;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
+                />
+                <div
+                  className="absolute inset-0 items-center justify-center bg-muted"
+                  style={{ display: "none" }}
+                >
+                  <span className="text-xs text-muted-foreground">Imagem indisponível</span>
+                </div>
+              </div>
             ) : (
               <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
             )}
@@ -355,7 +392,27 @@ function AssetDetailContent({ asset, onReview, onDelete }: { asset: Asset; onRev
               <div className="grid grid-cols-3 gap-2">
                 {(variants as any[]).map((v: any) => (
                   <div key={v.id} className="text-center">
-                    {v.public_url && <img src={v.public_url} alt={v.variant_type} className="w-full aspect-square object-contain bg-muted rounded" />}
+                    {v.public_url && (
+                      <div className="relative w-full aspect-square">
+                        <img
+                          src={v.public_url}
+                          alt={v.variant_type}
+                          className="w-full aspect-square object-contain bg-muted rounded"
+                          onError={(e) => {
+                            const img = e.currentTarget;
+                            img.style.display = "none";
+                            const fallback = img.nextElementSibling as HTMLElement | null;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                        <div
+                          className="absolute inset-0 items-center justify-center bg-muted rounded"
+                          style={{ display: "none" }}
+                        >
+                          <span className="text-xs text-muted-foreground">Imagem indisponível</span>
+                        </div>
+                      </div>
+                    )}
                     <p className="text-[9px] text-muted-foreground mt-0.5">{v.variant_type} {v.width && `${v.width}×${v.height}`}</p>
                   </div>
                 ))}
