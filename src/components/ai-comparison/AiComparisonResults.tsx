@@ -85,6 +85,8 @@ export function AiComparisonResults({ runId, products, modelIds, sections }: Pro
         productId:  result.product_id,
         section:    result.section,
         outputText: result.output_text,
+        resultId:   result.id,
+        runId,
       });
       toast.success("Resultado aplicado ao produto.");
     } catch (err) {
