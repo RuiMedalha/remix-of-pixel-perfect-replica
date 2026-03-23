@@ -200,6 +200,10 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
       parts: [{ text: m.content }],
     }));
 
+  // Convert OpenAI-format tools to Gemini functionDeclarations
+  const geminiTools = convertToolsToGemini(params.tools);
+  const toolConfig = convertToolChoiceToGemini(params.toolChoice);
+
   const body: Record<string, unknown> = {
     contents,
     ...(params.systemPrompt
@@ -208,8 +212,10 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
     generationConfig: {
       ...(params.temperature != null ? { temperature: params.temperature } : {}),
       ...(params.maxTokens != null ? { maxOutputTokens: params.maxTokens } : {}),
-      ...(params.jsonMode ? { responseMimeType: "application/json" } : {}),
+      ...(params.jsonMode && !geminiTools ? { responseMimeType: "application/json" } : {}),
     },
+    ...(geminiTools ? { tools: geminiTools } : {}),
+    ...(toolConfig ? { toolConfig } : {}),
   };
 
   const startMs = Date.now();
@@ -246,9 +252,18 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
   const candidates = raw.candidates as Array<Record<string, unknown>> | undefined;
   const firstCandidate = candidates?.[0];
   const parts = (firstCandidate?.content as Record<string, unknown>)?.parts as
-    | Array<{ text?: string }>
+    | Array<{ text?: string; functionCall?: { name: string; args: Record<string, unknown> } }>
     | undefined;
-  const content = parts?.map((p) => p.text ?? "").join("") ?? "";
+
+  // Extract text content (skip functionCall parts)
+  const content = parts
+    ?.filter((p) => p.text != null)
+    .map((p) => p.text ?? "")
+    .join("") ?? "";
+
+  // Extract function calls from Gemini response and normalize to OpenAI format
+  const toolCalls = extractGeminiFunctionCalls(parts);
+
   const finishReason = normalizeFinishReason(firstCandidate?.finishReason as string);
   const usageMeta = raw.usageMetadata as
     | { promptTokenCount?: number; candidatesTokenCount?: number }
@@ -256,7 +271,7 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
 
   return {
     content,
-    finishReason,
+    finishReason: toolCalls.length > 0 ? "tool_calls" : finishReason,
     inputTokens: usageMeta?.promptTokenCount ?? 0,
     outputTokens: usageMeta?.candidatesTokenCount ?? 0,
     provider: params.provider.id,
@@ -264,7 +279,14 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
     latencyMs,
     rawResponse: raw,
     normalizedResponse: {
-      choices: [{ message: { role: "assistant", content }, finish_reason: finishReason }],
+      choices: [{
+        message: {
+          role: "assistant",
+          content,
+          ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+        },
+        finish_reason: toolCalls.length > 0 ? "tool_calls" : finishReason,
+      }],
       usage: {
         prompt_tokens: usageMeta?.promptTokenCount ?? 0,
         completion_tokens: usageMeta?.candidatesTokenCount ?? 0,
@@ -274,6 +296,82 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
       model: params.model,
     },
   };
+}
+
+// ─── Gemini tool-call helpers ───
+
+/** Convert OpenAI-format tools to Gemini functionDeclarations. */
+function convertToolsToGemini(
+  tools: unknown[] | undefined,
+): Array<{ functionDeclarations: unknown[] }> | null {
+  if (!tools || tools.length === 0) return null;
+
+  const declarations: unknown[] = [];
+  for (const tool of tools) {
+    const t = tool as { type?: string; function?: { name: string; description?: string; parameters?: unknown } };
+    if (t.type === "function" && t.function) {
+      declarations.push({
+        name: t.function.name,
+        description: t.function.description ?? "",
+        parameters: t.function.parameters ?? { type: "object", properties: {} },
+      });
+    }
+  }
+  return declarations.length > 0 ? [{ functionDeclarations: declarations }] : null;
+}
+
+/** Convert OpenAI-format tool_choice to Gemini toolConfig. */
+function convertToolChoiceToGemini(
+  toolChoice: unknown,
+): Record<string, unknown> | null {
+  if (!toolChoice) return null;
+
+  // OpenAI: "auto" | "none" | "required" | { type: "function", function: { name: "..." } }
+  if (typeof toolChoice === "string") {
+    const map: Record<string, string> = {
+      auto: "AUTO",
+      none: "NONE",
+      required: "ANY",
+    };
+    const mode = map[toolChoice];
+    return mode ? { functionCallingConfig: { mode } } : null;
+  }
+
+  // { type: "function", function: { name: "xxx" } } → forced function call
+  const tc = toolChoice as { type?: string; function?: { name: string } };
+  if (tc.type === "function" && tc.function?.name) {
+    return {
+      functionCallingConfig: {
+        mode: "ANY",
+        allowedFunctionNames: [tc.function.name],
+      },
+    };
+  }
+
+  return null;
+}
+
+/** Extract Gemini functionCall parts and normalize to OpenAI tool_calls format. */
+function extractGeminiFunctionCalls(
+  parts: Array<{ text?: string; functionCall?: { name: string; args: Record<string, unknown> } }> | undefined,
+): unknown[] {
+  if (!parts) return [];
+
+  const calls: unknown[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const fc = parts[i].functionCall;
+    if (fc) {
+      calls.push({
+        id: `call_${i}`,
+        type: "function",
+        function: {
+          name: fc.name,
+          arguments: JSON.stringify(fc.args ?? {}),
+        },
+      });
+    }
+  }
+  return calls;
 }
 
 // ─── Helpers ───

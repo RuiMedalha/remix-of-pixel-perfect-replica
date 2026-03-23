@@ -1688,25 +1688,30 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             : `${matchedSupplierForLog.url}/${encodeURIComponent(cleanSku)}`;
         }
 
-        await supabase.from("optimization_logs").insert({
-          product_id: product.id,
-          user_id: userId,
-          model: chosenModel.model,
-          prompt_tokens: promptTokens,
-          completion_tokens: completionTokens,
-          total_tokens: totalTokens,
-          knowledge_sources: knowledgeSources,
-          supplier_name: matchedForLog?.name || matchedForLog?.prefix || null,
-          supplier_url: logSupplierUrl,
-          had_knowledge: !!knowledgeContext,
-          had_supplier: !!supplierContext,
-          had_catalog: !!catalogContext,
-          fields_optimized: fields,
-          prompt_length: finalPrompt.length,
-          chunks_used: topChunks.length,
-          rag_match_types: ragMatchTypeCounts,
-          prompt_version_id: promptVersionId,
-        } as any);
+        // Best-effort logging — failure must never mark the product as error
+        try {
+          await supabase.from("optimization_logs").insert({
+            product_id: product.id,
+            user_id: userId,
+            model: chosenModel.model,
+            prompt_tokens: promptTokens,
+            completion_tokens: completionTokens,
+            total_tokens: totalTokens,
+            knowledge_sources: knowledgeSources,
+            supplier_name: matchedForLog?.name || matchedForLog?.prefix || null,
+            supplier_url: logSupplierUrl,
+            had_knowledge: !!knowledgeContext,
+            had_supplier: !!supplierContext,
+            had_catalog: !!catalogContext,
+            fields_optimized: fields,
+            prompt_length: finalPrompt.length,
+            chunks_used: topChunks.length,
+            rag_match_types: ragMatchTypeCounts,
+            prompt_version_id: promptVersionId,
+          } as any);
+        } catch (logErr) {
+          console.warn(`[optimize-product] optimization_logs insert failed for ${product.id} (non-blocking):`, logErr);
+        }
 
         return { id: product.id, status: "optimized" as const };
       } catch (productError) {
