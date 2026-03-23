@@ -40,24 +40,10 @@ const GENERIC_FILLER_PATTERNS: RegExp[] = [
 ];
 
 export function stripWeakPhrases(text: string): string {
+  // Disabled: phrase stripping removed valid B2B HORECA marketing copy.
+  // Patterns preserved above for future opt-in re-enablement.
+  // Only return early for empty/null input to maintain the contract.
   if (!text) return "";
-  // 1. Strip prefix patterns
-  for (const pattern of WEAK_PHRASE_PATTERNS) {
-    const match = text.match(pattern);
-    if (match) {
-      const remainder = text.substring(match[0].length).trimStart();
-      if (remainder.length > 20) {
-        text = remainder.charAt(0).toUpperCase() + remainder.slice(1);
-        break; // only strip one prefix
-      }
-    }
-  }
-  // 2. Strip generic filler phrases from anywhere in text
-  for (const pattern of GENERIC_FILLER_PATTERNS) {
-    text = text.replace(pattern, "");
-  }
-  // Clean up double spaces left by removals
-  text = text.replace(/  +/g, " ").trim();
   return text;
 }
 
