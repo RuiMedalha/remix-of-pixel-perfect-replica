@@ -138,7 +138,13 @@ interface ValidationResult {
 }
 function validateProductOutput(fields: Record<string, unknown>): ValidationResult {
   const issues: string[] = [];
-  const REQUIRED = ["optimized_title", "optimized_short_description", "meta_title", "meta_description"];
+  const REQUIRED = [
+    "optimized_title",
+    "optimized_short_description",
+    "optimized_description",
+    "meta_title",
+    "meta_description",
+  ];
   for (const field of REQUIRED) {
     const val = fields[field];
     if (typeof val !== "string" || (val as string).trim().length === 0) {
@@ -202,6 +208,7 @@ describe("validateProductOutput", () => {
   const baseValid = {
     optimized_title: "Título válido.",
     optimized_short_description: "Descrição curta válida.",
+    optimized_description: "<p>Descrição longa válida.</p>",
     meta_title: "Meta título.",
     meta_description: "Meta descrição completa.",
   };
@@ -236,9 +243,8 @@ describe("validateProductOutput", () => {
     expect(issues.some((i) => i.includes("<table>") && i.includes("mismatched"))).toBe(true);
   });
 
-  it("does not flag optimized_description as required (it is optional)", () => {
-    const withoutDesc = { ...baseValid };
-    const { issues } = validateProductOutput(withoutDesc);
-    expect(issues.some((i) => i.includes('"optimized_description"') && i.includes("required"))).toBe(false);
+  it("reports missing optimized_description when empty", () => {
+    const { issues } = validateProductOutput({ ...baseValid, optimized_description: "" });
+    expect(issues.some((i) => i.includes('"optimized_description"') && i.includes("empty"))).toBe(true);
   });
 });

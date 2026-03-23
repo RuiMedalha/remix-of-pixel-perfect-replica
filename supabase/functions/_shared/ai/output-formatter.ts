@@ -74,7 +74,11 @@ export interface FormattedOutput {
   issues: string[];
 }
 
-export function formatProductOutput(fields: OptimizedFields, requestedFields?: string[]): FormattedOutput {
+export function formatProductOutput(
+  fields: OptimizedFields,
+  requestedFields?: string[],
+  options?: { validate?: boolean },
+): FormattedOutput {
   const result = { ...fields };
   const TEXT_FIELDS = ["optimized_short_description", "optimized_description"] as const;
   for (const field of TEXT_FIELDS) {
@@ -82,6 +86,9 @@ export function formatProductOutput(fields: OptimizedFields, requestedFields?: s
       result[field] = stripWeakPhrases(result[field] as string);
       result[field] = normalizeWhitespace(result[field] as string);
     }
+  }
+  if (options?.validate === false) {
+    return { fields: result, issues: [] };
   }
   const { issues } = validateProductOutput(result, requestedFields);
   return { fields: result, issues };

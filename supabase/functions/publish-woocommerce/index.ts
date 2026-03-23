@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateWooPublishPayload } from "../_shared/ai/content-assembly.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -218,6 +219,32 @@ Deno.serve(async (req) => {
             error_message: `Publish lock: ${lockReason}`,
           });
 
+          await adminClient.from("publish_jobs").update({
+            processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
+            failed_products: (job.failed_products || 0) + 1,
+            results: existingResults,
+          }).eq("id", jobId);
+          continue;
+        }
+
+        const contentGate = validateWooPublishPayload(product, has);
+        if (!contentGate.ok) {
+          const gateMsg = contentGate.reasons.join("; ");
+          console.warn(`⛔ Product ${product.id} publish blocked (conteúdo): ${gateMsg}`);
+          existingResults.push({
+            id: product.id,
+            status: "error",
+            error: `Conteúdo incompleto ou inválido: ${gateMsg}`,
+          });
+          await adminClient.from("publish_job_items").insert({
+            job_id: jobId,
+            product_id: product.id,
+            status: "error",
+            started_at: itemStartedAt,
+            completed_at: new Date().toISOString(),
+            duration_ms: Date.now() - itemStartMs,
+            error_message: gateMsg.substring(0, 500),
+          });
           await adminClient.from("publish_jobs").update({
             processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
             failed_products: (job.failed_products || 0) + 1,

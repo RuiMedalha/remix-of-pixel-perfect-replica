@@ -73,9 +73,18 @@ const ProductsPage = () => {
     enabled: !!activeWorkspace,
     staleTime: 30_000,
     queryFn: async () => {
+      const { data: pidRows, error: pidErr } = await supabase
+        .from("products")
+        .select("id")
+        .eq("workspace_id", activeWorkspace!.id);
+      if (pidErr) throw pidErr;
+      const pids = (pidRows || []).map((r) => r.id);
+      if (pids.length === 0) return {};
+
       const { data, error } = await supabase
         .from("images")
         .select("product_id, s3_key")
+        .in("product_id", pids)
         .not("optimized_url", "is", null);
       if (error) throw error;
       const map: Record<string, { hasOptimized: boolean; hasLifestyle: boolean }> = {};

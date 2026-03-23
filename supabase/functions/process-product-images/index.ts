@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
         const processedUrls: string[] = [];
         const imageErrors: Array<{ index: number; url: string; error: string }> = [];
         const lifestyleUrls: string[] = [];
+        /** Slots where AI returned a new image and we persisted to storage (optimize mode). */
+        let aiOptimizedSlots = 0;
 
         const { data: latestImageRow } = await sb
           .from("images")
@@ -181,12 +183,13 @@ Deno.serve(async (req) => {
                     .slice(0, 8)}`;
                   const path = `${workspaceId}/${productId}/lifestyle_${lifestyleId}.webp`;
 
-                  await sb.storage
+                  const { error: upErr } = await sb.storage
                     .from("product-images")
                     .upload(path, bytes, {
                       contentType: "image/webp",
                       upsert: true,
                     });
+                  if (upErr) throw upErr;
 
                   const { data: urlData } = sb.storage
                     .from("product-images")
@@ -196,7 +199,7 @@ Deno.serve(async (req) => {
                   lifestyleUrls.push(lifestyleUrl);
                   processedUrls.push(lifestyleUrl);
 
-                  await sb.from("images").insert({
+                  const { error: imgInsErr } = await sb.from("images").insert({
                     product_id: productId,
                     original_url: originalUrl,
                     optimized_url: lifestyleUrl,
@@ -204,6 +207,7 @@ Deno.serve(async (req) => {
                     sort_order: nextSortOrder,
                     status: "done",
                   });
+                  if (imgInsErr) throw imgInsErr;
 
                   nextSortOrder += 1;
                 } else {
@@ -275,30 +279,33 @@ Deno.serve(async (req) => {
                 const bytes = new Uint8Array(chunks);
 
                 const path = `${workspaceId}/${productId}/optimized_${i}.webp`;
-                await sb.storage
+                const { error: upErr } = await sb.storage
                   .from("product-images")
                   .upload(path, bytes, {
                     contentType: "image/webp",
                     upsert: true,
                   });
+                if (upErr) throw upErr;
 
                 const { data: urlData } = sb.storage
                   .from("product-images")
                   .getPublicUrl(path);
-                processedUrls.push(urlData.publicUrl);
+                const publicUrl = urlData.publicUrl;
+                processedUrls.push(publicUrl);
+                aiOptimizedSlots += 1;
 
-                // Update images table
-                await sb.from("images").upsert(
+                const { error: upsertErr } = await sb.from("images").upsert(
                   {
                     product_id: productId,
                     original_url: originalUrl,
-                    optimized_url: urlData.publicUrl,
+                    optimized_url: publicUrl,
                     s3_key: path,
                     sort_order: i,
                     status: "done",
                   },
                   { onConflict: "product_id,sort_order", ignoreDuplicates: false }
                 );
+                if (upsertErr) throw upsertErr;
               } else {
                 // AI didn't return image, keep original
                 processedUrls.push(originalUrl);
@@ -378,9 +385,9 @@ Deno.serve(async (req) => {
           }
         }
 
+        const validSourceSlots = product.image_urls.filter(Boolean).length;
+
         if (processedUrls.length > 0) {
-          // Write optimized URLs back to products.image_urls
-          // Normalize: deduplicate, trim whitespace, filter empty
           const normalizedUrls = [...new Set(
             processedUrls.map((u: string) => u.trim()).filter((u: string) => u.length > 0)
           )];
@@ -389,18 +396,32 @@ Deno.serve(async (req) => {
             .update({ image_urls: normalizedUrls })
             .eq("id", productId);
           console.log(`📸 Updated products.image_urls for ${productId}: ${normalizedUrls.length} URLs`);
+        }
 
-          // Increment credits
-          await sb.rpc("increment_image_credits", {
-            _workspace_id: workspaceId,
-          });
+        const creditsToConsume = mode === "lifestyle"
+          ? lifestyleUrls.length
+          : aiOptimizedSlots;
+        for (let c = 0; c < creditsToConsume; c++) {
+          await sb.rpc("increment_image_credits", { _workspace_id: workspaceId });
+        }
+
+        let resultStatus: "done" | "partial" | "skipped" = "done";
+        if (!lovableKey) {
+          resultStatus = "skipped";
+        } else if (mode === "optimize" && aiOptimizedSlots === 0 && validSourceSlots > 0) {
+          resultStatus = imageErrors.length >= validSourceSlots ? "skipped" : "partial";
+        } else if (mode === "lifestyle" && lifestyleUrls.length === 0 && lovableKey) {
+          resultStatus = "partial";
         }
 
         results.push({
           productId,
-          status: "done",
+          status: resultStatus,
           original: product.image_urls.length,
           processed: processedUrls.length,
+          aiOptimizedSlots,
+          lifestyleGenerated: lifestyleUrls.length,
+          creditsConsumed: creditsToConsume,
           imageErrorCount: imageErrors.length,
           imageErrors: imageErrors.length > 0 ? imageErrors : undefined,
         });
@@ -417,7 +438,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         total: productIds.length,
-        processed: results.filter((r) => r.status === "done").length,
+        processed: results.filter((r) => r.status === "done" || r.status === "partial").length,
         skipped: results.filter((r) => r.status === "skipped").length,
         failed: results.filter((r) => r.status === "error").length,
         results,

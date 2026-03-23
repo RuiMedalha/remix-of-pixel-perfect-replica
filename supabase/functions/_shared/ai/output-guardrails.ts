@@ -149,13 +149,21 @@ export interface ValidationResult {
  */
 export function getRequiredFields(requestedFields?: string[]): string[] {
   if (!requestedFields || requestedFields.length === 0) {
-    return ["optimized_title", "optimized_short_description", "meta_title", "meta_description"];
+    return [
+      "optimized_title",
+      "optimized_short_description",
+      "optimized_description",
+      "meta_title",
+      "meta_description",
+    ];
   }
   const required: string[] = [];
   if (requestedFields.includes("title")) required.push("optimized_title");
   if (requestedFields.includes("short_description")) required.push("optimized_short_description");
+  if (requestedFields.includes("description")) required.push("optimized_description");
   if (requestedFields.includes("meta_title")) required.push("meta_title");
   if (requestedFields.includes("meta_description")) required.push("meta_description");
+  if (requestedFields.includes("seo_slug")) required.push("seo_slug");
   return required;
 }
 
@@ -225,17 +233,62 @@ export function validateProductOutput(fields: OptimizedFields, requestedFields?:
     }
   }
 
-  // 4. No unresolved placeholders ({{...}}) in any text field
-  const PLACEHOLDER_REGEX = /\{\{[^}]+\}\}/g;
+  // 4. No unresolved placeholders ({{...}}) in any text field (no /g regex state bugs)
   const ALL_TEXT_FIELDS = [
-    "optimized_title", "optimized_short_description", "optimized_description",
-    "meta_title", "meta_description",
-  ];
+    "optimized_title",
+    "optimized_short_description",
+    "optimized_description",
+    "meta_title",
+    "meta_description",
+    "seo_slug",
+  ] as const;
   for (const field of ALL_TEXT_FIELDS) {
     const val = fields[field];
-    if (typeof val === "string" && PLACEHOLDER_REGEX.test(val)) {
-      const matches = val.match(PLACEHOLDER_REGEX) || [];
+    if (typeof val !== "string") continue;
+    const matches = val.match(/\{\{[^}]+\}\}/g);
+    if (matches && matches.length > 0) {
       issues.push(`field "${field}" contains unresolved placeholder(s): ${matches.join(", ")}`);
+    }
+  }
+
+  // 5. Structured fields when requested in this optimization run
+  if (requestedFields?.includes("tags")) {
+    if (!Array.isArray(fields.tags) || fields.tags.length === 0) {
+      issues.push('required field "tags" is missing or empty');
+    }
+  }
+  if (requestedFields?.includes("faq")) {
+    const faq = fields.faq;
+    if (!Array.isArray(faq) || faq.length === 0) {
+      issues.push('required field "faq" is missing or empty');
+    } else {
+      for (let i = 0; i < faq.length; i++) {
+        const item = faq[i] as { question?: string; answer?: string };
+        const q = (item?.question ?? "").trim();
+        const a = (item?.answer ?? "").trim();
+        if (!q || !a) {
+          issues.push(`faq item ${i} has empty question or answer`);
+          break;
+        }
+      }
+    }
+  }
+  if (requestedFields?.includes("category")) {
+    const c = fields.suggested_category;
+    if (typeof c !== "string" || !c.trim()) {
+      issues.push('required field "suggested_category" is empty or missing');
+    }
+  }
+  if (requestedFields?.includes("upsells") && !Array.isArray(fields.upsell_skus)) {
+    issues.push('required field "upsell_skus" must be an array');
+  }
+  if (requestedFields?.includes("crosssells") && !Array.isArray(fields.crosssell_skus)) {
+    issues.push('required field "crosssell_skus" must be an array');
+  }
+  if (requestedFields?.includes("image_alt")) {
+    const alts = fields.image_alt_texts;
+    if (alts != null && !Array.isArray(alts)) {
+      issues.push('field "image_alt_texts" must be an array when present');
     }
   }
 

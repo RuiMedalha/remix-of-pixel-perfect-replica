@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { enforceFieldLimits } from "../_shared/ai/output-guardrails.ts";
+import { enforceFieldLimits, validateProductOutput } from "../_shared/ai/output-guardrails.ts";
 import { formatProductOutput } from "../_shared/ai/output-formatter.ts";
+import { finalizeOptimizedDescriptionHtml } from "../_shared/ai/content-assembly.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1129,12 +1130,18 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           "refrigera": "Foca em: gama de temperaturas, eficiência energética (classe), capacidade em litros, tipo de refrigerante, isolamento, consumo kWh.",
           "congela": "Foca em: temperatura mínima, velocidade de congelação, capacidade, isolamento, classe energética.",
           "inox": "Foca em: grau de aço (AISI 304/430), higiene HACCP, resistência à corrosão, facilidade de limpeza, durabilidade.",
+          "prepara": "Foca em: ergonomia de trabalho, robustez para uso intensivo, facilidade de sanitização, estabilidade e segurança alimentar.",
+          "bancada": "Foca em: ergonomia de trabalho, robustez para uso intensivo, facilidade de sanitização, materiais aptos contacto alimentar.",
           "lavagem": "Foca em: ciclos de lavagem (segundos), consumo de água por ciclo, temperatura de enxaguamento, capacidade de cestos, tipo de detergente.",
           "lava": "Foca em: ciclos de lavagem (segundos), consumo de água por ciclo, temperatura de enxaguamento, capacidade de cestos.",
           "forno": "Foca em: tipo (conveção/combinado/pizza), número de tabuleiros/GN, gama de temperatura, potência, fonte de energia.",
           "fritadeira": "Foca em: capacidade em litros, tipo de energia (gás/elétrico), potência, dimensões do cesto, produtividade kg/h.",
           "grelhador": "Foca em: superfície útil, tipo de energia, potência, material da grelha, produtividade.",
           "chapa": "Foca em: superfície útil (lisa/estriada/mista), espessura da placa, tipo de energia, potência.",
+          "coccao": "Foca em: potência térmica, homogeneidade de temperatura, tempos de recuperação, volume de produção por hora, tipo de energia.",
+          "cozedura": "Foca em: potência térmica, homogeneidade de temperatura, tempos de recuperação, volume de produção por hora.",
+          "aquec": "Foca em: potência, estabilidade térmica, segurança (ventilação/isolamento), capacidade de carga útil.",
+          "vapor": "Foca em: pressão/temperatura de vapor, tempo de aquecimento, consumo de água, segurança e purga.",
         };
         let categoryWritingCue = "";
         for (const [key, cue] of Object.entries(CATEGORY_WRITING_CUES)) {
@@ -1293,11 +1300,18 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 
         const rawOptimized = JSON.parse(toolCall.function.arguments);
         const guardrailed = enforceFieldLimits(rawOptimized);
-        const { fields: finalOptimized, issues: outputIssues } = formatProductOutput(guardrailed, fields);
+        const { fields: afterFormat } = formatProductOutput(guardrailed, fields, { validate: false });
+        const optimized = { ...afterFormat };
+        if (typeof optimized.optimized_description === "string") {
+          optimized.optimized_description = finalizeOptimizedDescriptionHtml(optimized.optimized_description, {
+            faq: optimized.faq,
+            technicalSpecs: product.technical_specs,
+          });
+        }
+        const { issues: outputIssues } = validateProductOutput(optimized, fields);
         if (outputIssues.length > 0) {
           console.warn("[optimize-product] output quality issues:", outputIssues);
         }
-        const optimized = finalOptimized;
 
         // === VALIDATE upsell/crosssell SKUs against real DB (SKU-only format) ===
         if (optimized.upsell_skus && Array.isArray(optimized.upsell_skus) && optimized.upsell_skus.length > 0) {
@@ -1328,65 +1342,64 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           }
         }
 
-        // === PLACEHOLDER RESOLUTION: resolve known template placeholders before saving ===
-        const PLACEHOLDER_REGEX = /\{\{[^}]+\}\}/g;
-        if (typeof optimized.optimized_description === "string") {
-          // Replace {{faq}} with actual FAQ HTML if we have FAQ data
-          if (optimized.faq && Array.isArray(optimized.faq) && optimized.faq.length > 0) {
-            const faqHtml = optimized.faq.map((f: any) =>
-              `<details><summary>${f.question}</summary><p>${f.answer}</p></details>`
-            ).join("\n");
-            optimized.optimized_description = optimized.optimized_description.replace(/\{\{faq\}\}/gi, faqHtml);
+        // === STATUS GATING: validateProductOutput + run-specific checks ===
+        const statusIssues: string[] = [...outputIssues];
+
+        if (fields.includes("image_alt") && product.image_urls && product.image_urls.length > 0) {
+          const alts = optimized.image_alt_texts;
+          const n = product.image_urls.length;
+          if (!Array.isArray(alts) || alts.length !== n) {
+            statusIssues.push(`image_alt_texts must have ${n} entries`);
+          } else {
+            for (let i = 0; i < alts.length; i++) {
+              const e = alts[i] as { alt_text?: string };
+              if (!e || typeof e.alt_text !== "string" || !e.alt_text.trim()) {
+                statusIssues.push(`image_alt_texts[${i}] missing alt_text`);
+                break;
+              }
+            }
           }
-          // Replace {{tabela_specs}} with specs table from product data if available
-          if (product.technical_specs) {
-            optimized.optimized_description = optimized.optimized_description.replace(
-              /\{\{tabela_specs\}\}/gi,
-              `<table><tbody>${product.technical_specs}</tbody></table>`
-            );
-          }
-          // Strip any remaining unresolved placeholders
-          optimized.optimized_description = optimized.optimized_description.replace(PLACEHOLDER_REGEX, "");
         }
 
-        // === STATUS GATING: determine real status based on output quality ===
-        const statusIssues: string[] = [];
+        if (!phase || phase === 1) {
+          const fk = optimized.focus_keywords;
+          if (!Array.isArray(fk) || fk.length === 0) {
+            statusIssues.push("focus_keywords missing (required in fase 1 / execução completa)");
+          } else if (!fk.every((k: unknown) => typeof k === "string" && String(k).trim().length > 0)) {
+            statusIssues.push("focus_keywords contains empty strings");
+          }
+        }
 
-        // Check required fields based on what was requested
-        const hasTitle = typeof optimized.optimized_title === "string" && optimized.optimized_title.trim().length > 0;
-        const hasShortDesc = typeof optimized.optimized_short_description === "string" && optimized.optimized_short_description.trim().length > 0;
         const hasDescription = typeof optimized.optimized_description === "string" && optimized.optimized_description.trim().length > 0;
-
-        if (fields.includes("title") && !hasTitle) statusIssues.push("optimized_title missing");
-        if (fields.includes("short_description") && !hasShortDesc) statusIssues.push("optimized_short_description missing");
-        if (fields.includes("description") && !hasDescription) statusIssues.push("optimized_description missing");
-
-        // Check SEO fields if they were requested
-        if (fields.includes("meta_title") && (typeof optimized.meta_title !== "string" || !optimized.meta_title.trim())) {
-          statusIssues.push("meta_title missing");
-        }
-        if (fields.includes("meta_description") && (typeof optimized.meta_description !== "string" || !optimized.meta_description.trim())) {
-          statusIssues.push("meta_description missing");
-        }
-
-        // Check for leftover placeholders in any text field
-        const textFieldsToCheck = [optimized.optimized_title, optimized.optimized_short_description, optimized.optimized_description, optimized.meta_title, optimized.meta_description];
-        for (const val of textFieldsToCheck) {
-          if (typeof val === "string" && PLACEHOLDER_REGEX.test(val)) {
-            statusIssues.push("unresolved placeholder in output");
-            break;
+        if (fields.includes("description") && hasDescription) {
+          const longD = optimized.optimized_description as string;
+          if (/<table\b/i.test(longD)) {
+            const tables = longD.match(/<table\b[^>]*>[\s\S]*?<\/table>/gi) || [];
+            for (const t of tables) {
+              const vis = t.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+              if (vis.length < 2) {
+                statusIssues.push("empty specs table in optimized_description");
+                break;
+              }
+            }
+          }
+          if (/<details\b/i.test(longD)) {
+            const details = longD.match(/<details\b[^>]*>[\s\S]*?<\/details>/gi) || [];
+            for (const d of details) {
+              const body = d.replace(/<summary\b[^>]*>[\s\S]*?<\/summary>/gi, "");
+              const vis = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+              if (vis.length < 2) {
+                statusIssues.push("empty FAQ block in optimized_description");
+                break;
+              }
+            }
           }
         }
 
-        // Also consider output quality issues from formatter/guardrails
-        const criticalIssues = outputIssues.filter((i: string) =>
-          i.includes("required field") || i.includes("unclosed HTML tag") || i.includes("mismatched")
-        );
-        statusIssues.push(...criticalIssues);
-
-        const productStatus = statusIssues.length === 0 ? "optimized" : "needs_review";
+        const uniqueStatusIssues = [...new Set(statusIssues)];
+        const productStatus = uniqueStatusIssues.length === 0 ? "optimized" : "needs_review";
         if (productStatus === "needs_review") {
-          console.warn(`[optimize-product] ${product.id} → needs_review: ${statusIssues.join("; ")}`);
+          console.warn(`[optimize-product] ${product.id} → needs_review: ${uniqueStatusIssues.join("; ")}`);
         }
 
         const updateData: Record<string, any> = { status: productStatus };
@@ -1486,7 +1499,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
               const suffix = attrParts.length > 0 ? ` - ${attrParts.join(", ")}` : "";
 
               const variationUpdate: Record<string, any> = {
-                status: "optimized",
+                status: productStatus,
                 category: finalCategory,
                 suggested_category: updateData.suggested_category || null,
               };
@@ -1796,6 +1809,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             user_id: userId,
             model: usedModel,
             requested_model: requestedModel,
+            requested_model_key: modelKey,
             used_provider: usedProvider,
             fallback_used: fallbackUsed,
             fallback_reason: fallbackReason,

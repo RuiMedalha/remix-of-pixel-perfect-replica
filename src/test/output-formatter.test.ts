@@ -56,7 +56,13 @@ interface ValidationResult {
 }
 function validateProductOutput(fields: OptimizedFields): ValidationResult {
   const issues: string[] = [];
-  const REQUIRED = ["optimized_title", "optimized_short_description", "meta_title", "meta_description"];
+  const REQUIRED = [
+    "optimized_title",
+    "optimized_short_description",
+    "optimized_description",
+    "meta_title",
+    "meta_description",
+  ];
   for (const field of REQUIRED) {
     const val = fields[field];
     if (typeof val !== "string" || (val as string).trim().length === 0) {
@@ -171,6 +177,7 @@ describe("formatProductOutput", () => {
   const validBase: OptimizedFields = {
     optimized_title: "Forno Combinado Profissional 10 Tabuleiros.",
     optimized_short_description: "Forno combinado para uso profissional em restaurantes.",
+    optimized_description: "<p>Forno profissional com convecção.</p>",
     meta_title: "Forno Combinado Profissional.",
     meta_description: "O forno combinado ideal para restaurantes e hotéis.",
   };
@@ -221,7 +228,8 @@ describe("formatProductOutput", () => {
       optimized_short_description: "Descrição curta.",
       meta_title: "Meta título.",
       meta_description: "Meta descrição.",
-      optimized_description: "Este produto é ideal para restaurantes e hotéis com alto volume de produção.",
+      optimized_description:
+        "Este produto é ideal para restaurantes e hotéis com alto volume de produção.",
     };
     const { fields: out } = formatProductOutput(fields);
     expect(out.optimized_description).not.toMatch(/^Este produto é ideal para/i);
