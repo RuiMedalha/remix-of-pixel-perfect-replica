@@ -263,7 +263,10 @@ serve(async (req) => {
       "gemini-2.5-pro":        { provider: "gemini", model: "gemini-2.5-pro" },
       "gemini-2.5-flash":      { provider: "gemini", model: "gemini-2.5-flash" },
       "gemini-2.5-flash-lite": { provider: "gemini", model: "gemini-2.5-flash-lite" },
-      // Legacy UI keys — remap to stable models
+      // Preview models — map to themselves (exist in STATIC_CATALOG)
+      "gemini-3-flash-preview":  { provider: "gemini", model: "gemini-3-flash-preview" },
+      "gemini-3-pro-preview":    { provider: "gemini", model: "gemini-3-pro-preview" },
+      // Legacy UI keys — remap to latest stable equivalents
       "gemini-3-flash":        { provider: "gemini", model: "gemini-2.5-flash" },
       "gemini-3-pro":          { provider: "gemini", model: "gemini-2.5-pro" },
     };
@@ -279,7 +282,7 @@ serve(async (req) => {
     if (!CANONICAL_MODEL_MAP[modelKey]) {
       console.warn(`[optimize-product] Unknown model key "${modelKey}" — falling back to ${DEFAULT_MODEL_KEY}`);
     }
-    console.log(`Using AI model: ${chosenModel.model} via provider: ${chosenModel.provider} (key: ${modelKey}, override: ${modelOverride || "none"}, setting: ${modelSetting?.value || "default"})`);
+    console.log(`[optimize-product] Model resolution: requested="${modelKey}" → resolved="${chosenModel.model}" via provider="${chosenModel.provider}" (override: ${modelOverride || "none"}, setting: ${modelSetting?.value || "default"})`);
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
 
