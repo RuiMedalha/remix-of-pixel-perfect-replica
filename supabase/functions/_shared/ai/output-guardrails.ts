@@ -98,17 +98,17 @@ export interface OptimizedFields {
  * Returns a new object — does not mutate the input.
  *
  * Limits:
- *   optimized_title              → 70 chars (word boundary)
+ *   optimized_title              → 100 chars (word boundary)
  *   meta_title                   → 60 chars (word boundary)
  *   meta_description             → 160 chars (sentence boundary)
  *   seo_slug                     → 100 chars (slug normalization)
- *   optimized_short_description  → 500 chars (sentence boundary)
+ *   optimized_short_description  → 1000 chars (sentence boundary)
  */
 export function enforceFieldLimits(fields: OptimizedFields): OptimizedFields {
   const result = { ...fields };
 
   if (typeof result.optimized_title === "string") {
-    result.optimized_title = trimToWord(result.optimized_title, 70);
+    result.optimized_title = trimToWord(result.optimized_title, 100);
   }
   if (typeof result.meta_title === "string") {
     result.meta_title = trimToWord(result.meta_title, 60);
@@ -122,7 +122,7 @@ export function enforceFieldLimits(fields: OptimizedFields): OptimizedFields {
   if (typeof result.optimized_short_description === "string") {
     result.optimized_short_description = trimHtmlSafe(
       result.optimized_short_description,
-      500,
+      1000,
       trimToSentence,
     );
   }
