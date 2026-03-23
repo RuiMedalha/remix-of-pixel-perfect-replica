@@ -120,15 +120,20 @@ async function resolvePromptTemplate(
         .maybeSingle();
 
       if (version?.prompt_text) {
+        console.log(`[resolve-ai-route] Using DB prompt version ${version.id} for task "${taskType}" (workspace: ${workspaceId}). Caller prompt overridden.`);
         return { text: version.prompt_text, versionId: version.id as string };
       }
 
       const basePrompt = (rule.prompt as { base_prompt?: string } | null)?.base_prompt;
-      if (basePrompt) return { text: basePrompt, versionId: null };
+      if (basePrompt) {
+        console.log(`[resolve-ai-route] Using base_prompt from template for task "${taskType}" (workspace: ${workspaceId}). No active version found.`);
+        return { text: basePrompt, versionId: null };
+      }
     }
   } catch {
     /* no rule or template — use caller's prompt */
   }
 
+  console.log(`[resolve-ai-route] No DB prompt found for task "${taskType}" (workspace: ${workspaceId}). Using caller's hardcoded prompt.`);
   return { text: fallbackPrompt || "", versionId: null };
 }
