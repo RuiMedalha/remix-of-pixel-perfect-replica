@@ -144,6 +144,22 @@ export interface ValidationResult {
 }
 
 /**
+ * Derive which fields should be treated as required based on what was requested.
+ * If no requestedFields provided, uses the legacy default set.
+ */
+export function getRequiredFields(requestedFields?: string[]): string[] {
+  if (!requestedFields || requestedFields.length === 0) {
+    return ["optimized_title", "optimized_short_description", "meta_title", "meta_description"];
+  }
+  const required: string[] = [];
+  if (requestedFields.includes("title")) required.push("optimized_title");
+  if (requestedFields.includes("short_description")) required.push("optimized_short_description");
+  if (requestedFields.includes("meta_title")) required.push("meta_title");
+  if (requestedFields.includes("meta_description")) required.push("meta_description");
+  return required;
+}
+
+/**
  * Validate AI-generated product output fields.
  * Returns { valid: boolean; issues: string[] }.
  * Does not throw. Issues array is empty when valid === true.
@@ -152,17 +168,13 @@ export interface ValidationResult {
  *   1. Required fields are present and non-empty.
  *   2. Description fields end with sentence-ending punctuation (not abrupt).
  *   3. HTML fields do not have broken (unclosed) tags.
+ *   4. No unresolved placeholders ({{...}}) in any text field.
  */
-export function validateProductOutput(fields: OptimizedFields): ValidationResult {
+export function validateProductOutput(fields: OptimizedFields, requestedFields?: string[]): ValidationResult {
   const issues: string[] = [];
 
-  // 1. Required fields must be non-empty strings
-  const REQUIRED = [
-    "optimized_title",
-    "optimized_short_description",
-    "meta_title",
-    "meta_description",
-  ] as const;
+  // 1. Required fields must be non-empty strings (dynamic based on requested fields)
+  const REQUIRED = getRequiredFields(requestedFields);
   for (const field of REQUIRED) {
     const val = fields[field];
     if (typeof val !== "string" || val.trim().length === 0) {
@@ -210,6 +222,20 @@ export function validateProductOutput(fields: OptimizedFields): ValidationResult
           `field "${field}" has mismatched <${tag}> tags (${openCount} open, ${closeCount} close)`,
         );
       }
+    }
+  }
+
+  // 4. No unresolved placeholders ({{...}}) in any text field
+  const PLACEHOLDER_REGEX = /\{\{[^}]+\}\}/g;
+  const ALL_TEXT_FIELDS = [
+    "optimized_title", "optimized_short_description", "optimized_description",
+    "meta_title", "meta_description",
+  ];
+  for (const field of ALL_TEXT_FIELDS) {
+    const val = fields[field];
+    if (typeof val === "string" && PLACEHOLDER_REGEX.test(val)) {
+      const matches = val.match(PLACEHOLDER_REGEX) || [];
+      issues.push(`field "${field}" contains unresolved placeholder(s): ${matches.join(", ")}`);
     }
   }
 

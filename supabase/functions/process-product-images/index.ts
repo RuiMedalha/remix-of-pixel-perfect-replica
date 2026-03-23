@@ -379,6 +379,17 @@ Deno.serve(async (req) => {
         }
 
         if (processedUrls.length > 0) {
+          // Write optimized URLs back to products.image_urls
+          // Normalize: deduplicate, trim whitespace, filter empty
+          const normalizedUrls = [...new Set(
+            processedUrls.map((u: string) => u.trim()).filter((u: string) => u.length > 0)
+          )];
+          await sb
+            .from("products")
+            .update({ image_urls: normalizedUrls })
+            .eq("id", productId);
+          console.log(`📸 Updated products.image_urls for ${productId}: ${normalizedUrls.length} URLs`);
+
           // Increment credits
           await sb.rpc("increment_image_credits", {
             _workspace_id: workspaceId,

@@ -12,6 +12,7 @@ export type { ValidationResult } from "./output-guardrails.ts";
 const WEAK_PHRASE_PATTERNS: RegExp[] = [
   /^Este produto é ideal para\b/i,
   /^Este produto é perfeito para\b/i,
+  /^Este equipamento é ideal para\b/i,
   /^Apresentamos o\b/i,
   /^Descubra o\b/i,
   /^Conheça o\b/i,
@@ -19,19 +20,44 @@ const WEAK_PHRASE_PATTERNS: RegExp[] = [
   /^Alta qualidade[,.]?\s*/i,
   /^Excelente desempenho[,.]?\s*/i,
   /^Produto de (alta |excelente )?qualidade[,.]?\s*/i,
+  /^Com um design\b/i,
+  /^Com design\b/i,
+  /^Equipamento de (alta |excelente )?qualidade[,.]?\s*/i,
+  /^Este modelo é\b/i,
+  /^O nosso\b/i,
+  /^A nossa\b/i,
+];
+
+// Generic filler phrases to strip from ANYWHERE in text (not just prefix).
+// Matched globally and replaced with empty string.
+const GENERIC_FILLER_PATTERNS: RegExp[] = [
+  /\bideal para (qualquer|todo o tipo de) (estabelecimento|negócio|cozinha)\b/gi,
+  /\balta qualidade\b(?! [a-záéíóúâêîôûãõç])/gi,  // "alta qualidade" not followed by a qualifier
+  /\bexcelente relação qualidade[- ]preço\b/gi,
+  /\bsolução (ideal|perfeita|completa) para\b/gi,
+  /\bgarante (excelentes |ótimos )?resultados\b/gi,
+  /\bperfeito para (qualquer|todo)\b/gi,
 ];
 
 export function stripWeakPhrases(text: string): string {
   if (!text) return "";
+  // 1. Strip prefix patterns
   for (const pattern of WEAK_PHRASE_PATTERNS) {
     const match = text.match(pattern);
     if (match) {
       const remainder = text.substring(match[0].length).trimStart();
       if (remainder.length > 20) {
-        return remainder.charAt(0).toUpperCase() + remainder.slice(1);
+        text = remainder.charAt(0).toUpperCase() + remainder.slice(1);
+        break; // only strip one prefix
       }
     }
   }
+  // 2. Strip generic filler phrases from anywhere in text
+  for (const pattern of GENERIC_FILLER_PATTERNS) {
+    text = text.replace(pattern, "");
+  }
+  // Clean up double spaces left by removals
+  text = text.replace(/  +/g, " ").trim();
   return text;
 }
 
@@ -48,7 +74,7 @@ export interface FormattedOutput {
   issues: string[];
 }
 
-export function formatProductOutput(fields: OptimizedFields): FormattedOutput {
+export function formatProductOutput(fields: OptimizedFields, requestedFields?: string[]): FormattedOutput {
   const result = { ...fields };
   const TEXT_FIELDS = ["optimized_short_description", "optimized_description"] as const;
   for (const field of TEXT_FIELDS) {
@@ -57,6 +83,6 @@ export function formatProductOutput(fields: OptimizedFields): FormattedOutput {
       result[field] = normalizeWhitespace(result[field] as string);
     }
   }
-  const { issues } = validateProductOutput(result);
+  const { issues } = validateProductOutput(result, requestedFields);
   return { fields: result, issues };
 }

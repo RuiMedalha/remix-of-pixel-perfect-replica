@@ -259,11 +259,13 @@ serve(async (req) => {
     // CANONICAL_MODEL_MAP: maps UI model keys to provider-registry format.
     // Use { provider, model } pairs — never Lovable-gateway "google/..." strings.
     const CANONICAL_MODEL_MAP: Record<string, { provider: string; model: string }> = {
-      "gemini-3-flash":        { provider: "gemini", model: "gemini-2.5-flash" },   // gemini-3 preview → latest stable flash
-      "gemini-3-pro":          { provider: "gemini", model: "gemini-2.5-pro" },     // gemini-3 preview → latest stable pro
+      // Gemini models — primary optimization providers
       "gemini-2.5-pro":        { provider: "gemini", model: "gemini-2.5-pro" },
       "gemini-2.5-flash":      { provider: "gemini", model: "gemini-2.5-flash" },
       "gemini-2.5-flash-lite": { provider: "gemini", model: "gemini-2.5-flash-lite" },
+      // Legacy UI keys — remap to stable models
+      "gemini-3-flash":        { provider: "gemini", model: "gemini-2.5-flash" },
+      "gemini-3-pro":          { provider: "gemini", model: "gemini-2.5-pro" },
     };
     const DEFAULT_MODEL_KEY = "gemini-2.5-flash";
     const { data: modelSetting } = await supabase
@@ -274,6 +276,9 @@ serve(async (req) => {
     // Use override if provided, otherwise fall back to settings, then to DEFAULT_MODEL_KEY
     const modelKey = modelOverride || modelSetting?.value || DEFAULT_MODEL_KEY;
     const chosenModel = CANONICAL_MODEL_MAP[modelKey] ?? CANONICAL_MODEL_MAP[DEFAULT_MODEL_KEY];
+    if (!CANONICAL_MODEL_MAP[modelKey]) {
+      console.warn(`[optimize-product] Unknown model key "${modelKey}" — falling back to ${DEFAULT_MODEL_KEY}`);
+    }
     console.log(`Using AI model: ${chosenModel.model} via provider: ${chosenModel.provider} (key: ${modelKey}, override: ${modelOverride || "none"}, setting: ${modelSetting?.value || "default"})`);
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
@@ -1117,9 +1122,31 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 - Traduz tudo para português europeu.
 - Gera SEMPRE 1 a 3 focus keywords SEO principais (a primeira é a principal). Devem ser keywords de pesquisa reais que um comprador usaria no Google.`;
 
+        // Category-aware writing context: add domain-specific quality cues
+        const categoryLower = (product.category || "").toLowerCase();
+        const CATEGORY_WRITING_CUES: Record<string, string> = {
+          "frio": "Foca em: gama de temperaturas, eficiência energética (classe), capacidade em litros, tipo de refrigerante, isolamento, consumo kWh.",
+          "refrigera": "Foca em: gama de temperaturas, eficiência energética (classe), capacidade em litros, tipo de refrigerante, isolamento, consumo kWh.",
+          "congela": "Foca em: temperatura mínima, velocidade de congelação, capacidade, isolamento, classe energética.",
+          "inox": "Foca em: grau de aço (AISI 304/430), higiene HACCP, resistência à corrosão, facilidade de limpeza, durabilidade.",
+          "lavagem": "Foca em: ciclos de lavagem (segundos), consumo de água por ciclo, temperatura de enxaguamento, capacidade de cestos, tipo de detergente.",
+          "lava": "Foca em: ciclos de lavagem (segundos), consumo de água por ciclo, temperatura de enxaguamento, capacidade de cestos.",
+          "forno": "Foca em: tipo (conveção/combinado/pizza), número de tabuleiros/GN, gama de temperatura, potência, fonte de energia.",
+          "fritadeira": "Foca em: capacidade em litros, tipo de energia (gás/elétrico), potência, dimensões do cesto, produtividade kg/h.",
+          "grelhador": "Foca em: superfície útil, tipo de energia, potência, material da grelha, produtividade.",
+          "chapa": "Foca em: superfície útil (lisa/estriada/mista), espessura da placa, tipo de energia, potência.",
+        };
+        let categoryWritingCue = "";
+        for (const [key, cue] of Object.entries(CATEGORY_WRITING_CUES)) {
+          if (categoryLower.includes(key)) {
+            categoryWritingCue = `\n\nCONTEXTO DE CATEGORIA (${key}): ${cue}`;
+            break;
+          }
+        }
+
         const finalPrompt = customPrompt
-          ? `${customPrompt}\n\n${productInfo}${knowledgeContext}${supplierContext}${catalogContext}\n\nINSTRUÇÕES POR CAMPO:\n${fieldInstructions.join("\n\n---\n\n")}`
-          : defaultPrompt;
+          ? `${customPrompt}\n\n${productInfo}${knowledgeContext}${supplierContext}${catalogContext}${categoryWritingCue}\n\nINSTRUÇÕES POR CAMPO:\n${fieldInstructions.join("\n\n---\n\n")}`
+          : `${defaultPrompt}${categoryWritingCue}`;
 
         // Build tool properties dynamically
         const toolProperties: Record<string, any> = {};
@@ -1238,11 +1265,24 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 
         const aiWrapper = await aiResponse.json();
         const promptVersionId: string | null = aiWrapper.meta?.promptVersionId ?? null;
+        const aiMeta = aiWrapper.meta || {};
         const aiData = aiWrapper.result || aiWrapper;
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
         if (!toolCall) {
           await supabase.from("products").update({ status: "error" }).eq("id", product.id);
           return { id: product.id, status: "error" as const, error: "No tool call in response" };
+        }
+
+        // Capture real model traceability from AI router meta
+        const usedProvider: string = aiMeta.usedProvider || chosenModel.provider;
+        const usedModel: string = aiMeta.usedModel || chosenModel.model;
+        const requestedModel: string = chosenModel.model;
+        const fallbackUsed: boolean = aiMeta.fallbackUsed || false;
+        const fallbackReason: string | null = aiMeta.fallbackReason || null;
+        const attemptedModels: string[] = aiMeta.attemptedModels || [chosenModel.model];
+
+        if (fallbackUsed) {
+          console.warn(`[optimize-product] ${product.id}: fallback used — requested=${requestedModel}, used=${usedModel}, reason=${fallbackReason}`);
         }
 
         // Capture token usage from AI response
@@ -1253,7 +1293,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 
         const rawOptimized = JSON.parse(toolCall.function.arguments);
         const guardrailed = enforceFieldLimits(rawOptimized);
-        const { fields: finalOptimized, issues: outputIssues } = formatProductOutput(guardrailed);
+        const { fields: finalOptimized, issues: outputIssues } = formatProductOutput(guardrailed, fields);
         if (outputIssues.length > 0) {
           console.warn("[optimize-product] output quality issues:", outputIssues);
         }
@@ -1288,7 +1328,68 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           }
         }
 
-        const updateData: Record<string, any> = { status: "optimized" };
+        // === PLACEHOLDER RESOLUTION: resolve known template placeholders before saving ===
+        const PLACEHOLDER_REGEX = /\{\{[^}]+\}\}/g;
+        if (typeof optimized.optimized_description === "string") {
+          // Replace {{faq}} with actual FAQ HTML if we have FAQ data
+          if (optimized.faq && Array.isArray(optimized.faq) && optimized.faq.length > 0) {
+            const faqHtml = optimized.faq.map((f: any) =>
+              `<details><summary>${f.question}</summary><p>${f.answer}</p></details>`
+            ).join("\n");
+            optimized.optimized_description = optimized.optimized_description.replace(/\{\{faq\}\}/gi, faqHtml);
+          }
+          // Replace {{tabela_specs}} with specs table from product data if available
+          if (product.technical_specs) {
+            optimized.optimized_description = optimized.optimized_description.replace(
+              /\{\{tabela_specs\}\}/gi,
+              `<table><tbody>${product.technical_specs}</tbody></table>`
+            );
+          }
+          // Strip any remaining unresolved placeholders
+          optimized.optimized_description = optimized.optimized_description.replace(PLACEHOLDER_REGEX, "");
+        }
+
+        // === STATUS GATING: determine real status based on output quality ===
+        const statusIssues: string[] = [];
+
+        // Check required fields based on what was requested
+        const hasTitle = typeof optimized.optimized_title === "string" && optimized.optimized_title.trim().length > 0;
+        const hasShortDesc = typeof optimized.optimized_short_description === "string" && optimized.optimized_short_description.trim().length > 0;
+        const hasDescription = typeof optimized.optimized_description === "string" && optimized.optimized_description.trim().length > 0;
+
+        if (fields.includes("title") && !hasTitle) statusIssues.push("optimized_title missing");
+        if (fields.includes("short_description") && !hasShortDesc) statusIssues.push("optimized_short_description missing");
+        if (fields.includes("description") && !hasDescription) statusIssues.push("optimized_description missing");
+
+        // Check SEO fields if they were requested
+        if (fields.includes("meta_title") && (typeof optimized.meta_title !== "string" || !optimized.meta_title.trim())) {
+          statusIssues.push("meta_title missing");
+        }
+        if (fields.includes("meta_description") && (typeof optimized.meta_description !== "string" || !optimized.meta_description.trim())) {
+          statusIssues.push("meta_description missing");
+        }
+
+        // Check for leftover placeholders in any text field
+        const textFieldsToCheck = [optimized.optimized_title, optimized.optimized_short_description, optimized.optimized_description, optimized.meta_title, optimized.meta_description];
+        for (const val of textFieldsToCheck) {
+          if (typeof val === "string" && PLACEHOLDER_REGEX.test(val)) {
+            statusIssues.push("unresolved placeholder in output");
+            break;
+          }
+        }
+
+        // Also consider output quality issues from formatter/guardrails
+        const criticalIssues = outputIssues.filter((i: string) =>
+          i.includes("required field") || i.includes("unclosed HTML tag") || i.includes("mismatched")
+        );
+        statusIssues.push(...criticalIssues);
+
+        const productStatus = statusIssues.length === 0 ? "optimized" : "needs_review";
+        if (productStatus === "needs_review") {
+          console.warn(`[optimize-product] ${product.id} → needs_review: ${statusIssues.join("; ")}`);
+        }
+
+        const updateData: Record<string, any> = { status: productStatus };
         if (optimized.optimized_title) updateData.optimized_title = optimized.optimized_title;
         if (optimized.optimized_description) updateData.optimized_description = optimized.optimized_description;
         if (optimized.optimized_short_description !== undefined) updateData.optimized_short_description = optimized.optimized_short_description || null;
@@ -1296,7 +1397,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         if (optimized.meta_description) updateData.meta_description = optimized.meta_description;
         if (optimized.seo_slug) updateData.seo_slug = optimized.seo_slug;
         if (optimized.tags) updateData.tags = optimized.tags;
-        
+
         if (optimized.faq) updateData.faq = optimized.faq;
         if (optimized.upsell_skus) updateData.upsell_skus = optimized.upsell_skus;
         if (optimized.crosssell_skus) updateData.crosssell_skus = optimized.crosssell_skus;
@@ -1693,7 +1794,11 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           await supabase.from("optimization_logs").insert({
             product_id: product.id,
             user_id: userId,
-            model: chosenModel.model,
+            model: usedModel,
+            requested_model: requestedModel,
+            used_provider: usedProvider,
+            fallback_used: fallbackUsed,
+            fallback_reason: fallbackReason,
             prompt_tokens: promptTokens,
             completion_tokens: completionTokens,
             total_tokens: totalTokens,
@@ -1713,7 +1818,11 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           console.warn(`[optimize-product] optimization_logs insert failed for ${product.id} (non-blocking):`, logErr);
         }
 
-        return { id: product.id, status: "optimized" as const };
+        return {
+          id: product.id,
+          status: productStatus as "optimized" | "needs_review",
+          meta: { usedProvider, usedModel, requestedModel, fallbackUsed, fallbackReason, attemptedModels },
+        };
       } catch (productError) {
         console.error(`Error optimizing product ${product.id}:`, productError);
         await supabase.from("products").update({ status: "error" }).eq("id", product.id);
