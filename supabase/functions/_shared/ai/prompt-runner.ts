@@ -22,10 +22,19 @@ export async function runPrompt(
   const route = await resolveRoute(supabase, params);
   const { selectedProvider, selectedModel, fallbackChain, finalParams } = route;
 
-  const chain = [
-    { provider: selectedProvider, model: selectedModel },
-    ...fallbackChain,
-  ];
+  // Strict mode: when modelOverride is provided, do not fallback silently.
+  // If the requested provider/model fails, return an error instead of using a different model.
+  const strictMode = !!params.modelOverride;
+  const chain = strictMode
+    ? [{ provider: selectedProvider, model: selectedModel }]
+    : [
+        { provider: selectedProvider, model: selectedModel },
+        ...fallbackChain,
+      ];
+
+  if (strictMode) {
+    console.log(`[prompt-runner] Strict mode: modelOverride="${params.modelOverride}" — fallback disabled, using ${selectedProvider.id}/${selectedModel} only`);
+  }
 
   // Build the base invoke params, merging workspace preferences (finalParams) as defaults
   const baseInvokeParams: Omit<InvokeParams, "provider" | "model"> = {
@@ -58,12 +67,26 @@ export async function runPrompt(
     ? raw.errorCategories[raw.errorCategories.length - 1].category
     : undefined;
 
+  // Build detailed fallback reason from actual provider errors
+  let fallbackReason: string | undefined;
+  if (raw.fallbackUsed && raw.errorMessages.length > 0) {
+    fallbackReason = raw.errorMessages
+      .map((e) => `${e.provider}: ${e.message}`)
+      .join(" → ");
+  } else if (raw.fallbackUsed) {
+    fallbackReason = "primary_provider_failed";
+  }
+
+  if (raw.fallbackUsed) {
+    console.warn(`[prompt-runner] Fallback used: requested=${params.modelOverride ?? selectedModel}, used=${raw.model}. Reason: ${fallbackReason}`);
+  }
+
   const meta: RunMeta = {
     provider: raw.provider,
     model: raw.model,
     fallbackUsed: raw.fallbackUsed,
     requestedModel: params.modelOverride ?? undefined,
-    fallbackReason: raw.fallbackUsed ? "primary_provider_failed" : undefined,
+    fallbackReason,
     attemptedProviders: raw.attemptedProviders,
     attemptedModels: raw.attemptedModels,
     decisionSource: route.decisionSource,

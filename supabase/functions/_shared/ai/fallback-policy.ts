@@ -26,6 +26,7 @@ export async function executeWithFallback(
   attemptedProviders: string[];
   attemptedModels: string[];
   errorCategories: Array<{ provider: string; category: ErrorCategory }>;
+  errorMessages: Array<{ provider: string; message: string }>;
 }> {
   const attemptedProviders: string[] = [];
   const attemptedModels: string[] = [];
@@ -49,6 +50,7 @@ export async function executeWithFallback(
           attemptedProviders,
           attemptedModels,
           errorCategories,
+          errorMessages,
         };
       } catch (err) {
         const category = err instanceof ProviderError ? err.category : "unknown_error";
