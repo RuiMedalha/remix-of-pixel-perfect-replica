@@ -927,7 +927,7 @@ function SupplierDataSection({ product }: { product: Product }) {
         .eq("file_name", `🌐 SKU: ${product.sku}`)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       return data;
     },
   });
