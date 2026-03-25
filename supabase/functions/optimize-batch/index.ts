@@ -414,7 +414,8 @@ serve(async (req) => {
 
               const data = await response.json();
               if (data.error) {
-                lastError = data.error;
+                const dataError = typeof data.error === "string" ? data.error : JSON.stringify(data.error);
+                lastError = dataError;
                 await supabase.from("optimization_job_items").insert({
                   job_id: job.id,
                   product_id: productId,
@@ -424,11 +425,47 @@ serve(async (req) => {
                   started_at: itemStartedAt,
                   completed_at: new Date().toISOString(),
                   duration_ms: Date.now() - itemStartMs,
-                  error_message: data.error.substring(0, 500),
+                  error_message: dataError.substring(0, 500),
                 });
-                return { productId, status: "error", error: data.error };
+                return { productId, status: "error", error: dataError };
               }
-              productOk = true;
+
+              const resultItems = Array.isArray(data?.results) ? data.results : [];
+              if (resultItems.length === 0) {
+                lastError = "optimize-product returned 200 with empty or missing results";
+                await supabase.from("optimization_job_items").insert({
+                  job_id: job.id,
+                  product_id: productId,
+                  status: "error",
+                  fields_optimized: callBody.fieldsToOptimize || [],
+                  model_used: job.model_override || null,
+                  started_at: itemStartedAt,
+                  completed_at: new Date().toISOString(),
+                  duration_ms: Date.now() - itemStartMs,
+                  error_message: lastError.substring(0, 500),
+                });
+                return { productId, status: "error", error: lastError };
+              }
+
+              const errorItems = resultItems.filter((r: any) => r?.status === "error");
+              if (errorItems.length > 0) {
+                const firstError = errorItems.find((r: any) => typeof r?.error === "string")?.error;
+                lastError = firstError || "optimize-product returned item-level errors";
+                await supabase.from("optimization_job_items").insert({
+                  job_id: job.id,
+                  product_id: productId,
+                  status: "error",
+                  fields_optimized: callBody.fieldsToOptimize || [],
+                  model_used: job.model_override || null,
+                  started_at: itemStartedAt,
+                  completed_at: new Date().toISOString(),
+                  duration_ms: Date.now() - itemStartMs,
+                  error_message: lastError.substring(0, 500),
+                });
+                return { productId, status: "error", error: lastError };
+              }
+
+              productOk = resultItems.length > 0 && errorItems.length === 0;
             } catch (err: any) {
               console.error(`Product ${productId} phase ${phaseConfig.phase} error:`, (err as Error).message);
               lastError = (err as Error).message;

@@ -1270,10 +1270,33 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         const promptVersionId: string | null = aiWrapper.meta?.promptVersionId ?? null;
         const aiMeta = aiWrapper.meta || {};
         const aiData = aiWrapper.result || aiWrapper;
-        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-        if (!toolCall) {
-          await supabase.from("products").update({ status: "error" }).eq("id", product.id);
-          return { id: product.id, status: "error" as const, error: "No tool call in response" };
+        const message = aiData.choices?.[0]?.message;
+        const toolCall = message?.tool_calls?.[0];
+
+        let rawOptimized: any;
+        if (toolCall?.function?.arguments) {
+          rawOptimized = JSON.parse(toolCall.function.arguments);
+        } else {
+          // Fallback path for providers/models that return JSON in message.content
+          const contentText = typeof message?.content === "string"
+            ? message.content
+            : Array.isArray(message?.content)
+              ? message.content
+                  .map((c: any) => typeof c?.text === "string" ? c.text : "")
+                  .join("\n")
+              : "";
+
+          if (!contentText.trim()) {
+            await supabase.from("products").update({ status: "error" }).eq("id", product.id);
+            return { id: product.id, status: "error" as const, error: "No tool call/content JSON in response" };
+          }
+
+          const normalizedContent = contentText
+            .replace(/^```json\s*/i, "")
+            .replace(/^```\s*/i, "")
+            .replace(/\s*```$/, "")
+            .trim();
+          rawOptimized = JSON.parse(normalizedContent);
         }
 
         // Capture real model traceability from AI router meta
@@ -1294,7 +1317,6 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         const completionTokens = usage.completion_tokens || 0;
         const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
 
-        const rawOptimized = JSON.parse(toolCall.function.arguments);
         const guardrailed = enforceFieldLimits(rawOptimized);
         const { fields: finalOptimized, issues: outputIssues } = formatProductOutput(guardrailed, fields);
         if (outputIssues.length > 0) {
