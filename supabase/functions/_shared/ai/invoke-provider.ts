@@ -306,6 +306,22 @@ function convertToolsToGemini(
 ): Array<{ functionDeclarations: unknown[] }> | null {
   if (!tools || tools.length === 0) return null;
 
+  const stripAdditionalProperties = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      return value.map(stripAdditionalProperties);
+    }
+    if (value && typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      const next: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (k === "additionalProperties") continue;
+        next[k] = stripAdditionalProperties(v);
+      }
+      return next;
+    }
+    return value;
+  };
+
   const declarations: unknown[] = [];
   for (const tool of tools) {
     const t = tool as { type?: string; function?: { name: string; description?: string; parameters?: unknown } };
@@ -313,7 +329,9 @@ function convertToolsToGemini(
       declarations.push({
         name: t.function.name,
         description: t.function.description ?? "",
-        parameters: t.function.parameters ?? { type: "object", properties: {} },
+        parameters: stripAdditionalProperties(
+          t.function.parameters ?? { type: "object", properties: {} },
+        ),
       });
     }
   }
