@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,13 +54,8 @@ export default function AiProviderCenterPage() {
   const modelsForType = (providerType: string) =>
     (modelCatalog.data || []).filter(m => m.provider_type === providerType);
 
-  const handleTestProvider = async (id: string) => {
-    setTestingId(id);
-    try {
-      await testProvider.mutateAsync({ providerId: id, workspaceId: activeWorkspace!.id });
-    } finally {
-      setTestingId(null);
-    }
+  const handleTestProvider = async (_id: string) => {
+    toast.info("Teste de provider temporariamente indisponível — função edge no limite do plano Supabase.");
   };
 
   const handleSaveProvider = async () => {
