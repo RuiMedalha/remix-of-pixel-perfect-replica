@@ -1265,9 +1265,20 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             throw new Error("Créditos insuficientes. Adicione créditos ao workspace.");
           }
           const errText = await aiResponse.text();
-          console.error("AI error:", status, errText);
+          let routeErrorDetail = errText;
+          try {
+            const parsed = JSON.parse(errText);
+            if (parsed?.error) {
+              routeErrorDetail = parsed.details
+                ? `${parsed.error} | ${parsed.details}`
+                : parsed.error;
+            }
+          } catch {
+            // keep raw text
+          }
+          console.error("AI error:", status, routeErrorDetail);
           await supabase.from("products").update({ status: "error" }).eq("id", product.id);
-          return { id: product.id, status: "error" as const, error: errText };
+          return { id: product.id, status: "error" as const, error: `AI route ${status}: ${routeErrorDetail}` };
         }
 
         const aiWrapper = await aiResponse.json();

@@ -32,6 +32,12 @@ export async function runPrompt(
         ...fallbackChain,
       ];
 
+  if (params.taskType === "product_optimization") {
+    console.log(
+      `[prompt-runner] product_optimization chain: ${chain.map((c) => `${c.provider.id}/${c.model}`).join(" -> ")}`,
+    );
+  }
+
   if (strictMode) {
     console.log(`[prompt-runner] Strict mode: modelOverride="${params.modelOverride}" — fallback disabled, using ${selectedProvider.id}/${selectedModel} only`);
   }
@@ -56,7 +62,14 @@ export async function runPrompt(
     p: typeof baseInvokeParams,
   ) => invokeProvider({ provider, model, ...p });
 
-  const raw = await executeWithFallback(chain, baseInvokeParams, invokeFn);
+  const raw = await executeWithFallback(
+    chain,
+    baseInvokeParams,
+    invokeFn,
+    params.taskType === "product_optimization"
+      ? { maxAttempts: 2, baseDelayMs: 500, backoffMultiplier: 2 }
+      : undefined,
+  );
 
   // Cost estimation — DB-first with static fallback
   const modelConfig = await getModel(supabase, raw.provider, raw.model);

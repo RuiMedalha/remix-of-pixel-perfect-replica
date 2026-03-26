@@ -3,6 +3,7 @@ import type { InvokeParams, InvokeResult } from "./provider-types.ts";
 import { classifyError, classifyNetworkError } from "./error-classifier.ts";
 
 const TIMEOUT_MS = 30_000; // 30s per spec. If Phase 3 vision tasks need longer, increase here only.
+const ERROR_BODY_MAX = 1200;
 
 export async function invokeProvider(params: InvokeParams): Promise<InvokeResult> {
   switch (params.provider.format) {
@@ -227,17 +228,19 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
       body: JSON.stringify(body),
     });
   } catch (err) {
-    throw new ProviderError("Network error", classifyNetworkError(err));
+    const message = err instanceof Error ? err.message : String(err);
+    throw new ProviderError(`Gemini fetch error: ${message}`, classifyNetworkError(err));
   }
 
   const latencyMs = Date.now() - startMs;
 
   if (!resp.ok) {
-    const text = await resp.text();
+    const text = (await resp.text()).slice(0, ERROR_BODY_MAX);
     const category = classifyError(resp.status, text, "gemini");
-    console.error(`[invoke-provider] gemini HTTP ${resp.status} (${category}): ${text}`);
+    const detail = `Gemini HTTP ${resp.status} ${resp.statusText}: ${text}`;
+    console.error(`[invoke-provider] ${detail} (${category})`);
     throw new ProviderError(
-      `gemini ${resp.status}: ${text}`,
+      detail,
       category,
     );
   }

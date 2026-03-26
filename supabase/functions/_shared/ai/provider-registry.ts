@@ -112,6 +112,41 @@ export async function resolveRoute(
 ): Promise<ResolvedRoute> {
   const { workspaceId, capability, taskType, providerOverride, modelOverride } = params;
 
+<<<<<<< ours
+=======
+  // Product optimization policy (production safety):
+  // primary gemini, fallback openai -> anthropic.
+  if (taskType === "product_optimization") {
+    const gemini = getProvider("gemini");
+    if (gemini) {
+      const primaryModel = modelOverride && isModelCompatibleWithProvider(modelOverride, "gemini")
+        ? modelOverride
+        : getDefaultModelForProvider("gemini");
+      if (modelOverride && !isModelCompatibleWithProvider(modelOverride, "gemini")) {
+        console.warn(
+          `[provider-registry] product_optimization override "${modelOverride}" is not compatible with gemini; using ${primaryModel}`,
+        );
+      }
+      const chain = buildChain(gemini, primaryModel, [
+        { provider: "openai", model: getDefaultModelForProvider("openai") },
+        { provider: "anthropic", model: getDefaultModelForProvider("anthropic") },
+      ]);
+      if (chain.length > 0) {
+        console.log(
+          `[provider-registry] product_optimization deterministic chain: ${chain.map((c) => `${c.provider.id}/${c.model}`).join(" -> ")}`,
+        );
+        return {
+          selectedProvider: chain[0].provider,
+          selectedModel: chain[0].model,
+          fallbackChain: chain.slice(1),
+          finalParams: {},
+          decisionSource: "capability_default",
+        };
+      }
+    }
+  }
+
+>>>>>>> theirs
   // 1. ai_routing_rules (workspace + task_type) — highest precedence
   if (taskType) {
     try {

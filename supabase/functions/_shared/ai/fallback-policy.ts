@@ -73,6 +73,12 @@ export async function executeWithFallback(
 
     errorCategories.push({ provider: provider.id, category: lastCategory });
     errorMessages.push({ provider: provider.id, message: lastMessage });
+    if (i < chain.length - 1) {
+      const next = chain[i + 1];
+      console.warn(
+        `[fallback-policy] Falling back from ${provider.id}/${model} to ${next.provider.id}/${next.model} due to ${lastCategory}: ${lastMessage}`,
+      );
+    }
   }
 
   const errorDetail = errorMessages
