@@ -88,6 +88,7 @@ serve(async (req) => {
     const { data: promptSetting } = await supabase
       .from("settings")
       .select("value")
+      .eq("user_id", userId)
       .eq("key", "optimization_prompt")
       .maybeSingle();
 
@@ -104,6 +105,7 @@ serve(async (req) => {
     const { data: fieldPromptSettings } = await supabase
       .from("settings")
       .select("key, value")
+      .eq("user_id", userId)
       .in("key", fieldPromptKeys);
     
     const fieldPrompts: Record<string, string> = {};
@@ -274,6 +276,7 @@ serve(async (req) => {
     const { data: modelSetting } = await supabase
       .from("settings")
       .select("value")
+      .eq("user_id", userId)
       .eq("key", "default_model")
       .maybeSingle();
     // Use override if provided, otherwise fall back to settings, then to DEFAULT_MODEL_KEY
@@ -291,6 +294,7 @@ serve(async (req) => {
     const { data: suppliersConfig } = await supabase
       .from("settings")
       .select("value")
+      .eq("user_id", userId)
       .eq("key", "suppliers_json")
       .maybeSingle();
 
@@ -1355,13 +1359,28 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 
         // === PLACEHOLDER RESOLUTION: resolve known template placeholders before saving ===
         const PLACEHOLDER_REGEX = /\{\{[^}]+\}\}/g;
+        if (
+          (fields.includes("faq") && typeof optimized.optimized_description !== "string")
+          && typeof product.optimized_description === "string"
+        ) {
+          optimized.optimized_description = product.optimized_description;
+        }
+
         if (typeof optimized.optimized_description === "string") {
+          const hadFaqPlaceholder = /\{\{faq\}\}/i.test(optimized.optimized_description);
           // Replace {{faq}} with actual FAQ HTML if we have FAQ data
           if (optimized.faq && Array.isArray(optimized.faq) && optimized.faq.length > 0) {
             const faqHtml = optimized.faq.map((f: any) =>
               `<details><summary>${f.question}</summary><p>${f.answer}</p></details>`
             ).join("\n");
             optimized.optimized_description = optimized.optimized_description.replace(/\{\{faq\}\}/gi, faqHtml);
+
+            // Fallback embed: if FAQ exists but template has no {{faq}} placeholder
+            // and no FAQ wrapper is present yet, append FAQ block at the end.
+            const hasFaqWrapper = /class=["'][^"']*product-faq[^"']*["']/i.test(optimized.optimized_description);
+            if (!hadFaqPlaceholder && !hasFaqWrapper) {
+              optimized.optimized_description = `${optimized.optimized_description}\n<div class="product-faq">\n${faqHtml}\n</div>`;
+            }
           }
           // Replace {{tabela_specs}} with specs table from product data if available
           if (product.technical_specs) {
@@ -1840,7 +1859,17 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             prompt_version_id: promptVersionId,
           } as any);
         } catch (logErr) {
-          console.warn(`[optimize-product] optimization_logs insert failed for ${product.id} (non-blocking):`, logErr);
+          console.warn(
+            `[optimize-product] optimization_logs insert failed for ${product.id} (non-blocking):`,
+            {
+              error: logErr instanceof Error ? logErr.message : String(logErr),
+              requestedModel,
+              usedModel,
+              usedProvider,
+              fallbackUsed,
+              fallbackReason,
+            },
+          );
         }
 
         return {
