@@ -47,15 +47,17 @@ export const OPTIMIZATION_FIELDS: { key: OptimizationField; label: string; phase
 ];
 
 export const AI_MODELS = [
-  { key: "gemini-3-flash", label: "Gemini 3 Flash (Rápido)" },
-  { key: "gemini-3-pro", label: "Gemini 3 Pro (Avançado)" },
   { key: "gemini-2.5-pro", label: "Gemini 2.5 Pro (Raciocínio)" },
   { key: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Equilibrado)" },
   { key: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (Económico)" },
-  { key: "gpt-5.2", label: "GPT-5.2 (Último modelo)" },
-  { key: "gpt-5", label: "GPT-5 (Precisão)" },
-  { key: "gpt-5-mini", label: "GPT-5 Mini (Custo-benefício)" },
-  { key: "gpt-5-nano", label: "GPT-5 Nano (Ultra rápido)" },
+
+  { key: "gemini-3-flash", label: "Gemini 3 Flash (usa 2.5 Flash)" },
+  { key: "gemini-3-pro", label: "Gemini 3 Pro (usa 2.5 Pro)" },
+
+  { key: "gpt-5.2", label: "GPT-5.2 (não ativo)" },
+  { key: "gpt-5", label: "GPT-5 (não ativo)" },
+  { key: "gpt-5-mini", label: "GPT-5 Mini (não ativo)" },
+  { key: "gpt-5-nano", label: "GPT-5 Nano (não ativo)" },
 ];
 
 export interface OptimizationProgress {
