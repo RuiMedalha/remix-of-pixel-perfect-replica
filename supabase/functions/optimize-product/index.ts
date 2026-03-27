@@ -1317,7 +1317,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         // Capture real model traceability from AI router meta
         const usedProvider: string = aiMeta.usedProvider || chosenModel.provider;
         const usedModel: string = aiMeta.usedModel || chosenModel.model;
-        const requestedModel: string = chosenModel.model;
+        const requestedModel: string = modelKey;
         const fallbackUsed: boolean = aiMeta.fallbackUsed || false;
         const fallbackReason: string | null = aiMeta.fallbackReason || null;
         const attemptedModels: string[] = aiMeta.attemptedModels || [chosenModel.model];
@@ -1374,7 +1374,16 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           (fields.includes("faq") && typeof optimized.optimized_description !== "string")
           && typeof product.optimized_description === "string"
         ) {
-          optimized.optimized_description = product.optimized_description;
+if (fields.includes("faq") && typeof optimized.optimized_description !== "string") {
+  const existingDescription =
+    typeof product.optimized_description === "string" && product.optimized_description.trim()
+      ? product.optimized_description
+      : (typeof product.original_description === "string" ? product.original_description : "");
+
+  if (existingDescription) {
+    optimized.optimized_description = existingDescription;
+  }
+}
         }
 
         if (typeof optimized.optimized_description === "string") {

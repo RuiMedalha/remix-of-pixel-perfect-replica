@@ -396,7 +396,13 @@ serve(async (req) => {
               if (!response.ok) {
                 const errText = await response.text();
                 console.error(`Product ${productId} phase ${phaseConfig.phase} failed: ${response.status} ${errText}`);
-                lastError = errText;
+                let detailedError = errText;
+                try {
+                  const parsed = JSON.parse(errText);
+                  if (parsed?.error) detailedError = parsed.error;
+                } catch {}
+                const phaseError = `optimize-product ${response.status}: ${detailedError}`;
+                lastError = phaseError;
                 // Write job item for error
                 await supabase.from("optimization_job_items").insert({
                   job_id: job.id,
@@ -407,9 +413,9 @@ serve(async (req) => {
                   started_at: itemStartedAt,
                   completed_at: new Date().toISOString(),
                   duration_ms: Date.now() - itemStartMs,
-                  error_message: errText.substring(0, 500),
+                  error_message: phaseError.substring(0, 500),
                 });
-                return { productId, status: "error", error: errText };
+                return { productId, status: "error", error: phaseError };
               }
 
               const data = await response.json();
