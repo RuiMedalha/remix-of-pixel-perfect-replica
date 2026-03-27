@@ -24,7 +24,7 @@ export async function runPrompt(
 
   // Strict mode: when modelOverride is provided, do not fallback silently.
   // If the requested provider/model fails, return an error instead of using a different model.
-  const strictMode = !!params.modelOverride;
+  const strictMode = !!params.modelOverride && params.taskType !== "product_optimization";
   const chain = strictMode
     ? [{ provider: selectedProvider, model: selectedModel }]
     : [
@@ -40,6 +40,8 @@ export async function runPrompt(
 
   if (strictMode) {
     console.log(`[prompt-runner] Strict mode: modelOverride="${params.modelOverride}" — fallback disabled, using ${selectedProvider.id}/${selectedModel} only`);
+  } else if (params.taskType === "product_optimization" && params.modelOverride) {
+    console.log(`[prompt-runner] product_optimization fallback enabled for requested model ${params.modelOverride}`);
   }
 
   // Build the base invoke params, merging workspace preferences (finalParams) as defaults

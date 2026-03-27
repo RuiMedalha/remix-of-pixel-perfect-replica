@@ -2,7 +2,15 @@
 import type { InvokeParams, InvokeResult } from "./provider-types.ts";
 import { classifyError, classifyNetworkError } from "./error-classifier.ts";
 
-const TIMEOUT_MS = 30_000; // 30s per spec. If Phase 3 vision tasks need longer, increase here only.
+function getTimeoutMs(model: string): number {
+  const m = String(model || "").toLowerCase();
+
+  if (m === "gemini-2.5-pro") return 90_000;
+  if (m === "gemini-2.5-flash") return 45_000;
+  if (m === "gemini-2.5-flash-lite") return 45_000;
+
+  return 30_000;
+}
 const ERROR_BODY_MAX = 1200;
 
 export async function invokeProvider(params: InvokeParams): Promise<InvokeResult> {
@@ -420,7 +428,8 @@ function normalizeFinishReason(raw: string | undefined): InvokeResult["finishRea
 
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeoutMs = getTimeoutMs(params.model);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {
