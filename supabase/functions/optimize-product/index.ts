@@ -1398,7 +1398,8 @@ if (fields.includes("faq") && typeof optimized.optimized_description !== "string
             // Fallback embed: if FAQ exists but template has no {{faq}} placeholder
             // and no FAQ wrapper is present yet, append FAQ block at the end.
             const hasFaqWrapper = /class=["'][^"']*product-faq[^"']*["']/i.test(optimized.optimized_description);
-            if (!hadFaqPlaceholder && !hasFaqWrapper) {
+const hasFaqDetails = /<details>\s*<summary>/i.test(optimized.optimized_description);
+if (!hadFaqPlaceholder && !hasFaqWrapper && !hasFaqDetails) {
               optimized.optimized_description = `${optimized.optimized_description}\n<div class="product-faq">\n${faqHtml}\n</div>`;
             }
           }
