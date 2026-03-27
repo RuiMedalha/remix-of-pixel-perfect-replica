@@ -1,16 +1,11 @@
+import { corsHeaders } from "../_shared/cors.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const MAX_PROCESSING_MS = 95_000; // keep safe headroom before timeout
-const CONCURRENCY = 2; // lower concurrency to reduce function rate limiting
+const MAX_PROCESSING_MS = 95_000;
+const CONCURRENCY = 2;
 const SELF_INVOKE_RETRIES = 5;
 
 const TELEGRAM_GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
@@ -25,6 +20,7 @@ async function sendTelegramNotification(chatId: string, message: string) {
       console.warn("Telegram keys not configured, skipping notification");
       return;
     }
+
     const response = await fetch(`${TELEGRAM_GATEWAY_URL}/sendMessage`, {
       method: "POST",
       headers: {
@@ -38,6 +34,7 @@ async function sendTelegramNotification(chatId: string, message: string) {
         parse_mode: "HTML",
       }),
     });
+
     if (!response.ok) {
       const errText = await response.text();
       console.warn(`Telegram notification failed [${response.status}]: ${errText}`);
@@ -87,7 +84,12 @@ async function selfInvokeWithRetry(authHeader: string, jobId: string, startIndex
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/plain",
+      },
+    });
   }
 
   try {
@@ -105,21 +107,28 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
+
     if (userError || !userData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = userData.user.id;
 
+    const userId = userData.user.id;
     const body = await req.json();
     const { jobId, startIndex } = body;
-    const requestedStartIndex = Number.isInteger(startIndex) && startIndex >= 0 ? startIndex : undefined;
+    const requestedStartIndex =
+      Number.isInteger(startIndex) && startIndex >= 0 ? startIndex : undefined;
 
     // Workspace membership check for new jobs
     if (!jobId && body.workspaceId) {
-      const adminClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {});
+      const adminClient = createClient(
+        SUPABASE_URL,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        {},
+      );
+
       const { data: memberCheck } = await adminClient
         .from("workspace_members")
         .select("role")
@@ -127,34 +136,39 @@ serve(async (req) => {
         .eq("user_id", userId)
         .eq("status", "active")
         .maybeSingle();
-      // Hybrid: allow if member with editor+ OR legacy owner
+
       if (memberCheck) {
-        const rank = { owner: 4, admin: 3, editor: 2, viewer: 1 }[memberCheck.role] || 0;
+        const rank = { owner: 4, admin: 3, editor: 2, viewer: 1 }[memberCheck.role as "owner" | "admin" | "editor" | "viewer"] || 0;
         if (rank < 2) {
-          return new Response(JSON.stringify({ error: "Sem permissão para otimizar neste workspace (mínimo: editor)" }), {
-            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return new Response(
+            JSON.stringify({ error: "Sem permissão para otimizar neste workspace (mínimo: editor)" }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
         }
       }
-      // If no memberCheck, fallback to legacy RLS (backward compat)
     }
 
     let job: any;
 
     if (jobId) {
-      // Resume existing job
       const { data, error } = await supabase
         .from("optimization_jobs")
         .select("*")
         .eq("id", jobId)
         .single();
+
       if (error || !data) {
         return new Response(JSON.stringify({ error: "Job not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
       job = data;
+
       if (job.status === "cancelled") {
         return new Response(JSON.stringify({ status: "cancelled", jobId }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -164,11 +178,14 @@ serve(async (req) => {
       if (job.status !== "processing") {
         await supabase
           .from("optimization_jobs")
-          .update({ status: "processing", updated_at: new Date().toISOString(), error_message: null })
+          .update({
+            status: "processing",
+            updated_at: new Date().toISOString(),
+            error_message: null,
+          })
           .eq("id", job.id);
       }
     } else {
-      // Create new job and return immediately (background kickoff)
       const {
         productIds,
         selectedPhases,
@@ -185,6 +202,27 @@ serve(async (req) => {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // Prevent duplicated loops/jobs for the same user
+      const { data: existingRunning } = await supabase
+        .from("optimization_jobs")
+        .select("id, processed_products, total_products, started_at")
+        .eq("user_id", userId)
+        .eq("status", "processing")
+        .limit(1);
+
+      if (existingRunning && existingRunning.length > 0) {
+        return new Response(
+          JSON.stringify({
+            error: "Já existe uma otimização em curso",
+            jobId: existingRunning[0].id,
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
 
       const { data, error } = await supabase
@@ -204,11 +242,12 @@ serve(async (req) => {
         .select("id")
         .single();
 
-      if (error || !data?.id) throw error || new Error("Failed to create job");
+      if (error || !data?.id) {
+        throw error || new Error("Failed to create job");
+      }
 
       console.log(`🚀 Job ${data.id} created: ${productIds.length} products, concurrency ${CONCURRENCY}`);
 
-      // Fire-and-forget worker invocation (same function in resume mode)
       fetch(`${SUPABASE_URL}/functions/v1/optimize-batch`, {
         method: "POST",
         headers: {
@@ -224,12 +263,12 @@ serve(async (req) => {
           jobId: data.id,
           totalProducts: productIds.length,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    // === STRATEGY B: Pre-cache common data ONCE ===
-    // Fetch product names for progress updates
     const { data: productData } = await supabase
       .from("products")
       .select("id, original_title, optimized_title, sku")
@@ -240,7 +279,6 @@ serve(async (req) => {
       productNameMap[p.id] = p.optimized_title || p.original_title || p.sku || p.id.slice(0, 8);
     });
 
-    // Determine phases to process
     const PHASE_CONFIGS = [
       { phase: 1, fields: ["title", "description", "short_description", "tags", "category"] },
       { phase: 2, fields: ["meta_title", "meta_description", "seo_slug", "faq", "image_alt"] },
@@ -249,29 +287,27 @@ serve(async (req) => {
 
     const selectedPhases = job.selected_phases?.length > 0
       ? PHASE_CONFIGS.filter((p) => job.selected_phases.includes(p.phase))
-      : [{ phase: 0, fields: [] }]; // phase 0 = all fields
+      : [{ phase: 0, fields: [] }];
 
     const allProductIds: string[] = job.product_ids;
     const startTime = Date.now();
     let currentIndex = Math.max(requestedStartIndex ?? (job.processed_products || 0), 0);
     let totalProcessed = job.processed_products || 0;
     let totalFailed = job.failed_products || 0;
-    let halfNotified = totalProcessed >= Math.floor(allProductIds.length / 2); // skip if already past 50%
+    let halfNotified = totalProcessed >= Math.floor(allProductIds.length / 2);
 
-    // Fetch Telegram chat_id for notifications
     const { data: telegramSetting } = await supabase
       .from("settings")
       .select("value")
       .eq("key", "telegram_chat_id")
       .eq("user_id", userId)
       .maybeSingle();
+
     const telegramChatId = telegramSetting?.value || null;
 
     console.log(`📦 Processing from index ${currentIndex}, ${allProductIds.length - currentIndex} remaining`);
 
-    // === STRATEGY D: Process products in parallel batches of CONCURRENCY ===
     while (currentIndex < allProductIds.length) {
-      // Check timeout — strategy A: self-invoke to continue
       if (Date.now() - startTime > MAX_PROCESSING_MS) {
         console.log(`⏱️ Timeout approaching at index ${currentIndex}, self-invoking to continue...`);
 
@@ -294,7 +330,10 @@ serve(async (req) => {
               processedSoFar: totalProcessed,
               nextIndex: currentIndex,
             }),
-            { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            {
+              status: 202,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
           );
         }
 
@@ -305,11 +344,12 @@ serve(async (req) => {
             processedSoFar: totalProcessed,
             nextIndex: currentIndex,
           }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
         );
       }
 
-      // Check if job was cancelled
       const { data: jobCheck } = await supabase
         .from("optimization_jobs")
         .select("status")
@@ -321,17 +361,14 @@ serve(async (req) => {
         break;
       }
 
-      // Get batch of products
       const batchIds = allProductIds.slice(currentIndex, currentIndex + CONCURRENCY);
       const batchName = productNameMap[batchIds[0]] || `Produto ${currentIndex + 1}`;
 
-      // Mark batch as processing in products table (best effort)
       await supabase
         .from("products")
         .update({ status: "processing", updated_at: new Date().toISOString() })
         .in("id", batchIds);
 
-      // Update job progress (realtime will push this to frontend)
       await supabase
         .from("optimization_jobs")
         .update({
@@ -341,10 +378,10 @@ serve(async (req) => {
         })
         .eq("id", job.id);
 
-      // Process batch in parallel — each call to optimize-product handles one product
-      // For each product, process all selected phases sequentially
-      // Extract speed flags from job results (stored at creation)
-      const jobFlags = (typeof job.results === 'object' && !Array.isArray(job.results)) ? job.results as any : {};
+      const jobFlags = (typeof job.results === "object" && !Array.isArray(job.results))
+        ? job.results as any
+        : {};
+
       const speedFlags = {
         skipKnowledge: jobFlags.skipKnowledge || false,
         skipScraping: jobFlags.skipScraping || false,
@@ -357,6 +394,7 @@ serve(async (req) => {
           const itemStartMs = Date.now();
           let productOk = false;
           let lastError = "";
+
           for (const phaseConfig of selectedPhases) {
             try {
               const callBody: any = {
@@ -374,36 +412,37 @@ serve(async (req) => {
                 callBody.phase = phaseConfig.phase;
                 if (job.fields_to_optimize?.length > 0) {
                   callBody.fieldsToOptimize = phaseConfig.fields.filter(
-                    (f: string) => job.fields_to_optimize.includes(f)
+                    (f: string) => job.fields_to_optimize.includes(f),
                   );
                 } else {
                   callBody.fieldsToOptimize = phaseConfig.fields;
                 }
               }
 
-              const response = await fetch(
-                `${SUPABASE_URL}/functions/v1/optimize-product`,
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: authHeader,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify(callBody),
-                }
-              );
+              const response = await fetch(`${SUPABASE_URL}/functions/v1/optimize-product`, {
+                method: "POST",
+                headers: {
+                  Authorization: authHeader,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(callBody),
+              });
 
               if (!response.ok) {
                 const errText = await response.text();
-                console.error(`Product ${productId} phase ${phaseConfig.phase} failed: ${response.status} ${errText}`);
                 let detailedError = errText;
+
                 try {
                   const parsed = JSON.parse(errText);
                   if (parsed?.error) detailedError = parsed.error;
-                } catch {}
+                } catch {
+                  // keep raw text
+                }
+
                 const phaseError = `optimize-product ${response.status}: ${detailedError}`;
+                console.error(`Product ${productId} phase ${phaseConfig.phase} failed: ${phaseError}`);
                 lastError = phaseError;
-                // Write job item for error
+
                 await supabase.from("optimization_job_items").insert({
                   job_id: job.id,
                   product_id: productId,
@@ -415,13 +454,19 @@ serve(async (req) => {
                   duration_ms: Date.now() - itemStartMs,
                   error_message: phaseError.substring(0, 500),
                 });
+
                 return { productId, status: "error", error: phaseError };
               }
 
               const data = await response.json();
+
               if (data.error) {
-                const dataError = typeof data.error === "string" ? data.error : JSON.stringify(data.error);
+                const dataError = typeof data.error === "string"
+                  ? data.error
+                  : JSON.stringify(data.error);
+
                 lastError = dataError;
+
                 await supabase.from("optimization_job_items").insert({
                   job_id: job.id,
                   product_id: productId,
@@ -433,12 +478,15 @@ serve(async (req) => {
                   duration_ms: Date.now() - itemStartMs,
                   error_message: dataError.substring(0, 500),
                 });
+
                 return { productId, status: "error", error: dataError };
               }
 
               const resultItems = Array.isArray(data?.results) ? data.results : [];
+
               if (resultItems.length === 0) {
                 lastError = "optimize-product returned 200 with empty or missing results";
+
                 await supabase.from("optimization_job_items").insert({
                   job_id: job.id,
                   product_id: productId,
@@ -450,6 +498,7 @@ serve(async (req) => {
                   duration_ms: Date.now() - itemStartMs,
                   error_message: lastError.substring(0, 500),
                 });
+
                 return { productId, status: "error", error: lastError };
               }
 
@@ -457,6 +506,7 @@ serve(async (req) => {
               if (errorItems.length > 0) {
                 const firstError = errorItems.find((r: any) => typeof r?.error === "string")?.error;
                 lastError = firstError || "optimize-product returned item-level errors";
+
                 await supabase.from("optimization_job_items").insert({
                   job_id: job.id,
                   product_id: productId,
@@ -468,6 +518,7 @@ serve(async (req) => {
                   duration_ms: Date.now() - itemStartMs,
                   error_message: lastError.substring(0, 500),
                 });
+
                 return { productId, status: "error", error: lastError };
               }
 
@@ -475,6 +526,7 @@ serve(async (req) => {
             } catch (err: any) {
               console.error(`Product ${productId} phase ${phaseConfig.phase} error:`, (err as Error).message);
               lastError = (err as Error).message;
+
               await supabase.from("optimization_job_items").insert({
                 job_id: job.id,
                 product_id: productId,
@@ -484,10 +536,11 @@ serve(async (req) => {
                 duration_ms: Date.now() - itemStartMs,
                 error_message: (err as Error).message?.substring(0, 500),
               });
+
               return { productId, status: "error", error: (err as Error).message };
             }
           }
-          // Write successful job item
+
           const durationMs = Date.now() - itemStartMs;
           await supabase.from("optimization_job_items").insert({
             job_id: job.id,
@@ -500,23 +553,20 @@ serve(async (req) => {
             duration_ms: durationMs,
             error_message: productOk ? null : lastError?.substring(0, 500),
           });
+
           return { productId, status: productOk ? "optimized" : "error" };
-        })
+        }),
       );
 
-      // Count results
       for (const result of batchResults) {
-        if (result.status === "fulfilled" && result.value.status === "optimized") {
-          totalProcessed++;
-        } else {
+        totalProcessed++;
+        if (!(result.status === "fulfilled" && result.value.status === "optimized")) {
           totalFailed++;
-          totalProcessed++;
         }
       }
 
       currentIndex += batchIds.length;
 
-      // Update progress after each batch
       await supabase
         .from("optimization_jobs")
         .update({
@@ -528,18 +578,17 @@ serve(async (req) => {
 
       console.log(`✅ Batch done: ${totalProcessed}/${allProductIds.length} (${totalFailed} failed)`);
 
-      // === 50% Telegram notification ===
       if (!halfNotified && telegramChatId && totalProcessed >= Math.floor(allProductIds.length / 2)) {
         halfNotified = true;
         const elapsed = Math.round((Date.now() - startTime) / 1000);
+
         await sendTelegramNotification(
           telegramChatId,
-          `⏳ <b>Otimização a 50%</b>\n\n📦 ${totalProcessed}/${allProductIds.length} produtos\n❌ ${totalFailed} erro(s)\n⏱️ ${elapsed}s decorridos`
+          `⏳ <b>Otimização a 50%</b>\n\n📦 ${totalProcessed}/${allProductIds.length} produtos\n❌ ${totalFailed} erro(s)\n⏱️ ${elapsed}s decorridos`,
         );
       }
     }
 
-    // Check final status
     const { data: finalJobCheck } = await supabase
       .from("optimization_jobs")
       .select("status")
@@ -547,6 +596,7 @@ serve(async (req) => {
       .single();
 
     const finalStatus = finalJobCheck?.status === "cancelled" ? "cancelled" : "completed";
+
     await supabase
       .from("optimization_jobs")
       .update({
@@ -560,19 +610,17 @@ serve(async (req) => {
 
     console.log(`🏁 Job ${job.id} ${finalStatus}: ${totalProcessed} processed, ${totalFailed} failed`);
 
-    // === Notifications (Telegram + WhatsApp) ===
     const ok = totalProcessed - totalFailed;
     const elapsedSec = Math.round((Date.now() - startTime) / 1000);
 
-    // Telegram
     if (telegramChatId) {
       const msg = finalStatus === "completed"
         ? `✅ <b>Otimização concluída!</b>\n\n📦 ${ok} produto(s) otimizado(s)\n❌ ${totalFailed} erro(s)\n⏱️ Tempo: ${elapsedSec}s`
         : `⚠️ <b>Job cancelado</b>\n\n${totalProcessed} de ${job.total_products} processados`;
+
       await sendTelegramNotification(telegramChatId, msg);
     }
 
-    // WhatsApp webhook
     try {
       const { data: whatsappSetting } = await supabase
         .from("settings")
@@ -598,6 +646,7 @@ serve(async (req) => {
             timestamp: new Date().toISOString(),
           }),
         });
+
         console.log("📱 WhatsApp notification sent");
       }
     } catch (whatsErr) {
@@ -611,10 +660,13 @@ serve(async (req) => {
         processed: totalProcessed,
         failed: totalFailed,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   } catch (err: any) {
     console.error("optimize-batch error:", err);
+
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
