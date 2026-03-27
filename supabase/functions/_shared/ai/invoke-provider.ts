@@ -428,7 +428,7 @@ function normalizeFinishReason(raw: string | undefined): InvokeResult["finishRea
 
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
-  const timeoutMs = getTimeoutMs(params.model);
+  const timeoutMs = getTimeoutMs((typeof params !== "undefined" && params?.model) ? params.model : ((typeof model !== "undefined") ? model : ""));
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
